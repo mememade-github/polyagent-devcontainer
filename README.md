@@ -117,6 +117,20 @@ git add -A && git commit -m "chore: initialize project"
 
 변경: `.devcontainer/.env`의 `PORT_*` 수정 + `devcontainer.json`의 `forwardPorts` 동기화 → 컨테이너 재빌드.
 
+## CLI 환경 구성
+
+```bash
+# Node.js 버전 확인
+node --version
+
+# 프로젝트 Node.js 설정 (.nvmrc 생성 후)
+nvm install && nvm use
+
+# 환경 검증
+bash .devcontainer/verify-template.sh    # 전체 검증
+bash .claude/hooks/test-hooks.sh         # Hook 검증
+```
+
 ## Troubleshooting
 
 | 문제 | 해결 |
