@@ -29,6 +29,7 @@ yarn-error.log*
 # -----------------------------------------------------------------------------
 .claude/.tool-call-counter
 .claude/.last-verification
+.claude/.last-evolution
 .claude/.pending-review
 .claude/.review-done
 .claude/subagent.log
