@@ -95,6 +95,31 @@ Observation hooks (PreToolUse/PostToolUse) MUST record:
 | `input_summary` | Recommended | First 200 chars of `tool_input` | File path, pattern |
 | `success` | Recommended | Post-phase only, error detection | `true` or `false` |
 
+### Stop Event Protocol
+
+Stop hooks use a **different JSON schema** from PreToolUse hooks:
+
+```json
+{
+  "decision": "block",
+  "reason": "Human-readable explanation of why stop is blocked"
+}
+```
+
+| Field | Value | Effect |
+|-------|-------|--------|
+| `decision` | `"block"` | Prevents session from ending |
+| `reason` | string | Shown to the agent as feedback |
+
+> **Note**: This is distinct from the `permissionDecision` schema used by PreToolUse hooks.
+> Stop hooks output `decision: "block"` (not `permissionDecision: "deny"`).
+> Both schemas coexist — the hook event determines which protocol applies.
+
+| Hook Event | Blocking Schema | Example |
+|------------|----------------|---------|
+| PreToolUse | `{ "permissionDecision": "deny" }` + exit code 2 | block-destructive.sh, pre-commit-gate.sh |
+| Stop | `{ "decision": "block", "reason": "..." }` + exit code 0 | stop-gate.sh, evolution-gate.sh |
+
 ### Blocking vs Non-Blocking
 
 - **Observation hooks**: Non-blocking (exit 0 always), append-only

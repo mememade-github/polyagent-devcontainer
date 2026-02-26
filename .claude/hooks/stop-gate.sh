@@ -26,6 +26,6 @@ FILES=$(cat "$MARKER" | head -5 | tr '\n' ', ')
 if [ "$FILE_COUNT" -gt 0 ]; then
   jq -n --arg count "$FILE_COUNT" --arg files "$FILES" '{
     decision: "block",
-    reason: ($count + " file(s) in products/ were modified but not reviewed: " + $files + "\nPer CLAUDE.md §2: delegate to code-reviewer agent (team: quality) before finishing. After review completes, run: touch " + "\"$CLAUDE_PROJECT_DIR/.claude/.review-done\" to clear.")
+    reason: ($count + " file(s) in products/ were modified but not reviewed: " + $files + "\nPer CLAUDE.md §2: delegate to code-reviewer agent (team: quality) before finishing. After review completes, run: bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/review-complete.sh\" to clear.")
   }'
 fi

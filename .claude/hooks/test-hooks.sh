@@ -78,11 +78,26 @@ fi
 echo -n "6. Stop gate (pending review): "
 echo "products/example/src/main.py" > "$PROJECT_DIR/.claude/.pending-review"
 RESULT=$(echo '{"stop_hook_active":false}' | bash "$PROJECT_DIR/.claude/hooks/stop-gate.sh" 2>&1)
-if echo "$RESULT" | grep -q '"decision".*"block"'; then
-  echo "PASS (blocked)"
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ] && echo "$RESULT" | grep -q '"decision".*"block"'; then
+  echo "PASS (blocked, exit=$EXIT_CODE)"
   PASS=$((PASS + 1))
 else
-  echo "FAIL (expected block, got: $RESULT)"
+  echo "FAIL (expected block with exit 0, got exit=$EXIT_CODE, output: $RESULT)"
+  FAIL=$((FAIL + 1))
+fi
+
+# --- Test 6b: Stop gate release path (review-complete.sh clears block) ---
+echo -n "6b. Stop gate release path: "
+echo "products/example/src/main.py" > "$PROJECT_DIR/.claude/.pending-review"
+bash "$PROJECT_DIR/.claude/hooks/review-complete.sh" > /dev/null 2>&1
+RESULT=$(echo '{"stop_hook_active":false}' | bash "$PROJECT_DIR/.claude/hooks/stop-gate.sh" 2>&1)
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ] && [ -z "$RESULT" ]; then
+  echo "PASS (unblocked after review-complete.sh)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL (expected allow after review-complete.sh, got exit=$EXIT_CODE, output: $RESULT)"
   FAIL=$((FAIL + 1))
 fi
 

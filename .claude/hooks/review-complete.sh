@@ -3,7 +3,6 @@
 # Called by the AI after code-reviewer agent finishes its review.
 #
 # Usage: .claude/hooks/review-complete.sh
-# Also creates .last-verification marker if verification was included.
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
