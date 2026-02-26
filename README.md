@@ -122,19 +122,23 @@ git add -A && git commit -m "chore: initialize project"
 ### Docker 컨테이너
 
 ```bash
-# 빌드
+# 빌드 / 재빌드
 cd .devcontainer && docker compose build
+cd .devcontainer && docker compose build --no-cache   # 캐시 없이 (~3-5분)
 
-# 캐시 없이 재빌드 (~3-5분)
-cd .devcontainer && docker compose build --no-cache
-
-# 시작 / 정지 / 상태
+# 시작 / 정지 / 상태 / 로그
 cd .devcontainer && docker compose up -d
 cd .devcontainer && docker compose down
 cd .devcontainer && docker compose ps
-
-# 로그
 cd .devcontainer && docker compose logs -f
+
+# 컨테이너 접속
+docker exec -it claude-dev bash
+cd .devcontainer && docker compose exec claude-devcontainer bash
+
+# 이미지 / 볼륨 확인
+docker images | grep claude-dev
+docker volume ls | grep claude
 ```
 
 ### 프로젝트 환경
