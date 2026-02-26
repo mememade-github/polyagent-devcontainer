@@ -35,7 +35,7 @@
 
 | Tier | 역할 | 포함 |
 |------|------|------|
-| **Tier 1** | 베이스 템플릿 (이 저장소) | 13 agents, 10 hooks, 7 skills, DevContainer 인프라 |
+| **Tier 1** | 베이스 템플릿 (이 저장소) | 13 agents, 10 hooks, 8 skills, DevContainer 인프라 |
 | **Domain** | Tier 1 + 도메인 특화 기능 | 파생 프로젝트가 필요에 따라 추가 |
 
 ### Tier 1에 포함되지 않는 요소

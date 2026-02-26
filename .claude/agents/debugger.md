@@ -1,12 +1,10 @@
 ---
 name: debugger
 description: Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
-tools: ["Read", "Bash", "Grep", "Glob"]
-disallowedTools: ["Write", "Edit", "NotebookEdit"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: haiku
 maxTurns: 15
 memory: project
-permissionMode: default
 ---
 
 # Debugger — Root Cause Analysis Specialist

@@ -1,12 +1,10 @@
 ---
 name: wip-manager
 description: Manage work-in-progress for multi-session tasks. Auto-invoked when tasks span sessions.
-tools: ["Bash", "Read", "Write", "Edit", "Glob", "Grep"]
-disallowedTools: ["NotebookEdit"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: haiku
 maxTurns: 8
 memory: project
-permissionMode: default
 skills:
   - status
 # NOTE: Edit required for partial updates to WIP README.md (Remaining table, Done section)
