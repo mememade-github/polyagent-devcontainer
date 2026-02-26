@@ -119,6 +119,26 @@ git add -A && git commit -m "chore: initialize project"
 
 ## CLI 환경 구성
 
+### Docker 컨테이너
+
+```bash
+# 빌드
+cd .devcontainer && docker compose build
+
+# 캐시 없이 재빌드 (~3-5분)
+cd .devcontainer && docker compose build --no-cache
+
+# 시작 / 정지 / 상태
+cd .devcontainer && docker compose up -d
+cd .devcontainer && docker compose down
+cd .devcontainer && docker compose ps
+
+# 로그
+cd .devcontainer && docker compose logs -f
+```
+
+### 프로젝트 환경
+
 ```bash
 # Node.js 버전 확인
 node --version
