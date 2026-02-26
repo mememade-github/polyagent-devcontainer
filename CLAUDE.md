@@ -16,7 +16,7 @@
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 13 agents
 │   ├── hooks/                      # 10 automation hooks
-│   ├── skills/                     # 7 /command skills
+│   ├── skills/                     # 8 /command skills
 │   ├── rules/                      # Standard rules (portable)
 │   ├── rules/project/              # Project-specific rules
 │   └── agent-memory/               # Per-agent cross-session memory

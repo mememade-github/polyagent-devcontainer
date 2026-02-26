@@ -1,8 +1,8 @@
 ---
 name: debugger
 description: Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
-tools: Read, Bash, Grep, Glob
-disallowedTools: Write, Edit, NotebookEdit
+tools: ["Read", "Bash", "Grep", "Glob"]
+disallowedTools: ["Write", "Edit", "NotebookEdit"]
 model: haiku
 maxTurns: 15
 memory: project

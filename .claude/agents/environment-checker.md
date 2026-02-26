@@ -1,8 +1,8 @@
 ---
 name: environment-checker
 description: Verify workspace environment health - permissions, git config, SSH, Docker, stale artifacts. Use when environment issues are suspected.
-tools: Bash, Read, Glob, Grep
-disallowedTools: Write, Edit, NotebookEdit
+tools: ["Bash", "Read", "Glob", "Grep"]
+disallowedTools: ["Write", "Edit", "NotebookEdit"]
 model: haiku
 maxTurns: 10
 memory: project

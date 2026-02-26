@@ -129,6 +129,7 @@ postStartCommand (매 시작 시)
 | /deploy | Deploy to production |
 | /status | Workspace status |
 | /eval | Eval-Driven Development |
+| /audit | Standards compliance audit |
 
 ## Troubleshooting
 

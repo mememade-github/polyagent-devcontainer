@@ -66,13 +66,15 @@ record PASS "Agent frontmatter ($count/13)"
 echo ""
 echo "=== Phase 2c: Skills ==="
 skills=$(ls /workspaces/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
-[ "$skills" -eq 7 ] && record PASS "Skills: $skills/7" || record FAIL "Skills: $skills (expected 7)"
+[ "$skills" -eq 8 ] && record PASS "Skills: $skills/8" || record FAIL "Skills: $skills (expected 8)"
 
 # --- PHASE 2d: Rules ---
 echo ""
 echo "=== Phase 2d: Rules ==="
 rules=$(ls /workspaces/.claude/rules/*.md 2>/dev/null | wc -l)
 [ "$rules" -ge 3 ] && record PASS "Rules: $rules (devcontainer-patterns, iterative-retrieval, testing)" || record FAIL "Rules: $rules"
+standards=$(ls /workspaces/.claude/rules/standards/*.md 2>/dev/null | wc -l)
+[ "$standards" -eq 6 ] && record PASS "Standards: $standards/6" || record FAIL "Standards: $standards (expected 6)"
 
 # --- Summary ---
 echo ""
