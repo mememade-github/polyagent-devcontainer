@@ -68,9 +68,12 @@ For each artifact, verify against its applicable standard:
 
 Audit the audit system itself:
 1. This SKILL.md — has required frontmatter fields
-2. agent-evolver.md — has audit mode documented
+2. agent-evolver.md — has audit mode documented (skip if not present, e.g., Tier 1 template)
 3. Standards files — all 6 exist with required sections (Source, Standard, Compliance Checks, References)
 4. Standards cross-reference consistency
+
+> **Tier 1 Note**: In base templates without evolution system, step 2 is skipped.
+> The audit skill works standalone without agent-evolver.
 
 ## Output Format
 

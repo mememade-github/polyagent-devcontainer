@@ -2,7 +2,7 @@
 
 ## Source
 - Official: Claude Code constitutional governance model (2026)
-- Derived: MEMEMADE CLAUDE.md governance principles
+- Derived: CLAUDE.md governance principles
 - Last verified: 2026-02-26
 
 ## Standard

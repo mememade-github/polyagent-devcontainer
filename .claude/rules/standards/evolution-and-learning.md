@@ -1,7 +1,7 @@
 # Evolution and Learning Standard
 
 ## Source
-- Derived: MEMEMADE continuous-learning-v2 architecture
+- Derived: Continuous-learning-v2 architecture
 - Community: ECC instinct-based learning patterns
 - Last verified: 2026-02-26
 
