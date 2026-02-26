@@ -2,33 +2,36 @@
 
 Claude Code + 13 Agent System이 포함된 격리 개발 환경 템플릿.
 
-**필요 조건**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+---
+
+## 필요 조건
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [VS Code](https://code.visualstudio.com/) + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 ---
 
 ## 시작하기
 
-### Step 1: 클론 & 빌드
+### 1. 클론
 
 ```bash
 git clone https://github.com/mememade-github/claude-devcontainer.git my-project
-cd my-project/.devcontainer
-docker compose up -d --build    # 첫 빌드 ~3-5분
 ```
 
-### Step 2: 컨테이너 진입
+### 2. VS Code에서 열기
+
+1. VS Code → File → Open Folder → `my-project` 선택
+2. `Ctrl+Shift+P` → **Dev Containers: Reopen in Container**
+3. 첫 빌드 ~3-5분
+
+### 3. Claude Code 실행
 
 ```bash
-docker exec -it claude-dev bash
+claude
 ```
 
-### Step 3: Claude Code 실행
-
-```bash
-claude --dangerously-skip-permissions
-```
-
-### Step 4: 프로젝트 초기 설정
+### 4. 프로젝트 초기 설정
 
 Claude 프롬프트에 아래 전체를 붙여넣기:
 
@@ -63,7 +66,7 @@ Claude 프롬프트에 아래 전체를 붙여넣기:
 질문부터 시작해 주세요.
 ```
 
-### Step 5: 저장
+### 5. 저장
 
 ```bash
 git add -A && git commit -m "chore: initialize project"
@@ -71,39 +74,49 @@ git add -A && git commit -m "chore: initialize project"
 
 ---
 
-## VS Code로 사용하기 (선택)
+## VS Code 연결 방식
 
-CLI 대신 VS Code Dev Containers를 사용할 수 있습니다.
+| 방식 | 설정 적용 | 워크스페이스 | 확장 |
+|------|----------|-------------|------|
+| **Reopen in Container** (권장) | devcontainer.json 전체 적용 | `/workspaces/` 자동 | 자동 설치 |
+| **Attach to Running Container** | 미적용 | 수동 Open Folder 필요 | 수동 설치 필요 |
 
-**추가 필요**: [VS Code](https://code.visualstudio.com/) + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+**Reopen in Container 접근:**
+1. VS Code에서 프로젝트 폴더를 **로컬로** 열기 (File → Open Folder)
+2. `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
 
-1. VS Code로 프로젝트 폴더 열기
-2. 좌측 하단 `><` → **Reopen in Container**
-3. 터미널에서 `claude` 실행 → Step 4 동일
-
-> VS Code 사용 시 `--dangerously-skip-permissions` 불필요 (터미널에서 권한 프롬프트 가능).
+> Attach는 이미 실행 중인 컨테이너에 단순 연결합니다. devcontainer.json 설정(워크스페이스 경로, 확장, 포트 포워딩)이 적용되지 않습니다.
 
 ---
 
 ## 포함 사항
 
-| 구성 | 수량 | 내용 |
-|------|------|------|
-| Agents | 13 | code-reviewer, security-reviewer, debugger, planner, architect 등 |
-| Hooks | 10 | 세션 시작, 파괴적 명령 차단, 코드리뷰 자동 트리거, 커밋 전 검증 등 |
-| Skills | 7 | /commit, /pr, /verify, /status, /deploy, /build-fix, /eval |
-| MCP | 2 | Context7 (문서 검색), Serena (코드 인텔리전스) |
-| Tools | 20+ | ripgrep, fd, fzf, jq, tmux, docker CLI, gh 등 |
+| 구성 | 수량 |
+|------|------|
+| Agents | 13 (code-reviewer, debugger, planner, architect 등) |
+| Hooks | 12 (세션 시작, 파괴적 명령 차단, 코드리뷰, 커밋 전 검증 등) |
+| Skills | 8 (/commit, /pr, /verify, /status, /deploy, /build-fix, /eval, /audit) |
+| MCP | 2 (Context7, Serena) |
+| Tools | 20+ (ripgrep, fd, fzf, jq, tmux, docker CLI, gh 등) |
 
-## 포트 변경
+## 포트
 
-`.devcontainer/.env`의 `PORT_*` 값 변경 후 `.devcontainer/devcontainer.json`의 `forwardPorts`도 동일하게 수정. 이후 컨테이너 재빌드.
+| 변수 | 기본값 | 용도 |
+|------|--------|------|
+| PORT_APP | 3000 | 앱 |
+| PORT_API | 8080 | API |
+| PORT_DB | 5432 | DB |
+| PORT_EXTRA | 6379 | 추가 (Redis 등) |
+
+변경: `.devcontainer/.env`의 `PORT_*` 수정 + `devcontainer.json`의 `forwardPorts` 동기화 → 컨테이너 재빌드.
 
 ## Troubleshooting
 
 | 문제 | 해결 |
 |------|------|
 | 빌드 실패 | `docker compose build --no-cache` |
-| Claude 재인증 | `docker volume ls \| grep claude-config` 확인 |
+| 파일이 안 보임 | "Reopen in Container" 사용 (Attach 아님) |
+| Reopen 메뉴 없음 | Dev Containers 확장 설치 확인 |
+| Claude 재인증 | `docker volume ls \| grep claude-config` |
 | MCP 연결 실패 | `rm ~/.claude.json && /usr/local/bin/setup-env.sh` |
 | 포트 충돌 | `.env` + `devcontainer.json` 포트 변경 후 재빌드 |
