@@ -16,7 +16,7 @@ Claude Code + 13 Agent System이 포함된 격리 개발 환경 템플릿.
 ### 1. 클론
 
 ```bash
-git clone https://github.com/mememade-github/claude-devcontainer.git my-project
+git clone <your-repo-url> my-project
 ```
 
 ### 2. VS Code에서 열기
@@ -106,7 +106,9 @@ git add -A && git commit -m "chore: initialize project"
 | MCP | 2 (Context7, Serena) |
 | Tools | 20+ (ripgrep, fd, fzf, jq, tmux, docker CLI, gh 등) |
 
-## 포트
+## 포트 (컨테이너 내부)
+
+> 호스트 매핑 포트는 `.devcontainer/.env`의 `PORT_*`로 설정. 상세: [REFERENCE.md](REFERENCE.md#ports)
 
 | 변수 | 기본값 | 용도 |
 |------|--------|------|
