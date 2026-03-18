@@ -1,6 +1,7 @@
 ---
 name: eval
 description: Eval-Driven Development (EDD) framework. Define success criteria BEFORE implementation, then measure with pass@k metrics.
+user-invocable: true
 ---
 
 # /eval — Eval-Driven Development

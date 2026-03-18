@@ -1,6 +1,7 @@
 ---
 name: instinct-export
 description: Export personal instincts for sharing. Outputs a portable instinct collection file.
+user-invocable: true
 ---
 
 # /instinct-export — Export Instincts

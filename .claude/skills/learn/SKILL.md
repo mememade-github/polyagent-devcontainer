@@ -1,6 +1,7 @@
 ---
 name: learn
 description: Extract patterns from current session and save as instincts. Use mid-session when you notice a reusable pattern.
+user-invocable: true
 ---
 
 # /learn — Mid-Session Pattern Extraction

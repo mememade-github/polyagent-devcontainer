@@ -15,6 +15,7 @@ Target: $ARGUMENTS (default: all)
 | Mode | Command | Scope |
 |------|---------|-------|
 | `all` | `/audit all` | All agents, hooks, skills, rules |
+| `docs` | `/audit docs` | Product documentation (CLAUDE.md, PROJECT.md, REFERENCE.md) across all products |
 | `self` | `/audit self` | audit skill + agent-evolver + standards files (recursive) |
 | `<name>` | `/audit code-reviewer` | Single agent definition |
 
@@ -64,7 +65,39 @@ For each artifact, verify against its applicable standard:
 1. Verify CLAUDE.md immutable principles are intact
 2. Verify no project-specific content in portable rules
 
-### Stage 4: Self-Audit (recursive, `/audit self` only)
+### Stage 4: Product Documentation Audit (`/audit docs`)
+
+Scan product documentation across all repositories under `products/`:
+
+**Discovery**: Find all CLAUDE.md files under `products/` to identify auditable projects.
+
+**CLAUDE.md checks** (from knowledge-management.md):
+1. File exists at project root
+2. Under 200 lines
+3. Required sections present: Identity, Project Structure, Core Principles, Automated Workflow, Coding Rules, Communication, Environment
+4. Communication language specified
+5. Extended Reference (@PROJECT.md, @REFERENCE.md) present
+
+**PROJECT.md checks**:
+1. File exists
+2. Header matches pattern: `# PROJECT.md — <Name> Domain Context`
+3. Infrastructure section present
+4. Services or Product Repositories table present
+5. Last updated date present and not stale (> 90 days)
+
+**REFERENCE.md checks**:
+1. File exists
+2. Header matches pattern: `# REFERENCE.md — Commands & Procedures`
+3. All code blocks use absolute paths (`/workspaces/...`)
+4. No hardcoded tokens/passwords (grep for `glpat-`, `ghp_`, `github_pat_`, plaintext passwords)
+5. Git Credential section references <workspace> SSOT (for derived projects)
+
+**Cross-project consistency checks**:
+1. All derived projects reference their parent correctly
+2. Document cross-references resolve (file exists at referenced path)
+3. Port allocations don't conflict across projects
+
+### Stage 5: Self-Audit (recursive, `/audit self` only)
 
 Audit the audit system itself:
 1. This SKILL.md — has required frontmatter fields

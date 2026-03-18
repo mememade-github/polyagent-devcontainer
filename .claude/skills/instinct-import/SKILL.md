@@ -1,6 +1,7 @@
 ---
 name: instinct-import
 description: Import instincts from external sources. Places them in inherited/ directory with source tracking.
+user-invocable: true
 ---
 
 # /instinct-import — Import Instincts

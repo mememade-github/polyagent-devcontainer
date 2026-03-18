@@ -1,6 +1,7 @@
 ---
 name: evolve
 description: Cluster related instincts into skills, commands, or agents. Run after accumulating 5+ instincts in a domain.
+user-invocable: true
 ---
 
 # /evolve — Instinct Evolution

@@ -1,6 +1,7 @@
 ---
 name: build-fix
 description: Fix build errors quickly. Delegates to build-error-resolver agent for minimal-diff fixes.
+user-invocable: true
 ---
 
 # /build-fix — Build Error Resolution

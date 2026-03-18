@@ -154,7 +154,7 @@ Stop hooks use a **different JSON schema** from PreToolUse hooks:
 - [ ] No hook modifies files outside `.claude/` (except observation logs)
 - [ ] Hook paths in settings.json match actual file locations
 - [ ] Hook type (command/prompt/agent/http) appropriate for use case
-- [ ] All 21 official hook events accounted for in settings.json registration
+- [ ] Used hook events are registered in settings.json (not all 21 required — only those with active implementations)
 
 ## References
 

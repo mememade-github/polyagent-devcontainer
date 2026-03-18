@@ -23,7 +23,7 @@ These fields are functionally necessary for safe and cost-effective agent operat
 Removal causes regression (ref: c752d12 incident). **Do NOT strip during compliance audits.**
 
 ```yaml
-model: opus               # 프로젝트 특수 지침: 모든 Agent는 최상위 모델 사용
+model: opus               # Select per complexity — see Model Selection Guide below
 maxTurns: 15              # Safety/cost gate — MUST be set for all agents
 memory: project           # Enables .claude/agent-memory/<name>/MEMORY.md injection
 ```
@@ -54,18 +54,19 @@ tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 - No `permissionMode` — uses system default
 - Agent body content guides appropriate tool usage (not enforcement via restrictions)
 
-> 이 워크스페이스는 모든 Agent에 전체 도구 접근을 허용합니다 (프로젝트 특수 지침).
-> 공식 문서는 역할별 제한을 권장하지만, 이 워크스페이스에서는 Agent body content로
-> 적절한 도구 사용을 유도하는 방식을 선택합니다.
+> **Note**: Projects may override tool access via `.claude/rules/project/agent-overrides.md`.
+> The official docs recommend role-based restrictions; full access relies on agent body
+> content to guide appropriate tool usage.
 
 ### Model Selection Guide
 
 | Model | Use For | Note |
 |-------|---------|------|
-| opus | ALL agents | 프로젝트 특수 지침: 모든 Agent는 최상위 모델 사용 (2026-03-19) |
+| opus | Complex reasoning, architecture, security | Highest capability |
+| sonnet | Standard tasks, code review, testing | Balanced cost/performance |
+| haiku | Simple checks, formatting, env verification | Fast and economical |
 
-> 이 워크스페이스는 모든 Agent에 opus 모델을 사용합니다.
-> 이는 공식 문서의 역할별 모델 선택 가이드를 override합니다.
+> **Note**: Projects may override model selection via `.claude/rules/project/agent-overrides.md`.
 
 ### Body Content
 
@@ -80,7 +81,7 @@ tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 - [ ] `tools` is `["Read", "Write", "Edit", "Bash", "Grep", "Glob"]` (full access)
 - [ ] No `disallowedTools` field present
 - [ ] No `permissionMode` field present
-- [ ] `model` is `opus` for all agents (프로젝트 특수 지침)
+- [ ] `model` is set appropriately (see project overrides if applicable)
 - [ ] `maxTurns` specified for all agents (no unlimited execution)
 - [ ] `memory: project` specified for all agents with MEMORY.md
 - [ ] `description` is a single line, not truncated

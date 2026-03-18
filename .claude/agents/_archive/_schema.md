@@ -1,5 +1,13 @@
 # Agent System — Internalized & Portable
 
+> **DEPRECATED (2026-03-19)**: This file is a historical archive. Current authoritative sources:
+> - Agent standard: `.claude/rules/standards/agent-definition.md`
+> - Project overrides: `.claude/rules/project/agent-overrides.md`
+> - Team patterns: `.claude/rules/standards/team-patterns.md`
+>
+> Tool restrictions and model selections below reflect **obsolete** policy.
+> All agents now have full tool access and use opus model per project override.
+
 ## Architecture
 
 ```
@@ -108,4 +116,9 @@ ECC-origin agents use their original tool configurations.
 
 | Version | Date | Change |
 |---------|------|--------|
-| v1 | 2026-02-25 | Initial portable release (14 agents, 13 hooks, 12 skills) |
+| v7 | 2026-02-25 | ECC 내재화: 10개 에이전트 복사, 접두사 제거, 자체 소유 |
+| v6 | 2026-02-25 | Agent 표준화: 중복 제거, 범용화 |
+| v5 | 2026-02-25 | ECC 통합: 관측/진화/학습 시스템 |
+| v4 | 2026-02-24 | 100% compliance, disallowedTools |
+| v3 | 2026-02-24 | Best practices, security-reviewer |
+| v2 | 2026-02-14 | GAP analysis, Ansible checklist |

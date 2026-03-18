@@ -1,6 +1,7 @@
 ---
 name: instinct-status
 description: Show all learned instincts with confidence scores, grouped by domain. Overview of the instinct-based learning system.
+user-invocable: true
 ---
 
 # /instinct-status — Instinct Overview

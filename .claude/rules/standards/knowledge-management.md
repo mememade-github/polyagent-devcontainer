@@ -37,7 +37,11 @@
 | Standards | `.claude/rules/standards/*.md` | Reference knowledge | Auto, every session |
 
 - Rules are auto-loaded into system prompt — keep concise
-- Total rules budget: aim for < 500 lines across all rule files
+- Budget guidelines:
+  - Portable rules (`.claude/rules/*.md`): aim for < 300 lines
+  - Project rules (`.claude/rules/project/*.md`): aim for < 200 lines
+  - Standards (`.claude/rules/standards/*.md`): aim for < 700 lines (reference material)
+  - **Total**: aim for < 1200 lines across all rule files
 - Each rule file should have a clear, single topic
 
 ### Skills (`.claude/skills/`)
@@ -82,6 +86,36 @@ CLAUDE.md (immutable principles, loaded first)
     v
 .claude/agent-memory/ (per-agent, session-injected)
 ```
+
+### Cross-Project Synchronization
+
+Portable `.claude/` artifacts (standards, skills, hooks, agents) are distributed as copies
+to sub-projects. When modifying portable files in the ROOT workspace, **all copies MUST be
+synchronized in the same commit/session**.
+
+**Sync protocol**:
+1. Modify portable files in ROOT (`.claude/rules/standards/`, `.claude/skills/`, `.claude/hooks/`, `.claude/agents/`)
+2. Identify all sub-projects with `.claude/` copies (see distribution map below)
+3. Copy changed files from ROOT → each sub-project
+4. Verify zero divergence across all copies
+5. Commit and push each affected repository
+
+**Distribution map** (maintained in ROOT `PROJECT.md`):
+- ROOT `PROJECT.md` documents which sub-projects have `.claude/` copies
+- Each sub-project may have project-specific additions (`.claude/rules/project/`)
+- Project-specific files are NOT synchronized — only portable files
+
+**What syncs** (ROOT → sub-projects):
+- `.claude/rules/standards/*.md` — all files
+- `.claude/skills/*/SKILL.md` — all files
+- `.claude/hooks/*.sh` — all files
+- `.claude/agents/*.md` — all files (excluding `_archive/`)
+- `.claude/settings.json` — when hook registrations change
+
+**What does NOT sync**:
+- `.claude/rules/project/*.md` — project-specific, may differ
+- `.claude/agent-memory/` — per-project learning data
+- `.claude/instincts/` — domain-specific observations
 
 ## Compliance Checks
 

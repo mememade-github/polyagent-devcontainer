@@ -57,9 +57,11 @@ TeamDelete (cleanup — MANDATORY)
 
 | Model | Use For | Note |
 |-------|---------|------|
-| opus | ALL agents | 프로젝트 특수 지침: 모든 Agent는 최상위 모델 사용 (2026-03-19) |
+| opus | Complex reasoning, architecture, security | Highest capability |
+| sonnet | Standard tasks, code review, testing | Balanced cost/performance |
+| haiku | Simple checks, formatting, env verification | Fast and economical |
 
-> 이 워크스페이스는 모든 Agent에 opus 모델을 사용합니다. 공식 문서의 복잡도별 모델 선택 가이드를 override합니다.
+> **Note**: Projects may override model selection via `.claude/rules/project/agent-overrides.md`.
 
 ### Subagent Type Mapping
 
