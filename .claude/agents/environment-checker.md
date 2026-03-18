@@ -2,7 +2,7 @@
 name: environment-checker
 description: Verify workspace environment health - permissions, git config, SSH, Docker, stale artifacts. Use when environment issues are suspected.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-model: haiku
+model: opus
 maxTurns: 10
 memory: project
 ---
@@ -114,7 +114,7 @@ jq -r '.mcpServers | keys[]' ~/.claude.json 2>/dev/null
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # Check marker ages
-for marker in .pending-review .last-verification; do
+for marker in .pending-review .last-verification .last-evolution; do
   FILE="$PROJECT_DIR/.claude/$marker"
   [ -f "$FILE" ] && echo "$marker: $(( ($(date +%s) - $(stat -c %Y "$FILE")) / 60 ))min old"
 done

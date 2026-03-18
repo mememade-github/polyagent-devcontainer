@@ -4,21 +4,22 @@
 - Official: Claude Code hooks reference (https://code.claude.com/docs/en/hooks)
 - Official: Claude Code Best Practices — "Address root causes, not symptoms" (https://code.claude.com/docs/en/best-practices)
 - Derived: Project observe.sh, evolution-gate.sh, error-tracker.sh patterns
-- Last verified: 2026-02-26
+- Last verified: 2026-03-19
 
 ## Standard
 
 ### Hook Types
 
-Claude Code supports three hook types:
+Claude Code supports four hook types:
 
 | Type | Execution | Use Case | Default Timeout |
 |------|-----------|----------|-----------------|
 | **command** | Shell command (bash) | File I/O, observations, gates | 600s |
 | **prompt** | Injected into model context | Context enrichment, guidelines | 30s |
 | **agent** | Spawns an agent with tools | Complex pre/post processing | 60s |
+| **http** | HTTP POST to endpoint | Webhook integrations | varies |
 
-### Hook Events (Official — 17 events)
+### Hook Events (Official — 21 events)
 
 | Event | Timing | Input Fields (beyond common) | Use Case |
 |-------|--------|------------------------------|----------|
@@ -38,6 +39,10 @@ Claude Code supports three hook types:
 | WorktreeCreate | Worktree created | worktree_path, branch | Worktree setup |
 | WorktreeRemove | Worktree removed | worktree_path | Worktree cleanup |
 | PreCompact | Before context compaction | — | Save state before compaction |
+| PostCompact | After context compaction | — | State recovery after compaction |
+| InstructionsLoaded | When CLAUDE.md/rules loaded | instructions_content | Instruction validation |
+| Elicitation | MCP requests user input | elicitation_content | MCP input handling |
+| ElicitationResult | User responds to MCP elicitation | elicitation_result | MCP response processing |
 | SessionEnd | Session fully ended | — | Final cleanup, metrics |
 
 ### Hook JSON Protocol
@@ -73,6 +78,12 @@ Claude Code supports three hook types:
   "permissionDecision": "allow|deny|ask"
 }
 ```
+
+**New features (2026-03)**:
+
+- **`async: true`**: Command hooks can set `async: true` to run in the background without blocking tool execution.
+- **`statusMessage`**: Custom spinner text displayed while a hook is running (e.g., `"statusMessage": "Running security scan..."`).
+- **`updatedInput`**: PreToolUse hooks can return `updatedInput` in JSON output to modify tool parameters before execution proceeds.
 
 ### Performance Requirements
 
@@ -142,7 +153,8 @@ Stop hooks use a **different JSON schema** from PreToolUse hooks:
 - [ ] Gate hooks write feedback to stderr (not stdout)
 - [ ] No hook modifies files outside `.claude/` (except observation logs)
 - [ ] Hook paths in settings.json match actual file locations
-- [ ] Hook type (command/prompt/agent) appropriate for use case
+- [ ] Hook type (command/prompt/agent/http) appropriate for use case
+- [ ] All 21 official hook events accounted for in settings.json registration
 
 ## References
 

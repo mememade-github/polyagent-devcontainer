@@ -3,7 +3,7 @@
 ## Source
 - Official: Claude Code Agent Teams documentation (https://code.claude.com/docs/en/agent-teams)
 - Derived: Team delegation patterns
-- Last verified: 2026-02-26
+- Last verified: 2026-03-19
 
 ## Standard
 
@@ -55,11 +55,11 @@ TeamDelete (cleanup — MANDATORY)
 
 ### Model Selection for Teammates
 
-| Complexity | Model | Use Case |
-|------------|-------|----------|
-| Complex reasoning | opus | Architecture review, evolution, deep code analysis |
-| Standard tasks | sonnet | Documentation, WIP management, general review |
-| Quick/simple | haiku | Build fixes, environment checks, diagnostics |
+| Model | Use For | Note |
+|-------|---------|------|
+| opus | ALL agents | 프로젝트 특수 지침: 모든 Agent는 최상위 모델 사용 (2026-03-19) |
+
+> 이 워크스페이스는 모든 Agent에 opus 모델을 사용합니다. 공식 문서의 복잡도별 모델 선택 가이드를 override합니다.
 
 ### Subagent Type Mapping
 

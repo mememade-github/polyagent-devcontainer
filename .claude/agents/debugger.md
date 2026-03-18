@@ -2,7 +2,7 @@
 name: debugger
 description: Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-model: haiku
+model: opus
 maxTurns: 15
 memory: project
 ---

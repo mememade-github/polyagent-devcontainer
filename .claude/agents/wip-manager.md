@@ -2,7 +2,7 @@
 name: wip-manager
 description: Manage work-in-progress for multi-session tasks. Auto-invoked when tasks span sessions.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-model: haiku
+model: opus
 maxTurns: 8
 memory: project
 skills:

@@ -2,7 +2,7 @@
 name: security-reviewer
 description: Security vulnerability detection and remediation specialist. Use PROACTIVELY after writing code that handles user input, authentication, API endpoints, or sensitive data. Flags secrets, SSRF, injection, unsafe crypto, and OWASP Top 10 vulnerabilities.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-model: sonnet
+model: opus
 maxTurns: 15
 memory: project
 ---
@@ -146,16 +146,44 @@ For each category, check:
     - Are alerts configured?
 ```
 
-### 3. Project-Specific Security Checks
+### 3. Example Project-Specific Security Checks
 
-<!-- Add your project-specific security checks here. Examples: -->
+**CRITICAL - Platform Handles Real Money:**
 
 ```
+Financial Security:
+- [ ] All market trades are atomic transactions
+- [ ] Balance checks before any withdrawal/trade
+- [ ] Rate limiting on all financial endpoints
+- [ ] Audit logging for all money movements
+- [ ] Double-entry bookkeeping validation
+- [ ] Transaction signatures verified
+- [ ] No floating-point arithmetic for money
+
+Solana/Blockchain Security:
+- [ ] Wallet signatures properly validated
+- [ ] Transaction instructions verified before sending
+- [ ] Private keys never logged or stored
+- [ ] RPC endpoints rate limited
+- [ ] Slippage protection on all trades
+- [ ] MEV protection considerations
+- [ ] Malicious instruction detection
+
 Authentication Security:
+- [ ] Privy authentication properly implemented
 - [ ] JWT tokens validated on every request
 - [ ] Session management secure
 - [ ] No authentication bypass paths
+- [ ] Wallet signature verification
 - [ ] Rate limiting on auth endpoints
+
+Database Security (Supabase):
+- [ ] Row Level Security (RLS) enabled on all tables
+- [ ] No direct database access from client
+- [ ] Parameterized queries only
+- [ ] No PII in logs
+- [ ] Backup encryption enabled
+- [ ] Database credentials rotated regularly
 
 API Security:
 - [ ] All endpoints require authentication (except public)
@@ -163,12 +191,15 @@ API Security:
 - [ ] Rate limiting per user/IP
 - [ ] CORS properly configured
 - [ ] No sensitive data in URLs
+- [ ] Proper HTTP methods (GET safe, POST/PUT/DELETE idempotent)
 
-Database Security:
-- [ ] Row Level Security (RLS) enabled on multi-tenant tables
-- [ ] Parameterized queries only
-- [ ] No PII in logs
-- [ ] Database credentials rotated regularly
+Search Security (Redis + OpenAI):
+- [ ] Redis connection uses TLS
+- [ ] OpenAI API key server-side only
+- [ ] Search queries sanitized
+- [ ] No PII sent to OpenAI
+- [ ] Rate limiting on search endpoints
+- [ ] Redis AUTH enabled
 ```
 
 ## Vulnerability Patterns to Detect

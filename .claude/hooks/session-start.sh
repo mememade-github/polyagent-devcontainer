@@ -96,11 +96,21 @@ if [ -x "$UPDATE_SCRIPT" ]; then
   fi
 fi
 
-# 7. Tool call counter reset (new session = fresh count)
+# 7. Instinct system status (observation count)
+OBS_FILE="$PROJECT_DIR/.claude/instincts/observations.jsonl"
+if [ -f "$OBS_FILE" ]; then
+  OBS_COUNT=$(wc -l < "$OBS_FILE" 2>/dev/null || echo 0)
+  INSTINCT_COUNT=$(find "$PROJECT_DIR/.claude/instincts/personal/" -name "*.md" 2>/dev/null | wc -l)
+  if [ "$OBS_COUNT" -gt 0 ] || [ "$INSTINCT_COUNT" -gt 0 ]; then
+    CONTEXT="${CONTEXT}Instinct system: ${OBS_COUNT} observations, ${INSTINCT_COUNT} personal instincts\n"
+  fi
+fi
+
+# 8. Tool call counter reset (new session = fresh count)
 COUNTER_FILE="$PROJECT_DIR/.claude/.tool-call-counter"
 echo "0" > "$COUNTER_FILE" 2>/dev/null
 
-# 8. Environment info (auto-detected)
+# 9. Environment info (auto-detected)
 if [ -f /.dockerenv ]; then
   OS_INFO=$(. /etc/os-release 2>/dev/null && echo "$NAME $VERSION_ID" || echo "Linux")
   CONTEXT="${CONTEXT}Environment: Dev Container (${OS_INFO})\n"
