@@ -19,7 +19,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - CLAUDE_NODE_VERSION=${CLAUDE_NODE_VERSION:-20}
         - PROJECT_NODE_VERSION=${PROJECT_NODE_VERSION:-}
 
     volumes:
@@ -54,7 +53,7 @@ services:
     tty: true
 
     healthcheck:
-      test: ["CMD-SHELL", "node --version"]
+      test: ["CMD-SHELL", "claude --version"]
       interval: 30s
       timeout: 10s
       retries: 3

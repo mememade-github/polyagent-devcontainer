@@ -14,8 +14,7 @@
 | `IMAGE_NAME` | `claude-devcontainer` | docker-compose.yml | 이미지 이름 |
 | `IMAGE_TAG` | `latest` | docker-compose.yml | 이미지 태그 |
 | `TZ` | `UTC` | docker-compose.yml | 타임존 (.env에서 오버라이드) |
-| `CLAUDE_NODE_VERSION` | `20` | Dockerfile ARG | Claude Code Node.js |
-| `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | 프로젝트 Node.js |
+| `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | 프로젝트 Node.js (비워두면 미설치) |
 | `PORT_APP` | `31000` | docker-compose.yml ports | 앱 포트 |
 | `PORT_API` | `31080` | docker-compose.yml ports | API 포트 |
 | `PORT_DB` | `31432` | docker-compose.yml ports | DB 포트 |
@@ -37,15 +36,14 @@
 
 ```
 Claude Code 인프라 (프로젝트 코드와 격리):
-  Node.js  → Claude Code CLI 전용 (v20 locked, PATH 정적 포함)
-  Python   → Serena MCP 전용 (시스템 python3, uv, ~/work/serena)
+  Claude Code → 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
+  Python      → Serena MCP 전용 (시스템 python3, uv, ~/work/serena)
 
-프로젝트 코드:
+프로젝트 코드 (PROJECT_NODE_VERSION 설정 시):
   Node.js  → project-node (nvm alias, .nvmrc 자동 적용)
   Python   → 사용자 설치 (deadsnakes, pyenv 등)
   기타     → Go, Rust 등 자유 설치
 
-claude-code (alias)  → Node 20 (locked) → claude CLI 전용
 project-node (alias) → Node ${PROJECT_NODE_VERSION} → 프로젝트용
 default (alias)      → project-node
 ```

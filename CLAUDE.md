@@ -3,7 +3,7 @@
 ## Identity
 
 - **Workspace**: `/workspaces/`
-- **Environment**: Dev Container (Ubuntu 22.04, Node.js 20, user=vscode)
+- **Environment**: Dev Container (Ubuntu 22.04, user=vscode)
 
 ## Project Structure
 
@@ -21,7 +21,7 @@
 │   ├── rules/project/              # Project-specific rules
 │   └── agent-memory/               # Per-agent cross-session memory
 ├── .devcontainer/                  # Container configuration
-│   ├── Dockerfile                  # Image (Node.js + Python/Serena + tools)
+│   ├── Dockerfile                  # Image (Claude Code + Python/Serena + tools)
 │   ├── docker-compose.yml          # Service + ports + volumes
 │   ├── devcontainer.json           # VS Code integration + lifecycle
 │   ├── setup-env.sh                # postCreateCommand
@@ -122,7 +122,8 @@ Delegation via Task tool with `subagent_type` parameter.
 ## Environment
 
 - **Ports**: `.devcontainer/.env`에서 관리 (PORT_APP, PORT_API, PORT_DB, PORT_EXTRA)
-- **Node.js 격리**: Claude Code(v20 locked) / Project(nvm, .nvmrc 지원)
+- **Claude Code**: 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
+- **Node.js**: PROJECT_NODE_VERSION 설정 시 nvm으로 설치 (미설정 시 Node.js 없음)
 - **Persistent volumes**: `~/.claude` (인증 토큰), `/commandhistory` (히스토리)
 - **9p mount**: `core.filemode=false` (postStartCommand 자동 적용)
 - **MCP**: Context7 (documentation), Serena (code intelligence) — setup-env.sh 자동 설정

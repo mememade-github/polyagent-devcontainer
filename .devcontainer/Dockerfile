@@ -5,8 +5,8 @@
 # 프로젝트 언어/프레임워크는 사용자가 직접 설치 (Go, Rust, Java, etc.)
 #
 # Runtime 격리 (Claude Code 인프라 ≠ 프로젝트 코드):
-#   Node.js  — Claude Code CLI 전용 (CLAUDE_NODE_VERSION=20, locked)
-#   Python   — Serena MCP 전용 (시스템 python3, uv)
+#   Claude Code — 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
+#   Python      — Serena MCP 전용 (시스템 python3, uv)
 #   프로젝트용 Node.js는 PROJECT_NODE_VERSION으로 별도 설치 가능
 #
 # Variants:
@@ -15,7 +15,6 @@
 # =============================================================================
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
-ARG CLAUDE_NODE_VERSION=20
 ARG PROJECT_NODE_VERSION=
 ARG USERNAME=vscode
 ARG DOCKER_GID=999
@@ -65,42 +64,33 @@ RUN mkdir -p /commandhistory /workspaces \
 
 USER ${USERNAME}
 
-# PATH: Claude Code Node + uv가 항상 해석되도록 정적 경로 포함
+# PATH: Claude Code + uv가 항상 해석되도록 정적 경로 포함
 ENV HOME=/home/${USERNAME} \
     NVM_DIR=/home/${USERNAME}/.nvm \
-    PATH=/home/${USERNAME}/.local/bin:/home/${USERNAME}/.nvm/versions/node/v${CLAUDE_NODE_VERSION}/bin:${PATH}
+    PATH=/home/${USERNAME}/.local/bin:${PATH}
 
 # =============================================================================
-# Layer 3: Node.js — Claude Code (locked)
-# Claude Code CLI는 이 Node.js로만 동작. 사용자 프로젝트와 격리됨.
+# Layer 3: Claude Code CLI — Native Installer
+# 네이티브 바이너리 설치. Node.js 불필요. 자동 업데이트.
+# OOM 방지: 임시 디렉토리에서 실행 (Docker root / 에서 OOM 이슈)
 # =============================================================================
-RUN mkdir -p ${NVM_DIR} \
-    && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
-    && . ${NVM_DIR}/nvm.sh \
-    && nvm install ${CLAUDE_NODE_VERSION} \
-    && nvm alias claude-code ${CLAUDE_NODE_VERSION} \
-    && npm install -g npm@latest \
-    # Symlink: v20 → v20.x.y (ENV PATH가 v${CLAUDE_NODE_VERSION}을 참조하므로 필요)
-    && FULL_VERSION=$(nvm version ${CLAUDE_NODE_VERSION}) \
-    && if [ "${FULL_VERSION}" != "v${CLAUDE_NODE_VERSION}" ]; then \
-        ln -sf "${FULL_VERSION}" "${NVM_DIR}/versions/node/v${CLAUDE_NODE_VERSION}"; \
-    fi
-
-# Claude Code CLI
-RUN . ${NVM_DIR}/nvm.sh && nvm use claude-code && npm install -g @anthropic-ai/claude-code
+RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
+    && curl -fsSL https://claude.ai/install.sh | bash \
+    && rm -rf /tmp/claude-install \
+    && claude --version
 
 # =============================================================================
-# Layer 4: Node.js — Project (optional, different version)
-# PROJECT_NODE_VERSION이 설정되면 별도 Node 설치. 비어있으면 Claude Code와 동일.
+# Layer 4: Node.js — Project (optional)
+# PROJECT_NODE_VERSION 설정 시에만 nvm + Node.js 설치.
+# 비어있으면 nvm 자체가 설치되지 않음.
 # =============================================================================
-RUN . ${NVM_DIR}/nvm.sh \
-    && if [ -n "${PROJECT_NODE_VERSION}" ] && [ "${PROJECT_NODE_VERSION}" != "${CLAUDE_NODE_VERSION}" ]; then \
-        nvm install ${PROJECT_NODE_VERSION}; \
-        nvm alias project-node ${PROJECT_NODE_VERSION}; \
-        nvm alias default ${PROJECT_NODE_VERSION}; \
-    else \
-        nvm alias project-node ${CLAUDE_NODE_VERSION}; \
-        nvm alias default ${CLAUDE_NODE_VERSION}; \
+RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
+        mkdir -p ${NVM_DIR} \
+        && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+        && . ${NVM_DIR}/nvm.sh \
+        && nvm install ${PROJECT_NODE_VERSION} \
+        && nvm alias project-node ${PROJECT_NODE_VERSION} \
+        && nvm alias default ${PROJECT_NODE_VERSION}; \
     fi
 
 # =============================================================================
@@ -140,8 +130,8 @@ RUN echo 'export LANG=en_US.UTF-8' >> ${HOME}/.bashrc \
     && echo 'export HISTFILESIZE=20000' >> ${HOME}/.bashrc \
     && echo 'export NVM_DIR="${HOME}/.nvm"' >> ${HOME}/.bashrc \
     && echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"' >> ${HOME}/.bashrc \
-    && echo '# Activate project Node.js (reads .nvmrc if present)' >> ${HOME}/.bashrc \
-    && echo 'if [ -f ".nvmrc" ]; then nvm use 2>/dev/null || true; else nvm use project-node 2>/dev/null || true; fi' >> ${HOME}/.bashrc \
+    && echo '# Activate project Node.js (nvm 존재 시에만, reads .nvmrc if present)' >> ${HOME}/.bashrc \
+    && echo 'if command -v nvm &>/dev/null; then if [ -f ".nvmrc" ]; then nvm use 2>/dev/null || true; else nvm use project-node 2>/dev/null || true; fi; fi' >> ${HOME}/.bashrc \
     && echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> ${HOME}/.bashrc \
     && echo 'alias ll="ls -alF"' >> ${HOME}/.bashrc \
     && echo 'alias fd="fdfind"' >> ${HOME}/.bashrc
