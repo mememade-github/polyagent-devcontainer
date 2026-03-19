@@ -27,8 +27,12 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
+# resolve branch name for per-worktree marker isolation
+BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
+
 # File-based loop prevention: if we already blocked once recently, allow stop
-BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-evolution"
+BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-evolution.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
   MARKER_AGE=$(( $(date +%s) - $(stat -c %Y "$BLOCK_MARKER" 2>/dev/null || echo 0) ))
   if [ "$MARKER_AGE" -lt 120 ]; then

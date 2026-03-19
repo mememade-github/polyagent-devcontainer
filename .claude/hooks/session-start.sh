@@ -85,8 +85,13 @@ if [ -f "$MEMORY_FILE" ]; then
   fi
 fi
 
-# 5. Stale markers cleanup (use ACTUAL_ROOT — markers are at project root)
-PENDING_MARKER="$ACTUAL_ROOT/.claude/.pending-review"
+# 5. Stale markers cleanup (per-worktree, branch-scoped markers)
+# resolve current branch for this worktree
+SESSION_BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+SESSION_BRANCH_SAFE=$(echo "$SESSION_BRANCH" | tr '/' '-')
+
+# check own branch's pending-review marker
+PENDING_MARKER="$ACTUAL_ROOT/.claude/.pending-review.$SESSION_BRANCH_SAFE"
 if [ -f "$PENDING_MARKER" ]; then
   MARKER_AGE=$(( $(date +%s) - $(stat -c %Y "$PENDING_MARKER" 2>/dev/null || echo 0) ))
   if [ "$MARKER_AGE" -gt 3600 ]; then
@@ -98,6 +103,18 @@ if [ -f "$PENDING_MARKER" ]; then
     CONTEXT="${CONTEXT}AUTO_ACTION: Complete code review before other work.\n"
   fi
 fi
+
+# clean up legacy markers (pre-isolation format, no branch suffix)
+rm -f "$ACTUAL_ROOT/.claude/.pending-review" "$ACTUAL_ROOT/.claude/.stop-blocked-review" "$ACTUAL_ROOT/.claude/.stop-blocked-evolution" 2>/dev/null
+
+# clean up stale markers from removed worktrees (orphan cleanup)
+for stale_marker in "$ACTUAL_ROOT"/.claude/.pending-review.* "$ACTUAL_ROOT"/.claude/.stop-blocked-*.* ; do
+  [ -f "$stale_marker" ] || continue
+  stale_age=$(( $(date +%s) - $(stat -c %Y "$stale_marker" 2>/dev/null || echo 0) ))
+  if [ "$stale_age" -gt 3600 ]; then
+    rm -f "$stale_marker"
+  fi
+done
 
 # 6. Session collaboration guard (detect other active sessions via heartbeat)
 # use PROJECT_DIR (not ACTUAL_ROOT) — hooks are code, not shared data

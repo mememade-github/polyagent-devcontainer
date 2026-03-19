@@ -18,7 +18,11 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
-# Clear pending review marker
-rm -f "$ACTUAL_ROOT/.claude/.pending-review"
+# resolve branch name for per-worktree marker isolation
+BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 
-echo "Code review marker cleared. Commits are now unblocked (pending verification)."
+# clear pending review marker (branch-specific)
+rm -f "$ACTUAL_ROOT/.claude/.pending-review.$BRANCH_SAFE"
+
+echo "Code review marker cleared (branch: $BRANCH). Commits are now unblocked (pending verification)."
