@@ -6,8 +6,9 @@
 #
 # Runtime 격리 (Claude Code 인프라 ≠ 프로젝트 코드):
 #   Claude Code — 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
+#   Node.js     — Context7 MCP 전용 (nvm, MCP_NODE_VERSION=22)
 #   Python      — Serena MCP 전용 (시스템 python3, uv)
-#   프로젝트용 Node.js는 PROJECT_NODE_VERSION으로 별도 설치 가능
+#   프로젝트용 Node.js는 PROJECT_NODE_VERSION으로 추가 설치 가능
 #
 # Variants:
 #   claude-devcontainer       ← THIS (범용 베이스)
@@ -81,14 +82,25 @@ RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
     && claude --version
 
 # =============================================================================
+# Layer 3b: Node.js — MCP Infrastructure (Context7)
+# Python이 Serena 인프라이듯, Node.js는 Context7 MCP 인프라.
+# Claude Code 자체는 Node.js 불필요하지만 Context7은 npx 필요.
+# =============================================================================
+ARG MCP_NODE_VERSION=22
+
+RUN mkdir -p ${NVM_DIR} \
+    && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+    && . ${NVM_DIR}/nvm.sh \
+    && nvm install ${MCP_NODE_VERSION} \
+    && nvm alias default ${MCP_NODE_VERSION}
+
+# =============================================================================
 # Layer 4: Node.js — Project (optional)
-# PROJECT_NODE_VERSION 설정 시에만 nvm + Node.js 설치.
-# 비어있으면 nvm 자체가 설치되지 않음.
+# PROJECT_NODE_VERSION 설정 시 추가 버전 설치 + default 전환.
+# 미설정 시 MCP 인프라용 Node.js(LTS)만 사용.
 # =============================================================================
 RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
-        mkdir -p ${NVM_DIR} \
-        && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
-        && . ${NVM_DIR}/nvm.sh \
+        . ${NVM_DIR}/nvm.sh \
         && nvm install ${PROJECT_NODE_VERSION} \
         && nvm alias project-node ${PROJECT_NODE_VERSION} \
         && nvm alias default ${PROJECT_NODE_VERSION}; \

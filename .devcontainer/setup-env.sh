@@ -74,15 +74,18 @@ else
         echo '{"mcpServers":{}}' > "$CLAUDE_CONFIG"
     fi
 
-    # Context7 (라이브러리 문서 검색)
-    jq '.mcpServers.context7 = {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
-      "env": {}
-    }' "$CLAUDE_CONFIG" > /tmp/claude.json.tmp && mv /tmp/claude.json.tmp "$CLAUDE_CONFIG"
-
-    echo "      context7: OK"
+    # Context7 (라이브러리 문서 검색) — npx 필요
+    if command -v npx &>/dev/null; then
+        jq '.mcpServers.context7 = {
+          "type": "stdio",
+          "command": "npx",
+          "args": ["-y", "@upstash/context7-mcp@latest"],
+          "env": {}
+        }' "$CLAUDE_CONFIG" > /tmp/claude.json.tmp && mv /tmp/claude.json.tmp "$CLAUDE_CONFIG"
+        echo "      context7: OK"
+    else
+        echo "      WARN: npx 미설치 — Context7 건너뜀"
+    fi
 fi
 
 # =============================================================================

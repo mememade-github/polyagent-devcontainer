@@ -123,7 +123,7 @@ Delegation via Task tool with `subagent_type` parameter.
 
 - **Ports**: `.devcontainer/.env`에서 관리 (PORT_APP, PORT_API, PORT_DB, PORT_EXTRA)
 - **Claude Code**: 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
-- **Node.js**: PROJECT_NODE_VERSION 설정 시 nvm으로 설치 (미설정 시 Node.js 없음)
+- **Node.js**: MCP 인프라용 Node 22 LTS 항상 설치. PROJECT_NODE_VERSION 설정 시 추가 버전 설치
 - **Persistent volumes**: `~/.claude` (인증 토큰), `/commandhistory` (히스토리)
 - **9p mount**: `core.filemode=false` (postStartCommand 자동 적용)
 - **MCP**: Context7 (documentation), Serena (code intelligence) — setup-env.sh 자동 설정

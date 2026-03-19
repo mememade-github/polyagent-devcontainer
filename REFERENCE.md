@@ -37,10 +37,11 @@
 ```
 Claude Code 인프라 (프로젝트 코드와 격리):
   Claude Code → 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
+  Node.js     → Context7 MCP 전용 (nvm, Node 22 LTS)
   Python      → Serena MCP 전용 (시스템 python3, uv, ~/work/serena)
 
 프로젝트 코드 (PROJECT_NODE_VERSION 설정 시):
-  Node.js  → project-node (nvm alias, .nvmrc 자동 적용)
+  Node.js  → project-node (nvm alias, .nvmrc 자동 적용, MCP 노드 위에 추가)
   Python   → 사용자 설치 (deadsnakes, pyenv 등)
   기타     → Go, Rust 등 자유 설치
 
