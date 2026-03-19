@@ -19,7 +19,11 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
-MARKER="$ACTUAL_ROOT/.claude/.last-evolution"
+# resolve branch name for per-worktree marker isolation
+BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
+
+MARKER="$ACTUAL_ROOT/.claude/.last-evolution.$BRANCH_SAFE"
 
 touch "$MARKER"
-echo "Evolution marker created at $(date). Agent evolution recorded."
+echo "Evolution marker created at $(date) (branch: $BRANCH). Agent evolution recorded."

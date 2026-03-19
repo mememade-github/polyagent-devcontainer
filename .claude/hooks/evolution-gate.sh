@@ -42,8 +42,8 @@ if [ -f "$BLOCK_MARKER" ]; then
   rm -f "$BLOCK_MARKER"
 fi
 
-VERIFY_MARKER="$ACTUAL_ROOT/.claude/.last-verification"
-EVOLVE_MARKER="$ACTUAL_ROOT/.claude/.last-evolution"
+VERIFY_MARKER="$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
+EVOLVE_MARKER="$ACTUAL_ROOT/.claude/.last-evolution.$BRANCH_SAFE"
 
 # No verification → no meaningful work → skip
 if [ ! -f "$VERIFY_MARKER" ]; then

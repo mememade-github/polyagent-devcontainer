@@ -59,6 +59,11 @@ else
   printf '%s\n' "$LINE" >> "$FILE" 2>/dev/null
 fi
 
+# per-worktree heartbeat for session detection (worker-guard.sh reads this)
+# PROJECT_DIR = current worktree path, distinct from ACTUAL_ROOT
+_HEARTBEAT="${CLAUDE_PROJECT_DIR:-.}/.claude/.heartbeat"
+touch "$_HEARTBEAT" 2>/dev/null
+
 # Rotate at 10MB to prevent unbounded growth
 if [ -f "$FILE" ]; then
   SIZE=$(stat -c%s "$FILE" 2>/dev/null || stat -f%z "$FILE" 2>/dev/null || echo 0)

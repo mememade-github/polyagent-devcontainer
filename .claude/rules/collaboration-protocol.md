@@ -24,15 +24,19 @@ Active sessions are detected automatically — no manual registration required.
 
 **Mechanism**: `worker-guard.sh` uses two data sources:
 1. `git worktree list` — all worktree paths and branches (git-managed, always accurate)
-2. `.claude/instincts/observations.jsonl` mtime — heartbeat (updated every tool call by `observe.sh`)
+2. Per-worktree `.claude/.heartbeat` mtime — heartbeat (written by `observe.sh` to `PROJECT_DIR`)
 
-A session is considered **active** if its observations.jsonl was modified within the last 10 minutes.
+A session is considered **active** if its `.heartbeat` was modified within the last 10 minutes.
 
 **Why this works**:
 - `observe.sh` runs on every PreToolUse/PostToolUse (registered in settings.json)
-- It appends to observations.jsonl, updating mtime as a side effect
+- It touches `.claude/.heartbeat` in the current worktree's `PROJECT_DIR` (not `ACTUAL_ROOT`)
+- Each worktree gets its own heartbeat file — no cross-worktree false positives
 - No registration/deregistration needed — no stale files on crash
 - `git worktree list` includes the main working directory, so non-worktree sessions are detected too
+
+**Key distinction**: `observations.jsonl` is centralized at `ACTUAL_ROOT` (shared for learning).
+`.heartbeat` is per-worktree at `PROJECT_DIR` (isolated for session detection).
 
 ## Worker Lifecycle
 

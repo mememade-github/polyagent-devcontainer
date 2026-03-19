@@ -19,7 +19,11 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
-MARKER="$ACTUAL_ROOT/.claude/.last-verification"
+# resolve branch name for per-worktree marker isolation
+BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
+
+MARKER="$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 
 touch "$MARKER"
-echo "Verification marker created at $(date). Commits allowed for 10 minutes."
+echo "Verification marker created at $(date) (branch: $BRANCH). Commits allowed for 10 minutes."

@@ -5,9 +5,10 @@
 #
 # Detection mechanism:
 #   1. git worktree list → all worktree paths (including main)
-#   2. observations.jsonl mtime → heartbeat (updated every tool call by observe.sh)
+#   2. per-worktree .heartbeat mtime → heartbeat (written by observe.sh to PROJECT_DIR)
 #   3. mtime < HEARTBEAT_TIMEOUT → active session
 # No registration needed — git is the source of truth, observe.sh provides heartbeat.
+# Key: observe.sh writes .heartbeat to PROJECT_DIR (per-worktree), not ACTUAL_ROOT (shared).
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 HEARTBEAT_TIMEOUT=600  # seconds — session inactive after 10 minutes without tool call
@@ -46,14 +47,14 @@ while IFS= read -r line; do
   # skip self
   [ "$WT_REAL" = "$CURRENT_PATH" ] && continue
 
-  # check heartbeat via observations.jsonl mtime
-  OBS_FILE="$WT_PATH/.claude/instincts/observations.jsonl"
-  if [ ! -f "$OBS_FILE" ]; then
+  # check heartbeat via per-worktree .heartbeat file (written by observe.sh)
+  HB_FILE="$WT_PATH/.claude/.heartbeat"
+  if [ ! -f "$HB_FILE" ]; then
     continue
   fi
 
-  OBS_MTIME=$(stat -c '%Y' "$OBS_FILE" 2>/dev/null || stat -f '%m' "$OBS_FILE" 2>/dev/null || echo 0)
-  AGE=$(( NOW - OBS_MTIME ))
+  HB_MTIME=$(stat -c '%Y' "$HB_FILE" 2>/dev/null || stat -f '%m' "$HB_FILE" 2>/dev/null || echo 0)
+  AGE=$(( NOW - HB_MTIME ))
 
   if [ "$AGE" -lt "$HEARTBEAT_TIMEOUT" ]; then
     ACTIVE_COUNT=$((ACTIVE_COUNT + 1))
@@ -67,7 +68,7 @@ if [ "$ACTIVE_COUNT" -gt 0 ]; then
   echo "ACTIVE_SESSIONS: ${ACTIVE_COUNT} other session(s) detected via heartbeat:"
   echo -e "$OUTPUT"
   echo "COLLABORATION: Per collaboration-protocol.md, check file ownership before editing shared files."
-  echo "NOTE: Detection based on observations.jsonl mtime (updated every tool call by observe.sh)."
+  echo "NOTE: Detection based on per-worktree .heartbeat mtime (updated every tool call by observe.sh)."
 fi
 
 # check if current branch diverges from main

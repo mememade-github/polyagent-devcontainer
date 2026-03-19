@@ -106,6 +106,7 @@ fi
 
 # clean up legacy markers (pre-isolation format, no branch suffix)
 rm -f "$ACTUAL_ROOT/.claude/.pending-review" "$ACTUAL_ROOT/.claude/.stop-blocked-review" "$ACTUAL_ROOT/.claude/.stop-blocked-evolution" 2>/dev/null
+rm -f "$ACTUAL_ROOT/.claude/.last-verification" "$ACTUAL_ROOT/.claude/.last-evolution" 2>/dev/null
 
 # clean up stale markers from removed worktrees (orphan cleanup)
 for stale_marker in "$ACTUAL_ROOT"/.claude/.pending-review.* "$ACTUAL_ROOT"/.claude/.stop-blocked-*.* ; do

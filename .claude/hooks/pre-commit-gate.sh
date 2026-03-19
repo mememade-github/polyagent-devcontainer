@@ -5,7 +5,7 @@
 #   "Exit 2 means a blocking error. stderr text is fed back to Claude."
 # Reference: https://code.claude.com/docs/en/hooks#exit-code-output
 #
-# Marker file: written by mark-verified.sh at ACTUAL_ROOT/.claude/.last-verification
+# Marker file: written by mark-verified.sh at ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -33,7 +33,11 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
-MARKER="$ACTUAL_ROOT/.claude/.last-verification"
+# resolve branch name for per-worktree marker isolation
+BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
+
+MARKER="$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 MAX_AGE=600  # 10 minutes
 
 if [ ! -f "$MARKER" ]; then

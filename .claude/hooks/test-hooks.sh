@@ -30,7 +30,7 @@ echo ""
 
 # --- Test 1: Pre-commit gate (no marker) ---
 echo -n "1. Pre-commit gate (no marker): "
-rm -f "$ACTUAL_ROOT/.claude/.last-verification"
+rm -f "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 EXIT_CODE=0
 RESULT=$(echo '{"tool_input":{"command":"git commit -m test"}}' | bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1) || EXIT_CODE=$?
 if [ $EXIT_CODE -eq 2 ] && echo "$RESULT" | grep -q "verification required"; then
@@ -43,7 +43,7 @@ fi
 
 # --- Test 2: Pre-commit gate (with fresh marker) ---
 echo -n "2. Pre-commit gate (fresh marker): "
-touch "$ACTUAL_ROOT/.claude/.last-verification"
+touch "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 RESULT=$(echo '{"tool_input":{"command":"git commit -m test"}}' | bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] && [ -z "$RESULT" ]; then
@@ -186,10 +186,10 @@ fi
 
 # --- Test 11: Utility scripts ---
 echo -n "11. mark-verified.sh: "
-rm -f "$ACTUAL_ROOT/.claude/.last-verification"
+rm -f "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 export CLAUDE_PROJECT_DIR="$PROJECT_DIR"
 bash "$PROJECT_DIR/.claude/hooks/mark-verified.sh" > /dev/null
-if [ -f "$ACTUAL_ROOT/.claude/.last-verification" ]; then
+if [ -f "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE" ]; then
   echo "PASS (marker created)"
   PASS=$((PASS + 1))
 else
@@ -260,7 +260,7 @@ rm -f "$ACTUAL_ROOT/.claude/.pending-review.$BRANCH_SAFE"
 rm -f "$ACTUAL_ROOT/.claude/.stop-blocked-review.$BRANCH_SAFE"
 rm -f "$ACTUAL_ROOT/.claude/.stop-blocked-evolution.$BRANCH_SAFE"
 rm -f "$PROJECT_DIR/.claude/.error-log"
-touch "$ACTUAL_ROOT/.claude/.last-verification"
+touch "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 
 echo ""
 echo "=== Results: $PASS PASS / $FAIL FAIL (total $((PASS + FAIL))) ==="
