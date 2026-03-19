@@ -7,7 +7,7 @@
 
 1. **Never commit directly to `main`** — all work on worker branches.
 2. **One worker per worktree** — never run two sessions in the same worktree.
-3. **Declare before editing** — update your worker file before touching shared files.
+3. **Check before editing** — verify no other active session is working on the same files.
 
 ## Why One Worker Per Worktree?
 
@@ -17,6 +17,22 @@ Git tracks changes at the working tree level. Two sessions editing the same work
 - **Tool call race**: Edit tool's `old_string` matching breaks on concurrent modification
 
 **If you need a second worker**: create a second worktree, not a second session in the same one.
+
+## Session Detection (Automatic)
+
+Active sessions are detected automatically — no manual registration required.
+
+**Mechanism**: `worker-guard.sh` uses two data sources:
+1. `git worktree list` — all worktree paths and branches (git-managed, always accurate)
+2. `.claude/instincts/observations.jsonl` mtime — heartbeat (updated every tool call by `observe.sh`)
+
+A session is considered **active** if its observations.jsonl was modified within the last 10 minutes.
+
+**Why this works**:
+- `observe.sh` runs on every PreToolUse/PostToolUse (registered in settings.json)
+- It appends to observations.jsonl, updating mtime as a side effect
+- No registration/deregistration needed — no stale files on crash
+- `git worktree list` includes the main working directory, so non-worktree sessions are detected too
 
 ## Worker Lifecycle
 
@@ -28,38 +44,9 @@ WORKER_NAME="alpha"  # unique per worker
 git worktree add .claude/worktrees/${WORKER_NAME} -b worktree-${WORKER_NAME}
 ```
 
-Register the worker (enables visibility for other sessions):
+Session detection begins automatically once the session's first tool call triggers `observe.sh`.
 
-```bash
-PROJECT_KEY=$(pwd | md5sum | cut -c1-12)
-WORKER_DIR="$HOME/.claude/workers/${PROJECT_KEY}"
-mkdir -p "$WORKER_DIR"
-cat > "$WORKER_DIR/worker-${WORKER_NAME}.json" <<EOF
-{
-  "name": "${WORKER_NAME}",
-  "branch": "worktree-${WORKER_NAME}",
-  "worktree": "$(pwd)/.claude/worktrees/${WORKER_NAME}",
-  "project_root": "$(pwd)",
-  "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "working_on": "",
-  "files": []
-}
-EOF
-```
-
-### 2. Work: Declare What You're Doing
-
-Before starting a task, update the worker file:
-
-```bash
-# Update working_on and files fields
-WORKER_FILE="$HOME/.claude/workers/${PROJECT_KEY}/worker-${WORKER_NAME}.json"
-tmp=$(mktemp)
-jq --arg desc "status skill 수정" --argjson files '[".claude/skills/status/", "scripts/git/"]' \
-  '.working_on = $desc | .files = $files' "$WORKER_FILE" > "$tmp" && mv "$tmp" "$WORKER_FILE"
-```
-
-### 3. Sync: Rebase onto Main Periodically
+### 2. Sync: Rebase onto Main Periodically
 
 ```bash
 # In your worktree directory
@@ -69,7 +56,7 @@ git rebase origin/main
 
 Do this before starting new work and before finishing.
 
-### 4. Finish: Merge + Cleanup
+### 3. Finish: Merge + Cleanup
 
 ```bash
 # 1. Final rebase
@@ -82,29 +69,11 @@ git merge --ff-only worktree-${WORKER_NAME}
 # 3. Remove worktree
 git worktree remove .claude/worktrees/${WORKER_NAME}
 git branch -d worktree-${WORKER_NAME}
-
-# 4. Deregister worker
-rm "$HOME/.claude/workers/${PROJECT_KEY}/worker-${WORKER_NAME}.json"
 ```
+
+No deregistration step needed — worktree removal makes `git worktree list` stop listing it.
 
 ## Conflict Prevention
-
-### File Ownership Declaration
-
-Before editing files, check if another worker has declared those files:
-
-```bash
-# Check all active workers in this project
-for f in "$HOME/.claude/workers/${PROJECT_KEY}"/worker-*.json; do
-  [ -f "$f" ] || continue
-  OTHER=$(jq -r '.name' "$f")
-  [ "$OTHER" = "$WORKER_NAME" ] && continue
-  FILES=$(jq -r '.files[]' "$f" 2>/dev/null)
-  echo "Worker $OTHER is working on: $FILES"
-done
-```
-
-**If overlap detected**: coordinate with the other worker before proceeding.
 
 ### High-Risk Files (serialize, don't parallelize)
 
@@ -130,9 +99,10 @@ These files change frequently and cause merge conflicts:
 ## Session-Start Integration
 
 At session start, the `worker-guard` hook automatically:
-1. Lists all active workers in the current project
-2. Shows what they're working on and which files they declared
-3. Warns if the current session's worktree branch diverges from main
+1. Enumerates all worktrees via `git worktree list`
+2. Checks each worktree's `observations.jsonl` mtime for activity
+3. Reports active sessions (within 10-minute heartbeat window)
+4. Warns if the current session's worktree branch diverges from main
 
 ## Merge Conflict Resolution
 

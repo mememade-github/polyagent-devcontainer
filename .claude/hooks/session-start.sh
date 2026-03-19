@@ -99,10 +99,11 @@ if [ -f "$PENDING_MARKER" ]; then
   fi
 fi
 
-# 6. Worker collaboration guard (use ACTUAL_ROOT for hook path)
-WORKER_GUARD="$ACTUAL_ROOT/.claude/hooks/worker-guard.sh"
-if [ -x "$WORKER_GUARD" ]; then
-  WORKER_INFO=$("$WORKER_GUARD" 2>/dev/null)
+# 6. Session collaboration guard (detect other active sessions via heartbeat)
+# use PROJECT_DIR (not ACTUAL_ROOT) — hooks are code, not shared data
+WORKER_GUARD="$PROJECT_DIR/.claude/hooks/worker-guard.sh"
+if [ -f "$WORKER_GUARD" ]; then
+  WORKER_INFO=$(bash "$WORKER_GUARD" 2>/dev/null)
   if [ -n "$WORKER_INFO" ]; then
     CONTEXT="${CONTEXT}${WORKER_INFO}\n"
   fi

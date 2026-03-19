@@ -39,19 +39,26 @@ done
 ```
 Flag any repo with unpushed commits.
 
-## 3. Active Workers
-Show active workers in the current project:
+## 3. Active Sessions
+Detect active sessions via git worktree heartbeat:
 ```bash
-PROJECT_KEY=$(echo "$WORKSPACE_ROOT" | md5sum | cut -c1-12)
-WORKER_DIR="$HOME/.claude/workers/${PROJECT_KEY}"
-if [ -d "$WORKER_DIR" ]; then
-  for f in "$WORKER_DIR"/worker-*.json; do
-    [ -f "$f" ] || continue
-    jq -r '"  \(.name) (\(.branch)): \(.working_on // "idle") [since \(.started)]"' "$f" 2>/dev/null
-  done
-else
-  echo "  (no active workers registered)"
-fi
+NOW=$(date +%s)
+TIMEOUT=600
+git -C "$WORKSPACE_ROOT" worktree list 2>/dev/null | while IFS= read -r line; do
+  WT_PATH=$(echo "$line" | awk '{print $1}')
+  WT_BRANCH=$(echo "$line" | sed -n 's/.*\[\(.*\)\]/\1/p')
+  OBS="$WT_PATH/.claude/instincts/observations.jsonl"
+  if [ -f "$OBS" ]; then
+    AGE=$(( NOW - $(stat -c '%Y' "$OBS" 2>/dev/null || echo 0) ))
+    if [ "$AGE" -lt "$TIMEOUT" ]; then
+      echo "  ${WT_BRANCH} (${WT_PATH}) — active ${AGE}s ago"
+    else
+      echo "  ${WT_BRANCH} (${WT_PATH}) — inactive (${AGE}s)"
+    fi
+  else
+    echo "  ${WT_BRANCH} (${WT_PATH}) — no heartbeat"
+  fi
+done
 ```
 
 ## 4. WIP Tasks
