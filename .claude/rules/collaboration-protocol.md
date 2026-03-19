@@ -154,8 +154,4 @@ If `git rebase main` produces conflicts:
 
 ## Applicability
 
-This protocol applies to **every project** with `.claude/` configuration:
-- <workspace>
-- <internal-rag>
-- claude-devcontainer
-- All other repos in `products/`
+This protocol applies to **every project** with `.claude/` configuration.

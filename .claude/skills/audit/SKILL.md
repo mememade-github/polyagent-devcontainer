@@ -90,7 +90,7 @@ Scan product documentation across all repositories under `products/`:
 2. Header matches pattern: `# REFERENCE.md — Commands & Procedures`
 3. All code blocks use absolute paths (`/workspaces/...`)
 4. No hardcoded tokens/passwords (grep for `glpat-`, `ghp_`, `github_pat_`, plaintext passwords)
-5. Git Credential section references <workspace> SSOT (for derived projects)
+5. Git Credential section references root project SSOT (for derived projects)
 
 **Cross-project consistency checks**:
 1. All derived projects reference their parent correctly
