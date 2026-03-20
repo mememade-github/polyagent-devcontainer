@@ -51,13 +51,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && (groupmod -g ${DOCKER_GID} docker 2>/dev/null || groupadd -g ${DOCKER_GID} docker 2>/dev/null || true) \
     && usermod -aG docker ${USERNAME} \
-    # Docker Compose v2 plugin
+    # Docker Compose v2 plugin (pinned — bump periodically)
     && mkdir -p /usr/local/lib/docker/cli-plugins \
     && curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Python LSP (Serena 의존성)
-RUN pip3 install --no-cache-dir jedi
+RUN pip3 install --no-cache-dir --break-system-packages jedi
 
 # =============================================================================
 # Layer 2: 사용자 설정 (root → vscode)
@@ -104,8 +104,8 @@ RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
 # Layer 5: Serena MCP — 코드 인텔리전스
 # Node.js(시스템)가 Context7 MCP 인프라이듯, Python은 Serena MCP용 인프라.
 # =============================================================================
-# uv (Python 패키지 관리)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# uv (Python 패키지 관리 — pinned version for reproducibility)
+RUN curl -LsSf https://astral.sh/uv/0.6.0/install.sh | sh
 
 # Serena 설치
 RUN mkdir -p ${HOME}/work \

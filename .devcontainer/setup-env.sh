@@ -76,12 +76,13 @@ else
 
     # Context7 (라이브러리 문서 검색) — npx 필요
     if command -v npx &>/dev/null; then
+        _tmp=$(mktemp)
         jq '.mcpServers.context7 = {
           "type": "stdio",
           "command": "npx",
           "args": ["-y", "@upstash/context7-mcp@latest"],
           "env": {}
-        }' "$CLAUDE_CONFIG" > /tmp/claude.json.tmp && mv /tmp/claude.json.tmp "$CLAUDE_CONFIG"
+        }' "$CLAUDE_CONFIG" > "$_tmp" && mv "$_tmp" "$CLAUDE_CONFIG"
         echo "      context7: OK"
     else
         echo "      WARN: npx 미설치 — Context7 건너뜀"
@@ -102,12 +103,13 @@ elif [ ! -d "$SERENA_DIR" ]; then
 elif [ ! -x "$UV_PATH" ]; then
     echo "      WARN: uv 미설치"
 else
+    _tmp=$(mktemp)
     jq --arg uv "$UV_PATH" --arg dir "$SERENA_DIR" '.mcpServers.serena = {
       "type": "stdio",
       "command": $uv,
       "args": ["run", "--directory", $dir, "serena-mcp-server", "--context", "claude-devcontainer", "--project-from-cwd"],
       "env": {}
-    }' "$CLAUDE_CONFIG" > /tmp/claude.json.tmp && mv /tmp/claude.json.tmp "$CLAUDE_CONFIG"
+    }' "$CLAUDE_CONFIG" > "$_tmp" && mv "$_tmp" "$CLAUDE_CONFIG"
     echo "      serena: OK"
 fi
 
