@@ -15,7 +15,12 @@ echo "$COUNT" > "$COUNTER_FILE" 2>/dev/null
 
 # First threshold: suggest compaction
 if [ "$COUNT" -eq "$THRESHOLD" ]; then
-  echo "[Strategic Compact] $THRESHOLD edit/write calls reached. Consider /compact at next logical breakpoint to preserve context quality."
+  jq -n --arg msg "[Strategic Compact] $THRESHOLD edit/write calls reached. Consider /compact at next logical breakpoint to preserve context quality." '{
+    hookSpecificOutput: {
+      hookEventName: "PostToolUse",
+      additionalContext: $msg
+    }
+  }'
   exit 0
 fi
 
@@ -23,7 +28,12 @@ fi
 if [ "$COUNT" -gt "$THRESHOLD" ]; then
   SINCE=$((COUNT - THRESHOLD))
   if [ $((SINCE % REMIND_INTERVAL)) -eq 0 ]; then
-    echo "[Strategic Compact] $COUNT edit/write calls. /compact recommended between task phases."
+    jq -n --arg msg "[Strategic Compact] $COUNT edit/write calls. /compact recommended between task phases." '{
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: $msg
+      }
+    }'
     exit 0
   fi
 fi

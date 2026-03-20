@@ -40,16 +40,16 @@ done
 Flag any repo with unpushed commits.
 
 ## 3. Active Sessions
-Detect active sessions via git worktree heartbeat:
+Detect active sessions via per-worktree `.heartbeat` (consistent with worker-guard.sh and collaboration-protocol.md):
 ```bash
 NOW=$(date +%s)
 TIMEOUT=600
 git -C "$WORKSPACE_ROOT" worktree list 2>/dev/null | while IFS= read -r line; do
   WT_PATH=$(echo "$line" | awk '{print $1}')
   WT_BRANCH=$(echo "$line" | sed -n 's/.*\[\(.*\)\]/\1/p')
-  OBS="$WT_PATH/.claude/instincts/observations.jsonl"
-  if [ -f "$OBS" ]; then
-    AGE=$(( NOW - $(stat -c '%Y' "$OBS" 2>/dev/null || echo 0) ))
+  HB="$WT_PATH/.claude/.heartbeat"
+  if [ -f "$HB" ]; then
+    AGE=$(( NOW - $(stat -c '%Y' "$HB" 2>/dev/null || echo 0) ))
     if [ "$AGE" -lt "$TIMEOUT" ]; then
       echo "  ${WT_BRANCH} (${WT_PATH}) — active ${AGE}s ago"
     else
