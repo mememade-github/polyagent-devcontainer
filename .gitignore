@@ -28,8 +28,9 @@ yarn-error.log*
 # Claude Code (런타임 마커 — 커밋 불필요)
 # -----------------------------------------------------------------------------
 .claude/.tool-call-counter
-.claude/.last-verification
-.claude/.last-evolution
+.claude/.last-verification*
+.claude/.last-evolution*
+.claude/.heartbeat
 .claude/.pending-review
 .claude/.review-done
 .claude/subagent.log
