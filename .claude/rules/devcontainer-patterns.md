@@ -11,9 +11,15 @@ accessible via mounted `docker.sock` — this is NOT DinD.
 
 | Allowed (via docker.sock) | Not Possible |
 |--------------------------|-------------|
-| `docker compose build` | Volume mounts with HOST paths |
-| `devcontainer up/exec` | VS Code extension testing |
-| `docker images`, `docker inspect` | GUI-dependent features |
+| `docker compose build` | VS Code extension testing |
+| `devcontainer up/exec` | GUI-dependent features |
+| `docker images`, `docker inspect` | — |
+| Volume mounts via `--project-directory` | — |
+
+> **HOST 경로 볼륨 마운트**: `docker compose --project-directory <HOST경로>`를 사용하면
+> DevContainer 내부에서도 HOST 경로 기준 볼륨 마운트가 가능합니다.
+> `HOST_WORKSPACE_PATH` 환경변수로 컨테이너 경로 → HOST 경로 변환을 수행합니다.
+> 각 프로젝트의 `REFERENCE.md`에서 상세 설명을 확인하세요.
 
 ## 4-Phase Testing Protocol
 
