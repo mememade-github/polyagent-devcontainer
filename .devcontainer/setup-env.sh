@@ -107,7 +107,7 @@ else
     jq --arg uv "$UV_PATH" --arg dir "$SERENA_DIR" '.mcpServers.serena = {
       "type": "stdio",
       "command": $uv,
-      "args": ["run", "--directory", $dir, "serena-mcp-server", "--context", "claude-devcontainer", "--project-from-cwd"],  # [SPECIALIZED] context name
+      "args": ["run", "--directory", $dir, "serena-mcp-server", "--context", "claude-code", "--project-from-cwd"],  # [SPECIALIZED] context name
       "env": {}
     }' "$CLAUDE_CONFIG" > "$_tmp" && mv "$_tmp" "$CLAUDE_CONFIG"
     echo "      serena: OK"
