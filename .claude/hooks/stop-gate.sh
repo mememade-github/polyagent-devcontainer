@@ -41,8 +41,27 @@ if [ ! -f "$MARKER" ]; then
   exit 0
 fi
 
-FILE_COUNT=$(wc -l < "$MARKER")
-FILES=$(cat "$MARKER" | head -5 | tr '\n' ', ')
+# filter out files already committed — only uncommitted changes need review
+UNCOMMITTED_FILES=""
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+  # check if file has uncommitted changes (staged or unstaged) relative to project root
+  FULL_PATH="$ACTUAL_ROOT/$file"
+  if [ -f "$FULL_PATH" ] && git -C "$ACTUAL_ROOT" diff --name-only HEAD -- "$file" 2>/dev/null | grep -q .; then
+    UNCOMMITTED_FILES="${UNCOMMITTED_FILES}${file}\n"
+  elif [ -f "$FULL_PATH" ] && git -C "$ACTUAL_ROOT" diff --cached --name-only -- "$file" 2>/dev/null | grep -q .; then
+    UNCOMMITTED_FILES="${UNCOMMITTED_FILES}${file}\n"
+  fi
+done < "$MARKER"
+
+# all files committed — auto-clear marker and allow stop
+if [ -z "$UNCOMMITTED_FILES" ]; then
+  rm -f "$MARKER"
+  exit 0
+fi
+
+FILE_COUNT=$(printf '%b' "$UNCOMMITTED_FILES" | grep -c .)
+FILES=$(printf '%b' "$UNCOMMITTED_FILES" | head -5 | tr '\n' ', ')
 
 if [ "$FILE_COUNT" -gt 0 ]; then
   # Record that we blocked, so next invocation allows stop
