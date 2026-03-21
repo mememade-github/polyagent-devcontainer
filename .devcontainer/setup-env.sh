@@ -1,13 +1,13 @@
 #!/bin/bash
 # =============================================================================
-# Claude DevContainer — Environment Setup (postCreateCommand)
+# [SPECIALIZED] MEMEMADE: Claude Code DevContainer — Environment Setup (postCreateCommand)
 # =============================================================================
 set -e
 
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-STEP_TOTAL=4
+STEP_TOTAL=2
 STEP=0
 step() { STEP=$((STEP + 1)); echo "[${STEP}/${STEP_TOTAL}] $1"; }
 
@@ -58,60 +58,12 @@ else
 fi
 
 # =============================================================================
-# 3. MCP: Context7
+# 3. MCP: 플러그인 제공 (setup-env.sh에서 직접 등록하지 않음)
 # =============================================================================
-step "MCP: Context7..."
-export HOME=${HOME:-/home/vscode}
-export NVM_DIR=${NVM_DIR:-${HOME}/.nvm}
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-
-CLAUDE_CONFIG="${HOME}/.claude.json"
-
-if ! command -v jq &>/dev/null; then
-    echo "      WARN: jq 미설치 — MCP 설정 건너뜀"
-else
-    if [ ! -f "$CLAUDE_CONFIG" ]; then
-        echo '{"mcpServers":{}}' > "$CLAUDE_CONFIG"
-    fi
-
-    # Context7 (라이브러리 문서 검색) — npx 필요
-    if command -v npx &>/dev/null; then
-        _tmp=$(mktemp)
-        jq '.mcpServers.context7 = {
-          "type": "stdio",
-          "command": "npx",
-          "args": ["-y", "@upstash/context7-mcp@latest"],
-          "env": {}
-        }' "$CLAUDE_CONFIG" > "$_tmp" && mv "$_tmp" "$CLAUDE_CONFIG"
-        echo "      context7: OK"
-    else
-        echo "      WARN: npx 미설치 — Context7 건너뜀"
-    fi
-fi
-
-# =============================================================================
-# 4. MCP: Serena (코드 인텔리전스 — Dockerfile에서 사전 설치됨)
-# =============================================================================
-step "MCP: Serena..."
-SERENA_DIR="${HOME}/work/serena"
-UV_PATH=$(command -v uv 2>/dev/null || echo "${HOME}/.local/bin/uv")
-
-if ! command -v jq &>/dev/null; then
-    echo "      WARN: jq 미설치 — 건너뜀"
-elif [ ! -d "$SERENA_DIR" ]; then
-    echo "      WARN: Serena 미설치 ($SERENA_DIR 없음)"
-elif [ ! -x "$UV_PATH" ]; then
-    echo "      WARN: uv 미설치"
-else
-    _tmp=$(mktemp)
-    jq --arg uv "$UV_PATH" --arg dir "$SERENA_DIR" '.mcpServers.serena = {
-      "type": "stdio",
-      "command": $uv,
-      "args": ["run", "--directory", $dir, "serena-mcp-server", "--context", "claude-code", "--project-from-cwd"],  # [SPECIALIZED] context name
-      "env": {}
-    }' "$CLAUDE_CONFIG" > "$_tmp" && mv "$_tmp" "$CLAUDE_CONFIG"
-    echo "      serena: OK"
-fi
+# Context7, Serena, Playwright MCP 서버는 Claude Code 플러그인이 자동 관리합니다.
+# 플러그인: context7, serena, playwright (installed_plugins.json)
+# 여기서 ~/.claude.json에 중복 등록하면 도구가 2× 나열되고 서버 프로세스가 이중 실행됩니다.
+# 제거일: 2026-03-21, 사유: 플러그인-직접등록 이중 등록 해소
 
 # =============================================================================
 # Project-specific setup (파일 분리)
@@ -132,7 +84,7 @@ echo "=============================================="
 echo "  Setup Complete!"
 echo "=============================================="
 echo ""
-echo "MCP: $(jq -r '.mcpServers | keys | join(", ")' "$CLAUDE_CONFIG" 2>/dev/null || echo "unknown")"
+echo "MCP: 플러그인 관리 (context7, serena, playwright)"
 echo ""
 echo "시작:  claude"
 echo ""
