@@ -132,3 +132,7 @@ Delegation via Task tool with `subagent_type` parameter.
 
 @PROJECT.md
 @REFERENCE.md
+
+---
+
+*Last updated: 2026-03-22*
