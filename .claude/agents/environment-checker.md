@@ -6,6 +6,9 @@ model: opus
 maxTurns: 10
 memory: project
 effort: high
+color: yellow
+skills:
+  - status
 ---
 
 # Environment Checker — Workspace Health Verification
@@ -188,3 +191,11 @@ grep -q "\.tool-call-counter" "$PROJECT_DIR/.gitignore" 2>/dev/null || echo "WAR
 ### Warnings (Non-blocking)
 - [WARN items with recommendations]
 ```
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing environment check, update your memory (MEMORY.md) with:
+- Environment-specific issues found and their fixes
+- Recurring configuration problems
+- Project-specific environment requirements
+- Auto-fix actions that were applied

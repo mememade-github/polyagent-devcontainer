@@ -6,6 +6,9 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: cyan
+mcpServers:
+  - context7
 ---
 
 # Documentation & Codemap Specialist
@@ -130,102 +133,9 @@ Files to update:
 - Validate code snippets compile
 ```
 
-## Example Project-Specific Codemaps
+## Project-Specific Codemaps
 
-### Frontend Codemap (docs/CODEMAPS/frontend.md)
-```markdown
-# Frontend Architecture
-
-**Last Updated:** YYYY-MM-DD
-**Framework:** Next.js 15.1.4 (App Router)
-**Entry Point:** website/src/app/layout.tsx
-
-## Structure
-
-website/src/
-├── app/                # Next.js App Router
-│   ├── api/           # API routes
-│   ├── markets/       # Markets pages
-│   ├── bot/           # Bot interaction
-│   └── creator-dashboard/
-├── components/        # React components
-├── hooks/             # Custom hooks
-└── lib/               # Utilities
-
-## Key Components
-
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| HeaderWallet | Wallet connection | components/HeaderWallet.tsx |
-| MarketsClient | Markets listing | app/markets/MarketsClient.js |
-| SemanticSearchBar | Search UI | components/SemanticSearchBar.js |
-
-## Data Flow
-
-User → Markets Page → API Route → Supabase → Redis (optional) → Response
-
-## External Dependencies
-
-- Next.js 15.1.4 - Framework
-- React 19.0.0 - UI library
-- Privy - Authentication
-- Tailwind CSS 3.4.1 - Styling
-```
-
-### Backend Codemap (docs/CODEMAPS/backend.md)
-```markdown
-# Backend Architecture
-
-**Last Updated:** YYYY-MM-DD
-**Runtime:** Next.js API Routes
-**Entry Point:** website/src/app/api/
-
-## API Routes
-
-| Route | Method | Purpose |
-|-------|--------|---------|
-| /api/markets | GET | List all markets |
-| /api/markets/search | GET | Semantic search |
-| /api/market/[slug] | GET | Single market |
-| /api/market-price | GET | Real-time pricing |
-
-## Data Flow
-
-API Route → Supabase Query → Redis (cache) → Response
-
-## External Services
-
-- Supabase - PostgreSQL database
-- Redis Stack - Vector search
-- OpenAI - Embeddings
-```
-
-### Integrations Codemap (docs/CODEMAPS/integrations.md)
-```markdown
-# External Integrations
-
-**Last Updated:** YYYY-MM-DD
-
-## Authentication (Privy)
-- Wallet connection (Solana, Ethereum)
-- Email authentication
-- Session management
-
-## Database (Supabase)
-- PostgreSQL tables
-- Real-time subscriptions
-- Row Level Security
-
-## Search (Redis + OpenAI)
-- Vector embeddings (text-embedding-ada-002)
-- Semantic search (KNN)
-- Fallback to substring search
-
-## Blockchain (Solana)
-- Wallet integration
-- Transaction handling
-- Meteora CP-AMM SDK
-```
+Generate codemaps based on the actual project structure. Read CLAUDE.md and PROJECT.md for project context. Use the codemap format above as a template.
 
 ## README Update Template
 
@@ -453,3 +363,11 @@ Before committing documentation:
 ---
 
 **Remember**: Documentation that doesn't match reality is worse than no documentation. Always generate from source of truth (the actual code).
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing documentation updates, update your memory (MEMORY.md) with:
+- Documentation structure and conventions for this project
+- Codemap generation approaches that worked
+- Documentation gaps identified for future sessions
+- Project-specific documentation requirements

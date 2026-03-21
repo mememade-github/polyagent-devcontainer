@@ -6,6 +6,7 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: yellow
 ---
 
 # Debugger — Root Cause Analysis Specialist
@@ -14,7 +15,9 @@ A diagnostic agent that identifies root causes for runtime errors, test failures
 
 ## Scope & Delegation
 
-This agent covers **all error types**. For specialized resolution, delegate:
+This agent covers **all error types**. For specialized resolution, return diagnosis to the main session with a recommendation for which agent to use next.
+
+> **Note**: As a subagent, you cannot spawn other subagents. Include the recommended agent name in your diagnosis output so the main session can delegate.
 
 | Error Type | Diagnose Here | Delegate Fix To |
 |------------|--------------|-----------------|
@@ -129,3 +132,11 @@ Provide structured diagnosis with actionable fix.
 3. **Don't read entire codebases** — Use Grep to find relevant code, Read only what's needed
 4. **Don't retry failing commands** — Diagnose why it fails, don't loop
 5. **Don't assume environment** — Check CLAUDE.md and REFERENCE.md for project-specific context
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing diagnosis, update your memory (MEMORY.md) with:
+- Root causes diagnosed and their resolution paths
+- Recurring error patterns specific to this project
+- Service-specific debugging strategies that worked
+- Environment quirks that affect debugging

@@ -6,6 +6,7 @@ model: opus
 maxTurns: 8
 memory: project
 effort: high
+color: blue
 skills:
   - status
 # NOTE: Edit required for partial updates to WIP README.md (Remaining table, Done section)
@@ -147,3 +148,11 @@ When checking next actionable item: find first task where Blocked By is empty or
 - Track **Files Modified** with repo info — enables targeted code review
 - Use **Priority** column — HIGH first, then MEDIUM, then LOW
 - **Dependencies** must be explicit — never assume ordering
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After managing WIP tasks, update your memory (MEMORY.md) with:
+- WIP lifecycle patterns and common task structures
+- Abandoned WIP detection and recovery procedures
+- Project-specific workflow patterns
+- Cross-session coordination learnings

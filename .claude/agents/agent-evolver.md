@@ -6,6 +6,8 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+background: true
+color: magenta
 skills:
   - verify
   - audit
@@ -201,3 +203,11 @@ When new ECC or other best practice versions are available:
 
 Run `"$CLAUDE_PROJECT_DIR"/.claude/hooks/mark-evolved.sh` to set the evolution marker.
 This prevents the evolution-gate from blocking Stop.
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing evolution analysis, update your memory (MEMORY.md) with:
+- Patterns detected and instincts created/updated
+- Evolution changes applied and their rationale
+- Deferred improvements and why they were deferred
+- Observations about system health trends

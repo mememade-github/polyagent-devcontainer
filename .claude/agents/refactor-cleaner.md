@@ -6,6 +6,10 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: magenta
+isolation: worktree
+skills:
+  - verify
 ---
 
 # Refactor & Dead Code Cleaner
@@ -192,61 +196,9 @@ components/Button.tsx (with variant prop)
 }
 ```
 
-## Example Project-Specific Rules
+## Project-Specific Rules
 
-**CRITICAL - NEVER REMOVE:**
-- Privy authentication code
-- Solana wallet integration
-- Supabase database clients
-- Redis/OpenAI semantic search
-- Market trading logic
-- Real-time subscription handlers
-
-**SAFE TO REMOVE:**
-- Old unused components in components/ folder
-- Deprecated utility functions
-- Test files for deleted features
-- Commented-out code blocks
-- Unused TypeScript types/interfaces
-
-**ALWAYS VERIFY:**
-- Semantic search functionality (lib/redis.js, lib/openai.js)
-- Market data fetching (api/markets/*, api/market/[slug]/)
-- Authentication flows (HeaderWallet.tsx, UserMenu.tsx)
-- Trading functionality (Meteora SDK integration)
-
-## Pull Request Template
-
-When opening PR with deletions:
-
-```markdown
-## Refactor: Code Cleanup
-
-### Summary
-Dead code cleanup removing unused exports, dependencies, and duplicates.
-
-### Changes
-- Removed X unused files
-- Removed Y unused dependencies
-- Consolidated Z duplicate components
-- See docs/DELETION_LOG.md for details
-
-### Testing
-- [x] Build passes
-- [x] All tests pass
-- [x] Manual testing completed
-- [x] No console errors
-
-### Impact
-- Bundle size: -XX KB
-- Lines of code: -XXXX
-- Dependencies: -X packages
-
-### Risk Level
-🟢 LOW - Only removed verifiably unused code
-
-See DELETION_LOG.md for complete details.
-```
+Read CLAUDE.md and PROJECT.md for project-specific critical code that must never be removed. Always verify with the project's test suite before committing removals.
 
 ## Error Recovery
 
@@ -307,3 +259,11 @@ After cleanup session:
 ---
 
 **Remember**: Dead code is technical debt. Regular cleanup keeps the codebase maintainable and fast. But safety first - never remove code without understanding why it exists.
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing cleanup, update your memory (MEMORY.md) with:
+- Safe removal patterns confirmed for this project
+- False positive signatures to ignore in future runs
+- Project-specific dead code baselines (e.g., vulture expected counts)
+- Cleanup decisions and their rationale

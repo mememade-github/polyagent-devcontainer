@@ -6,6 +6,9 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: green
+skills:
+  - verify
 ---
 
 # E2E Test Runner
@@ -347,164 +350,24 @@ test.describe('Market Search', () => {
 })
 ```
 
-## Example Project-Specific Test Scenarios
+## Project-Specific Test Scenarios
 
-### Critical User Journeys for Example Project
+Write test scenarios based on the actual project's critical user journeys. Read CLAUDE.md and PROJECT.md for service endpoints and user flows.
 
-**1. Market Browsing Flow**
+**Test Scenario Template:**
 ```typescript
-test('user can browse and view markets', async ({ page }) => {
-  // 1. Navigate to markets page
-  await page.goto('/markets')
-  await expect(page.locator('h1')).toContainText('Markets')
+test('user can complete critical journey', async ({ page }) => {
+  // 1. Navigate to entry point
+  await page.goto('/path')
 
-  // 2. Verify markets are loaded
-  const marketCards = page.locator('[data-testid="market-card"]')
-  await expect(marketCards.first()).toBeVisible()
+  // 2. Perform user actions
+  // ...
 
-  // 3. Click on a market
-  await marketCards.first().click()
+  // 3. Assert expected outcomes
+  await expect(page.locator('[data-testid="result"]')).toBeVisible()
 
-  // 4. Verify market details page
-  await expect(page).toHaveURL(/\/markets\/[a-z0-9-]+/)
-  await expect(page.locator('[data-testid="market-name"]')).toBeVisible()
-
-  // 5. Verify chart loads
-  await expect(page.locator('[data-testid="price-chart"]')).toBeVisible()
-})
-```
-
-**2. Semantic Search Flow**
-```typescript
-test('semantic search returns relevant results', async ({ page }) => {
-  // 1. Navigate to markets
-  await page.goto('/markets')
-
-  // 2. Enter search query
-  const searchInput = page.locator('[data-testid="search-input"]')
-  await searchInput.fill('election')
-
-  // 3. Wait for API call
-  await page.waitForResponse(resp =>
-    resp.url().includes('/api/markets/search') && resp.status() === 200
-  )
-
-  // 4. Verify results contain relevant markets
-  const results = page.locator('[data-testid="market-card"]')
-  await expect(results).not.toHaveCount(0)
-
-  // 5. Verify semantic relevance (not just substring match)
-  const firstResult = results.first()
-  const text = await firstResult.textContent()
-  expect(text?.toLowerCase()).toMatch(/election|trump|biden|president|vote/)
-})
-```
-
-**3. Wallet Connection Flow**
-```typescript
-test('user can connect wallet', async ({ page, context }) => {
-  // Setup: Mock Privy wallet extension
-  await context.addInitScript(() => {
-    // @ts-ignore
-    window.ethereum = {
-      isMetaMask: true,
-      request: async ({ method }) => {
-        if (method === 'eth_requestAccounts') {
-          return ['0x1234567890123456789012345678901234567890']
-        }
-        if (method === 'eth_chainId') {
-          return '0x1'
-        }
-      }
-    }
-  })
-
-  // 1. Navigate to site
-  await page.goto('/')
-
-  // 2. Click connect wallet
-  await page.locator('[data-testid="connect-wallet"]').click()
-
-  // 3. Verify wallet modal appears
-  await expect(page.locator('[data-testid="wallet-modal"]')).toBeVisible()
-
-  // 4. Select wallet provider
-  await page.locator('[data-testid="wallet-provider-metamask"]').click()
-
-  // 5. Verify connection successful
-  await expect(page.locator('[data-testid="wallet-address"]')).toBeVisible()
-  await expect(page.locator('[data-testid="wallet-address"]')).toContainText('0x1234')
-})
-```
-
-**4. Market Creation Flow (Authenticated)**
-```typescript
-test('authenticated user can create market', async ({ page }) => {
-  // Prerequisites: User must be authenticated
-  await page.goto('/creator-dashboard')
-
-  // Verify auth (or skip test if not authenticated)
-  const isAuthenticated = await page.locator('[data-testid="user-menu"]').isVisible()
-  test.skip(!isAuthenticated, 'User not authenticated')
-
-  // 1. Click create market button
-  await page.locator('[data-testid="create-market"]').click()
-
-  // 2. Fill market form
-  await page.locator('[data-testid="market-name"]').fill('Test Market')
-  await page.locator('[data-testid="market-description"]').fill('This is a test market')
-  await page.locator('[data-testid="market-end-date"]').fill('2025-12-31')
-
-  // 3. Submit form
-  await page.locator('[data-testid="submit-market"]').click()
-
-  // 4. Verify success
-  await expect(page.locator('[data-testid="success-message"]')).toBeVisible()
-
-  // 5. Verify redirect to new market
-  await expect(page).toHaveURL(/\/markets\/test-market/)
-})
-```
-
-**5. Trading Flow (Critical - Real Money)**
-```typescript
-test('user can place trade with sufficient balance', async ({ page }) => {
-  // WARNING: This test involves real money - use testnet/staging only!
-  test.skip(process.env.NODE_ENV === 'production', 'Skip on production')
-
-  // 1. Navigate to market
-  await page.goto('/markets/test-market')
-
-  // 2. Connect wallet (with test funds)
-  await page.locator('[data-testid="connect-wallet"]').click()
-  // ... wallet connection flow
-
-  // 3. Select position (Yes/No)
-  await page.locator('[data-testid="position-yes"]').click()
-
-  // 4. Enter trade amount
-  await page.locator('[data-testid="trade-amount"]').fill('1.0')
-
-  // 5. Verify trade preview
-  const preview = page.locator('[data-testid="trade-preview"]')
-  await expect(preview).toContainText('1.0 SOL')
-  await expect(preview).toContainText('Est. shares:')
-
-  // 6. Confirm trade
-  await page.locator('[data-testid="confirm-trade"]').click()
-
-  // 7. Wait for blockchain transaction
-  await page.waitForResponse(resp =>
-    resp.url().includes('/api/trade') && resp.status() === 200,
-    { timeout: 30000 } // Blockchain can be slow
-  )
-
-  // 8. Verify success
-  await expect(page.locator('[data-testid="trade-success"]')).toBeVisible()
-
-  // 9. Verify balance updated
-  const balance = page.locator('[data-testid="wallet-balance"]')
-  await expect(balance).not.toContainText('--')
+  // 4. Screenshot for verification
+  await page.screenshot({ path: 'artifacts/journey-name.png' })
 })
 ```
 
@@ -661,49 +524,11 @@ use: {
 
 ## CI/CD Integration
 
-### GitHub Actions Workflow
-```yaml
-# .github/workflows/e2e.yml
-name: E2E Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests
-        run: npx playwright test
-        env:
-          BASE_URL: https://staging.pmx.trade
-
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: playwright-results
-          path: playwright-results.xml
-```
+Configure CI/CD pipeline based on your project's deployment setup. Key requirements:
+- Install browser dependencies
+- Run tests against staging environment
+- Upload artifacts on failure
+- Report results in PR comments
 
 ## Test Report Format
 
@@ -797,4 +622,12 @@ After E2E test run:
 
 ---
 
-**Remember**: E2E tests are your last line of defense before production. They catch integration issues that unit tests miss. Invest time in making them stable, fast, and comprehensive. For Example Project, focus especially on financial flows - one bug could cost users real money.
+**Remember**: E2E tests are your last line of defense before production. They catch integration issues that unit tests miss. Invest time in making them stable, fast, and comprehensive.
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing E2E testing, update your memory (MEMORY.md) with:
+- Test journey inventory and their pass/fail history
+- Flaky test patterns and quarantine status
+- Environment-specific test configurations
+- Test infrastructure decisions and their rationale

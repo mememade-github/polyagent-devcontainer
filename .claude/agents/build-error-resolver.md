@@ -6,6 +6,9 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: red
+skills:
+  - verify
 ---
 
 # Build Error Resolver
@@ -264,78 +267,9 @@ export const MyComponent = () => <div />
 export const someConstant = 42
 ```
 
-## Example Project-Specific Build Issues
+## Project-Specific Patterns
 
-### Next.js 15 + React 19 Compatibility
-```typescript
-// ❌ ERROR: React 19 type changes
-import { FC } from 'react'
-
-interface Props {
-  children: React.ReactNode
-}
-
-const Component: FC<Props> = ({ children }) => {
-  return <div>{children}</div>
-}
-
-// ✅ FIX: React 19 doesn't need FC
-interface Props {
-  children: React.ReactNode
-}
-
-const Component = ({ children }: Props) => {
-  return <div>{children}</div>
-}
-```
-
-### Supabase Client Types
-```typescript
-// ❌ ERROR: Type 'any' not assignable
-const { data } = await supabase
-  .from('markets')
-  .select('*')
-
-// ✅ FIX: Add type annotation
-interface Market {
-  id: string
-  name: string
-  slug: string
-  // ... other fields
-}
-
-const { data } = await supabase
-  .from('markets')
-  .select('*') as { data: Market[] | null, error: any }
-```
-
-### Redis Stack Types
-```typescript
-// ❌ ERROR: Property 'ft' does not exist on type 'RedisClientType'
-const results = await client.ft.search('idx:markets', query)
-
-// ✅ FIX: Use proper Redis Stack types
-import { createClient } from 'redis'
-
-const client = createClient({
-  url: process.env.REDIS_URL
-})
-
-await client.connect()
-
-// Type is inferred correctly now
-const results = await client.ft.search('idx:markets', query)
-```
-
-### Solana Web3.js Types
-```typescript
-// ❌ ERROR: Argument of type 'string' not assignable to 'PublicKey'
-const publicKey = wallet.address
-
-// ✅ FIX: Use PublicKey constructor
-import { PublicKey } from '@solana/web3.js'
-const publicKey = new PublicKey(wallet.address)
-```
+Consult the project's CLAUDE.md and REFERENCE.md for project-specific build configurations, toolchains, and known issues. Adapt the patterns above to match the actual technology stack.
 
 ## Minimal Diff Strategy
 
@@ -452,84 +386,10 @@ Parameter 'market' implicitly has an 'any' type.
 - [ ] Deploy to staging for QA
 ```
 
-## When to Use This Agent
+## Memory Management
 
-**USE when:**
-- `npm run build` fails
-- `npx tsc --noEmit` shows errors
-- Type errors blocking development
-- Import/module resolution errors
-- Configuration errors
-- Dependency version conflicts
-
-**DON'T USE when:**
-- Code needs refactoring (use refactor-cleaner)
-- Architectural changes needed (use architect)
-- New features required (use planner)
-- Tests failing (use tdd-guide)
-- Security issues found (use security-reviewer)
-
-## Build Error Priority Levels
-
-### 🔴 CRITICAL (Fix Immediately)
-- Build completely broken
-- No development server
-- Production deployment blocked
-- Multiple files failing
-
-### 🟡 HIGH (Fix Soon)
-- Single file failing
-- Type errors in new code
-- Import errors
-- Non-critical build warnings
-
-### 🟢 MEDIUM (Fix When Possible)
-- Linter warnings
-- Deprecated API usage
-- Non-strict type issues
-- Minor configuration warnings
-
-## Quick Reference Commands
-
-```bash
-# Check for errors
-npx tsc --noEmit
-
-# Build Next.js
-npm run build
-
-# Clear cache and rebuild
-rm -rf .next node_modules/.cache
-npm run build
-
-# Check specific file
-npx tsc --noEmit src/path/to/file.ts
-
-# Install missing dependencies
-npm install
-
-# Fix ESLint issues automatically
-npx eslint . --fix
-
-# Update TypeScript
-npm install --save-dev typescript@latest
-
-# Verify node_modules
-rm -rf node_modules package-lock.json
-npm install
-```
-
-## Success Metrics
-
-After build error resolution:
-- ✅ `npx tsc --noEmit` exits with code 0
-- ✅ `npm run build` completes successfully
-- ✅ No new errors introduced
-- ✅ Minimal lines changed (< 5% of affected file)
-- ✅ Build time not significantly increased
-- ✅ Development server runs without errors
-- ✅ Tests still passing
-
----
-
-**Remember**: The goal is to fix errors quickly with minimal changes. Don't refactor, don't optimize, don't redesign. Fix the error, verify the build passes, move on. Speed and precision over perfection.
+Consult your agent memory at the start of each invocation. After resolving build errors, update your memory (MEMORY.md) with:
+- Error patterns encountered and fixes applied
+- Project-specific build configurations
+- Recurring issues and their root causes
+- Build tool versions and compatibility notes

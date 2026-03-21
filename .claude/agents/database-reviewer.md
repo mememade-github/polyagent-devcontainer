@@ -6,6 +6,9 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: blue
+mcpServers:
+  - serena
 ---
 
 # Database Reviewer
@@ -686,3 +689,11 @@ ORDER BY rank DESC;
 **Remember**: Database issues are often the root cause of application performance problems. Optimize queries and schema design early. Use EXPLAIN ANALYZE to verify assumptions. Always index foreign keys and RLS policy columns.
 
 *Patterns adapted from [Supabase Agent Skills](https://github.com/supabase/agent-skills) under MIT license.*
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing database review, update your memory (MEMORY.md) with:
+- Schema patterns and conventions used in this project
+- Query optimization findings and improvements applied
+- Project-specific database architecture decisions
+- Recurring anti-patterns and their fixes

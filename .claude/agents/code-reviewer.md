@@ -6,6 +6,13 @@ model: opus
 maxTurns: 15
 memory: project
 effort: high
+color: green
+mcpServers:
+  - serena
+hooks:
+  Stop:
+    - type: command
+      command: "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/review-complete.sh"
 ---
 
 You are a senior code reviewer ensuring high standards of code quality and security.
@@ -105,3 +112,11 @@ Add your project-specific checks here. Examples:
 - Validate cache fallback behavior
 
 Customize based on your project's `CLAUDE.md` or skill files.
+
+## Memory Management
+
+Consult your agent memory at the start of each invocation. After completing code review, update your memory (MEMORY.md) with:
+- Recurring code quality issues found in this project
+- Project-specific patterns validated as correct
+- Security findings and their resolution status
+- Review quality metrics and patterns
