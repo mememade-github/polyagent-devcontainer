@@ -16,10 +16,49 @@ accessible via mounted `docker.sock` — this is NOT DinD.
 | `docker images`, `docker inspect` | — |
 | Volume mounts via `--project-directory` | — |
 
-> **HOST 경로 볼륨 마운트**: `docker compose --project-directory <HOST경로>`를 사용하면
-> DevContainer 내부에서도 HOST 경로 기준 볼륨 마운트가 가능합니다.
-> `HOST_WORKSPACE_PATH` 환경변수로 컨테이너 경로 → HOST 경로 변환을 수행합니다.
-> 각 프로젝트의 `REFERENCE.md`에서 상세 설명을 확인하세요.
+## Volume Mount Path Translation
+
+When running `docker compose up` inside a DevContainer, bind mount volume source paths are
+resolved by the **Docker daemon**, not the container. The DevContainer and Docker daemon access
+the same physical files through different paths, so path translation is required.
+
+### Filesystem Namespace Isolation
+
+```
+DevContainer (9p mount):
+  /workspaces/<project>/... → files visible ✓
+
+Docker daemon (WSL2 host mount):
+  /run/desktop/mnt/host/c/.../<project>/... → files visible ✓
+
+Cross-access impossible:
+  DevContainer → /run/desktop/  = does not exist (not mounted)
+  Docker daemon → /workspaces/  = empty WSL2 native directory (different filesystem)
+```
+
+This issue does not occur in server deployments where scripts and Docker daemon run on the
+same OS. It is a structural constraint specific to DevContainers.
+
+### Resolution: HOST_WORKSPACE_PATH + --project-directory
+
+Set `HOST_WORKSPACE_PATH` to the HOST filesystem path that the Docker daemon uses, then use
+`docker compose --project-directory <HOST_PATH>` to translate volume mount paths.
+
+Verify the correct value:
+
+```bash
+docker inspect <container_name> \
+  --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}'
+```
+
+See each project's `REFERENCE.md` for specific configuration instructions.
+
+### build vs volume mount Behavior
+
+| Command | File Access Method | DevContainer Path Behavior |
+|---------|-------------------|---------------------------|
+| `docker compose build` | Docker CLI reads files and sends to daemon | DevContainer path OK |
+| `docker compose up` (bind mount) | Docker daemon mounts directly from HOST | **HOST path required** |
 
 ## 4-Phase Testing Protocol
 

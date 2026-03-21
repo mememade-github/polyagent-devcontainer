@@ -49,12 +49,12 @@
 - **Location**: `.claude/skills/<skill-name>/SKILL.md`
 - **Auto-load**: By context match (skill description matches user intent)
 - **User-invocable**: Via `/<skill-name>` if `user-invocable: true` in frontmatter
-- **Required frontmatter**:
+- **Frontmatter** (no fields strictly required; `description` recommended):
   ```yaml
   ---
-  name: skill-name
-  description: What this skill does
-  user-invocable: true|false
+  name: skill-name                    # Optional (defaults to directory name)
+  description: What this skill does   # Recommended (used for auto-loading)
+  user-invocable: true|false          # Optional (default: true)
   ---
   ```
 
@@ -93,7 +93,7 @@ CLAUDE.md (immutable principles, loaded first)
 - [ ] CLAUDE.md is under 200 lines
 - [ ] Each agent with `memory: project` has a MEMORY.md
 - [ ] Rule files are concise and single-topic
-- [ ] Skills have SKILL.md with required frontmatter
+- [ ] Skills have SKILL.md with frontmatter (`description` recommended)
 - [ ] No project-specific content in portable rules
 - [ ] Instincts directory structure: personal/, inherited/, archive/
 

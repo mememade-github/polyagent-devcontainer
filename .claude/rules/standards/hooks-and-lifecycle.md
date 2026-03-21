@@ -19,7 +19,7 @@ Claude Code supports four hook types:
 | **agent** | Spawns an agent with tools | Complex pre/post processing | 60s |
 | **http** | HTTP POST to endpoint | Webhook integrations | varies |
 
-### Hook Events (Official — 21 events)
+### Hook Events (Official — 22 events)
 
 Status: **Verified** = registered in settings.json and tested, **Official** = documented in Claude Code but not registered here, **Unverified** = may not exist in current runtime
 
@@ -35,6 +35,7 @@ Status: **Verified** = registered in settings.json and tested, **Official** = do
 | SubagentStart | Before subagent spawn | Verified | Team coordination |
 | SubagentStop | After subagent finish | Verified | Team cleanup |
 | Stop | Before session end | Verified | Evolution gate, cleanup |
+| StopFailure | On API/runtime error during stop | Official | Error handling (rate_limit, auth, billing, server_error, max_output_tokens, unknown) |
 | TeammateIdle | Teammate goes idle | Official | Team coordination |
 | TaskCompleted | Task marked complete | Official | Progress tracking |
 | ConfigChange | Config file modified | Unverified | Config validation |
