@@ -1,10 +1,11 @@
 ---
 name: wip-manager
 description: Manage work-in-progress for multi-session tasks. Auto-invoked when tasks span sessions.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 8
 memory: project
+effort: high
 skills:
   - status
 # NOTE: Edit required for partial updates to WIP README.md (Remaining table, Done section)

@@ -13,7 +13,7 @@
 ---
 name: agent-name          # kebab-case, must match filename
 description: >-           # One-line purpose statement
-tools: Read, Write, Edit, Bash, Grep, Glob  # Comma-separated (official format)
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 ---
 ```
 
@@ -35,6 +35,7 @@ memory: project           # Scope: user | project | local. Enables agent-memory/
 ### Optional Frontmatter Fields
 
 ```yaml
+effort: high               # Reasoning depth: low | medium | high | max (official)
 skills: [verify, learn]   # Skills available to agent (official)
 isolation: worktree        # Run in temporary git worktree (official)
 background: true           # Always run as background task (official)
@@ -44,19 +45,17 @@ hooks: {}                  # Lifecycle hooks scoped to subagent (official)
 
 ### Tool Access Policy
 
-**All agents have full tool access** for maximum autonomy:
+**모든 에이전트에 전체 도구를 명시적으로 주입한다.**
 
 ```yaml
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 ```
 
-- No `disallowedTools` — agents self-regulate based on their role description
+- 전 에이전트 동일한 도구 세트 명시 (암묵적 상속 대신 명시적 선언)
+- No `disallowedTools` — 역할 기반 body content로 자율 규제
 - No `permissionMode` — uses system default
-- Agent body content guides appropriate tool usage (not enforcement via restrictions)
 
-> **Note**: Projects may override tool access via `.claude/rules/project/agent-overrides.md`.
-> The official docs recommend role-based restrictions; full access relies on agent body
-> content to guide appropriate tool usage.
+> **Note**: Projects may override via `.claude/rules/project/agent-overrides.md`.
 
 ### Model Selection Guide
 
@@ -79,7 +78,7 @@ Default model selection per complexity. **Check project overrides first** — ma
 ## Compliance Checks
 
 - [ ] `name` field matches filename (without .md)
-- [ ] `tools` is `["Read", "Write", "Edit", "Bash", "Grep", "Glob"]` (full access)
+- [ ] `tools` is `["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]`
 - [ ] No `disallowedTools` field present
 - [ ] No `permissionMode` field present
 - [ ] `model` is set appropriately (see project overrides if applicable)

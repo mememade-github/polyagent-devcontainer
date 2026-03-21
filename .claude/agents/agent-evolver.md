@@ -1,10 +1,11 @@
 ---
 name: agent-evolver
 description: Analyze session outcomes and evolve agent definitions, rules, and skills. Auto-delegate after meaningful work completes.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 15
 memory: project
+effort: high
 skills:
   - verify
   - audit

@@ -1,15 +1,16 @@
 ---
 name: environment-checker
 description: Verify workspace environment health - permissions, git config, SSH, Docker, stale artifacts. Use when environment issues are suspected.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 10
 memory: project
+effort: high
 ---
 
 # Environment Checker — Workspace Health Verification
 
-A diagnostic agent that verifies workspace environment state. Operates at the infrastructure layer (not code quality — that's code-reviewer/tdd-guide). Read-only — diagnoses and reports, does not modify.
+A diagnostic agent that verifies workspace environment state. Operates at the infrastructure layer (not code quality — that's code-reviewer/tdd-guide). Primarily diagnoses and reports; may apply fixes when appropriate.
 
 ## When To Run
 
