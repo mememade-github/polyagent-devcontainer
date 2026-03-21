@@ -147,4 +147,4 @@ postStartCommand (매 시작 시)
 
 ---
 
-*Template version: v3 (2026-02-25)*
+*Last updated: 2026-03-21*
