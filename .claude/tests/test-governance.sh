@@ -25,12 +25,12 @@ get_frontmatter() {
 
 get_field() {
   local fm="$1" field="$2"
-  echo "$fm" | grep -E "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//"
+  echo "$fm" | grep -E "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//" || true
 }
 
 has_field() {
   local fm="$1" field="$2"
-  echo "$fm" | grep -qE "^${field}:" && return 0 || return 1
+  echo "$fm" | grep -qE "^${field}:"
 }
 
 # ===== GOVERNANCE (GV-1..4) =====

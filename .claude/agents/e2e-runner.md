@@ -4,8 +4,6 @@ description: End-to-end testing specialist using Vercel Agent Browser (preferred
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 15
-memory: project
-effort: high
 color: green
 isolation: worktree
 skills:

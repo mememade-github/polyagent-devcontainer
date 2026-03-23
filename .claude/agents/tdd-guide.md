@@ -4,8 +4,6 @@ description: Test-Driven Development specialist enforcing write-tests-first meth
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 20
-memory: project
-effort: high
 color: green
 isolation: worktree
 mcpServers:

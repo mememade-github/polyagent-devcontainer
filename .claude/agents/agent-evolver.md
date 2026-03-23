@@ -5,7 +5,6 @@ tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"
 model: opus
 maxTurns: 15
 memory: project
-effort: high
 background: true
 color: magenta
 skills:

@@ -25,13 +25,13 @@ get_frontmatter() {
 # Get single-line field value from frontmatter text
 get_field() {
   local fm="$1" field="$2"
-  echo "$fm" | grep -E "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//"
+  echo "$fm" | grep -E "^${field}:" | head -1 | sed "s/^${field}:[[:space:]]*//" || true
 }
 
 # Check if field exists in frontmatter
 has_field() {
   local fm="$1" field="$2"
-  echo "$fm" | grep -qE "^${field}:" && return 0 || return 1
+  echo "$fm" | grep -qE "^${field}:"
 }
 
 # Check if multi-line YAML list field has items (for mcpServers, skills, hooks)
@@ -68,7 +68,27 @@ has_list_field_items() {
   return 1
 }
 
-EXPECTED_TOOLS='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+# Role-based tool sets (from agent-overrides.md)
+declare -A EXPECTED_TOOLS_MAP
+EXPECTED_TOOLS_MAP[agent-evolver]='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[architect]='["Read", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[build-error-resolver]='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[code-reviewer]='["Read", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[database-reviewer]='["Read", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[debugger]='["Read", "Bash", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[doc-updater]='["Read", "Write", "Edit", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[e2e-runner]='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[environment-checker]='["Read", "Bash", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[planner]='["Read", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[refactor-cleaner]='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[security-reviewer]='["Read", "Grep", "Glob"]'
+EXPECTED_TOOLS_MAP[tdd-guide]='["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]'
+EXPECTED_TOOLS_MAP[wip-manager]='["Read", "Write", "Grep", "Glob"]'
+
+# Agents that require memory: project
+declare -A MEMORY_REQUIRED
+MEMORY_REQUIRED[agent-evolver]=1
+MEMORY_REQUIRED[wip-manager]=1
 
 declare -A CHECK_PASS CHECK_FAIL CHECK_DETAIL
 
@@ -94,9 +114,10 @@ for agent_file in "$AGENTS_DIR"/*.md; do
     CHECK_DETAIL[AD-1]+=" $fname"
   fi
 
-  # AD-2: tools equals full set
+  # AD-2: tools matches role-based expected set
   tools_val=$(get_field "$fm" "tools")
-  if [ "$tools_val" = "$EXPECTED_TOOLS" ]; then
+  expected_tools="${EXPECTED_TOOLS_MAP[$fname]:-}"
+  if [ -n "$expected_tools" ] && [ "$tools_val" = "$expected_tools" ]; then
     CHECK_PASS[AD-2]=$((${CHECK_PASS[AD-2]} + 1))
   else
     CHECK_FAIL[AD-2]=$((${CHECK_FAIL[AD-2]} + 1))
@@ -121,22 +142,30 @@ for agent_file in "$AGENTS_DIR"/*.md; do
     CHECK_DETAIL[AD-4]+=" $fname($mt_val)"
   fi
 
-  # AD-5: memory = project
+  # AD-5: memory = project if required, optional otherwise
   mem_val=$(get_field "$fm" "memory")
-  if [ "$mem_val" = "project" ]; then
-    CHECK_PASS[AD-5]=$((${CHECK_PASS[AD-5]} + 1))
+  if [ "${MEMORY_REQUIRED[$fname]:-0}" = "1" ]; then
+    if [ "$mem_val" = "project" ]; then
+      CHECK_PASS[AD-5]=$((${CHECK_PASS[AD-5]} + 1))
+    else
+      CHECK_FAIL[AD-5]=$((${CHECK_FAIL[AD-5]} + 1))
+      CHECK_DETAIL[AD-5]+=" $fname(required)"
+    fi
   else
-    CHECK_FAIL[AD-5]=$((${CHECK_FAIL[AD-5]} + 1))
-    CHECK_DETAIL[AD-5]+=" $fname"
+    if [ -z "$mem_val" ] || [ "$mem_val" = "project" ]; then
+      CHECK_PASS[AD-5]=$((${CHECK_PASS[AD-5]} + 1))
+    else
+      CHECK_FAIL[AD-5]=$((${CHECK_FAIL[AD-5]} + 1))
+      CHECK_DETAIL[AD-5]+=" $fname($mem_val)"
+    fi
   fi
 
-  # AD-6: effort = high
-  eff_val=$(get_field "$fm" "effort")
-  if [ "$eff_val" = "high" ]; then
-    CHECK_PASS[AD-6]=$((${CHECK_PASS[AD-6]} + 1))
-  else
+  # AD-6: effort not in frontmatter (global effortLevel in settings.json)
+  if has_field "$fm" "effort"; then
     CHECK_FAIL[AD-6]=$((${CHECK_FAIL[AD-6]} + 1))
     CHECK_DETAIL[AD-6]+=" $fname"
+  else
+    CHECK_PASS[AD-6]=$((${CHECK_PASS[AD-6]} + 1))
   fi
 
   # AD-7: no disallowedTools
@@ -225,11 +254,11 @@ done
 # Emit results
 DESCS=(
   [1]="name matches filename"
-  [2]="tools equals full set"
+  [2]="tools matches role-based set"
   [3]="model is opus"
   [4]="maxTurns in 8-20"
-  [5]="memory is project"
-  [6]="effort is high"
+  [5]="memory is project where required"
+  [6]="effort not in frontmatter (global)"
   [7]="no disallowedTools"
   [8]="no permissionMode"
   [9]="description single-line non-empty"

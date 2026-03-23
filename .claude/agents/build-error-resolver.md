@@ -4,8 +4,6 @@ description: Build and TypeScript error resolution specialist. Use PROACTIVELY w
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 15
-memory: project
-effort: high
 color: red
 skills:
   - verify

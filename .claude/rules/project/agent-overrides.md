@@ -10,26 +10,24 @@ All agents in this workspace use the top-tier model:
 model: opus    # ALL agents — no exceptions
 ```
 
-This overrides the standard's per-complexity model selection guide.
 Rationale: consistency and maximum capability across all agent operations.
 
 ## Tool Access Policy
 
-전 에이전트에 동일한 전체 도구를 명시적으로 주입 (예외 없음):
+Role-based tool restriction. Read-only agents cannot modify code.
 
-```yaml
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
-```
+| Role | Tools | Agents |
+|------|-------|--------|
+| **read-only** | `Read, Grep, Glob` | architect, code-reviewer, database-reviewer, security-reviewer |
+| **diagnostic** | `Read, Bash, Grep, Glob` | debugger, environment-checker |
+| **research** | `Read, Grep, Glob, WebSearch, WebFetch` | planner |
+| **docs-only** | `Read, Write, Edit, Grep, Glob` | doc-updater |
+| **state-only** | `Read, Write, Grep, Glob` | wip-manager |
+| **full** | all tools | agent-evolver, build-error-resolver, e2e-runner, refactor-cleaner, tdd-guide |
 
 ## Effort Policy
 
-전 에이전트 `effort: high` (예외 없음):
-
-```yaml
-effort: high    # ALL agents — 최대 추론 품질
-```
-
-Rationale: 모든 도구를 활용하고 모든 능력을 고수준으로 작업하는 것이 지침.
+Global `effortLevel: high` in `settings.json`. Per-agent `effort` field not used.
 
 ## Team Structure
 
@@ -49,17 +47,16 @@ Rationale: 모든 도구를 활용하고 모든 능력을 고수준으로 작업
 |-------|------|-------------|
 | `name` | string | kebab-case, must match filename |
 | `description` | string | One-line purpose statement |
-| `tools` | array | `["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]` |
+| `tools` | array | Role-specific (see Tool Access Policy above) |
 | `model` | string | `opus` (this workspace) |
-| `maxTurns` | int | Safety/cost gate (8-20) |
-| `memory` | string | `project` (enables agent-memory/MEMORY.md) |
-| `effort` | string | `high` (this workspace) |
 
-**Optional fields**:
+**Common optional fields**:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `isolation` | string | `worktree` -- run in temporary git worktree |
+| `maxTurns` | int | Safety/cost gate (8-20) |
+| `memory` | string | `project` — only for agents needing cross-session state |
+| `isolation` | string | `worktree` — run in temporary git worktree |
 | `background` | bool | Always run as background task |
 | `mcpServers` | array | MCP servers available to subagent |
 | `skills` | array | Skills available to agent |
@@ -70,21 +67,21 @@ Rationale: 모든 도구를 활용하고 모든 능력을 고수준으로 작업
 
 ## Agent Inventory (14)
 
-All agents: `model: opus`, `memory: project`, `maxTurns` 8-20.
+All agents: `model: opus`, `maxTurns` 8-20.
 
-| Agent | maxTurns | effort | Tools | Skills | Color | MCP | Extra | Purpose |
-|-------|----------|--------|-------|--------|-------|-----|-------|---------|
-| agent-evolver | 15 | high | full | verify, audit | magenta | — | background | Session analysis, agent/rule/skill evolution |
-| architect | 20 | high | full | — | cyan | serena | — | Architecture patterns and design review |
-| build-error-resolver | 15 | high | full | verify, build-fix | red | — | — | Fix build/type errors with minimal diffs |
-| code-reviewer | 15 | high | full | verify | green | serena | hooks | Code review with severity framework |
-| database-reviewer | 15 | high | full | — | blue | serena | hooks | PostgreSQL optimization, schema design |
-| debugger | 15 | high | full | — | yellow | serena | — | Root cause analysis for runtime errors |
-| doc-updater | 15 | high | full | — | cyan | context7 | background | Documentation and codemap specialist |
-| e2e-runner | 15 | high | full | verify | green | — | isolation | E2E testing (curl, Playwright) |
-| environment-checker | 10 | high | full | status | yellow | — | background | Workspace health verification |
-| planner | 20 | high | full | — | cyan | serena, context7 | — | Implementation planning specialist |
-| refactor-cleaner | 15 | high | full | verify | magenta | — | isolation | Dead code cleanup and consolidation |
-| security-reviewer | 15 | high | full | verify | red | serena | — | Security vulnerability detection (OWASP) |
-| tdd-guide | 20 | high | full | verify | green | serena | isolation | TDD: RED→GREEN→REFACTOR cycle |
-| wip-manager | 8 | high | full | status | blue | — | — | Multi-session task tracking |
+| Agent | maxTurns | Tools | Skills | Color | MCP | Extra | Purpose |
+|-------|----------|-------|--------|-------|-----|-------|---------|
+| agent-evolver | 15 | full | verify, audit | magenta | — | background, memory | Session analysis, agent/rule/skill evolution |
+| architect | 20 | read-only | — | cyan | serena | — | Architecture patterns and design review |
+| build-error-resolver | 15 | full | verify, build-fix | red | — | — | Fix build/type errors with minimal diffs |
+| code-reviewer | 15 | read-only | verify | green | serena | hooks | Code review with severity framework |
+| database-reviewer | 15 | read-only | — | blue | serena | hooks | PostgreSQL optimization, schema design |
+| debugger | 15 | diagnostic | — | yellow | serena | — | Root cause analysis for runtime errors |
+| doc-updater | 15 | docs-only | — | cyan | context7 | background | Documentation and codemap specialist |
+| e2e-runner | 15 | full | verify | green | — | isolation | E2E testing (curl, Playwright) |
+| environment-checker | 10 | diagnostic | status | yellow | — | background | Workspace health verification |
+| planner | 20 | research | — | cyan | serena, context7 | — | Implementation planning specialist |
+| refactor-cleaner | 15 | full | verify | magenta | — | isolation | Dead code cleanup and consolidation |
+| security-reviewer | 15 | read-only | verify | red | serena | — | Security vulnerability detection (OWASP) |
+| tdd-guide | 20 | full | verify | green | serena | isolation | TDD: RED→GREEN→REFACTOR cycle |
+| wip-manager | 8 | state-only | status | blue | — | memory | Multi-session task tracking |

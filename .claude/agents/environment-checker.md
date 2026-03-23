@@ -1,11 +1,9 @@
 ---
 name: environment-checker
 description: Verify workspace environment health - permissions, git config, SSH, Docker, stale artifacts. Use when environment issues are suspected.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
+tools: ["Read", "Bash", "Grep", "Glob"]
 model: opus
 maxTurns: 10
-memory: project
-effort: high
 color: yellow
 background: true
 skills:

@@ -1,11 +1,9 @@
 ---
 name: doc-updater
 description: Documentation and codemap specialist. Use PROACTIVELY for updating codemaps and documentation. Runs /update-codemaps and /update-docs, generates docs/CODEMAPS/*, updates READMEs and guides.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
+tools: ["Read", "Write", "Edit", "Grep", "Glob"]
 model: opus
 maxTurns: 15
-memory: project
-effort: high
 color: cyan
 background: true
 mcpServers:

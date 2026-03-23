@@ -4,8 +4,6 @@ description: Dead code cleanup and consolidation specialist. Use PROACTIVELY for
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 15
-memory: project
-effort: high
 color: magenta
 isolation: worktree
 skills:
