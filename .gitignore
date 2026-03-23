@@ -30,6 +30,7 @@ yarn-error.log*
 .claude/.tool-call-counter
 .claude/.last-verification*
 .claude/.last-evolution*
+.claude/.last-push-url*
 .claude/.heartbeat
 .claude/.pending-review
 .claude/.review-done
