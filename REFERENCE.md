@@ -84,10 +84,11 @@ postStartCommand (매 시작 시)
 
 ## Agent System
 
-### Agents (13)
+### Agents (14)
 
 | Agent | Purpose | Auto-trigger |
 |-------|---------|-------------|
+| agent-evolver | Session outcome analysis, agent/rule/skill evolution | After meaningful work |
 | code-reviewer | Code review with severity framework | After code changes |
 | security-reviewer | Security vulnerability detection (OWASP) | After security-sensitive changes |
 | database-reviewer | PostgreSQL optimization, schema design | After DB changes |
@@ -102,35 +103,48 @@ postStartCommand (매 시작 시)
 | environment-checker | Workspace health | On env issues |
 | wip-manager | Multi-session tracking | When task spans sessions |
 
-### Hooks (12)
+### Hooks (21)
 
 | Hook | Event | Purpose |
 |------|-------|---------|
 | session-start.sh | SessionStart | Git status, WIP resume, Known Issues |
 | block-destructive.sh | PreToolUse(Bash) | Block rm -rf, git push --force |
 | pre-commit-gate.sh | PreToolUse(Bash) | Require verification before commit |
+| observe.sh | PreToolUse/PostToolUse | Tool usage observation for evolution |
 | code-review-reminder.sh | PostToolUse(Edit/Write) | Track modified files |
 | suggest-compact.sh | PostToolUse(Edit/Write) | Suggest context compaction |
+| standards-reminder.sh | PostToolUse(Edit/Write) | Enforce standards-first for .claude/ changes |
+| error-tracker.sh | PostToolUseFailure | Track errors, enforce root cause fix |
+| subagent-stop-report.sh | SubagentStop | Log subagent completion summary |
 | stop-gate.sh | Stop | Block stop if review pending |
+| evolution-gate.sh | Stop | Block stop if evolution needed |
+| pre-compact.sh | PreCompact | Save critical state before compaction |
+| post-compact.sh | PostCompact | Restore context after compaction |
+| task-quality-gate.sh | TaskCompleted | Verify task completion quality |
 | mark-verified.sh | Utility | Set verification marker |
+| mark-evolved.sh | Utility | Set evolution marker |
 | review-complete.sh | Utility | Clear review marker |
 | claude-update-check.sh | Utility | Check for Claude updates |
-| error-tracker.sh | PostToolUseFailure | Track errors, enforce root cause fix |
-| standards-reminder.sh | PostToolUse(Edit/Write) | Enforce standards-first for .claude/ changes |
+| validate-readonly-sql.sh | Utility | Block destructive SQL in database-reviewer |
+| worker-guard.sh | SessionStart | Multi-worker collision detection |
 | test-hooks.sh | Testing | Validate hooks |
 
-### Skills (/commands)
+### Skills (/commands — 12)
 
 | Skill | Description |
 |-------|-------------|
-| /build-fix | Build error resolution |
-| /verify | Pre-commit verification |
-| /commit | Git commit with format |
-| /pr | Create pull request |
-| /deploy | Deploy to production |
-| /status | Workspace status |
-| /eval | Eval-Driven Development |
 | /audit | Standards compliance audit |
+| /build-fix | Build error resolution |
+| /commit | Git commit with format |
+| /eval | Eval-Driven Development |
+| /evolve | Agent evolution trigger |
+| /instinct-export | Export instincts for sharing |
+| /instinct-import | Import instincts from external sources |
+| /instinct-status | Show instinct confidence scores |
+| /learn | Extract patterns and save as instincts |
+| /pr | Create pull request |
+| /status | Workspace status |
+| /verify | Pre-commit verification |
 
 ## Troubleshooting
 
