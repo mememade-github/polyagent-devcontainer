@@ -40,11 +40,12 @@
 
 ### Tier 1에 포함되지 않는 요소
 
-도메인 프로젝트에서 필요에 따라 추가하는 기능:
-- evolution 시스템 (agent-evolver, observe/evolution-gate/mark-evolved hooks)
-- instincts 디렉토리 및 학습 시스템
-- evolution 관련 스킬 (/evolve, /learn, /instinct-status, /instinct-export, /instinct-import)
-- 프로젝트별 에이전트 및 도메인 규칙
+프로젝트별로 독립 관리되는 데이터 (sync 대상 아님):
+- `rules/project/` 내 프로젝트 고유 규칙 (`agent-overrides.md` 제외 — 이것은 sync 대상)
+- `agent-memory/` 내용 (에이전트별 크로스세션 학습 데이터)
+- `instincts/` 내용 (관찰 데이터 및 개인 instinct 파일)
+
+> Evolution 시스템 (agent-evolver, evolution hooks/skills, instincts 구조)은 Tier 1 기본 기능입니다.
 
 ## Core Principle: INTEGRITY
 
