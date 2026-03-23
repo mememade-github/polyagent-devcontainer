@@ -1,7 +1,6 @@
 # Agent System — Project Overrides
 
-> Project-specific agent policies that override portable standards.
-> For base standards, see `.claude/rules/standards/agent-definition.md`.
+> Project-specific agent policies. Compliance verified by `bash .claude/tests/test-agents.sh`.
 
 ## Model Policy
 
