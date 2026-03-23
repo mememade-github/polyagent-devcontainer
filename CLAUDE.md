@@ -111,9 +111,10 @@ Delegation via Task tool with `subagent_type` parameter.
 1. **Read first** — Read existing code before modifying
 2. **Keep it simple** — Minimum code for the task
 3. **Follow patterns** — Match existing codebase style
-4. **No secrets** — Never commit credentials or API keys
+4. **Protect secrets** — Never commit credentials or API keys
 5. **Verify** — Build and test before claiming success
 6. **Fix root causes** — 에러 발생 시 근본 원인을 진단·해결. 우회(workaround)나 무시 금지
+7. **Explicit failure** — No form of arbitrary success is permitted; every operation must genuinely succeed or explicitly fail
 
 ## Communication
 
