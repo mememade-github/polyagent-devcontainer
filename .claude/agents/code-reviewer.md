@@ -9,6 +9,8 @@ effort: high
 color: green
 mcpServers:
   - serena
+skills:
+  - verify
 hooks:
   Stop:
     - type: command

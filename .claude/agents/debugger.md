@@ -7,6 +7,8 @@ maxTurns: 15
 memory: project
 effort: high
 color: yellow
+mcpServers:
+  - serena
 ---
 
 # Debugger — Root Cause Analysis Specialist

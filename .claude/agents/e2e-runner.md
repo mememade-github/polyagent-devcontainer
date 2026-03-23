@@ -7,6 +7,7 @@ maxTurns: 15
 memory: project
 effort: high
 color: green
+isolation: worktree
 skills:
   - verify
 ---

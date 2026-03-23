@@ -7,6 +7,7 @@ maxTurns: 10
 memory: project
 effort: high
 color: yellow
+background: true
 skills:
   - status
 ---

@@ -9,6 +9,7 @@ effort: high
 color: red
 skills:
   - verify
+  - build-fix
 ---
 
 # Build Error Resolver

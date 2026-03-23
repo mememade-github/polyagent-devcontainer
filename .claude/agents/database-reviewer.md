@@ -9,6 +9,12 @@ effort: high
 color: blue
 mcpServers:
   - serena
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-readonly-sql.sh"
 ---
 
 # Database Reviewer

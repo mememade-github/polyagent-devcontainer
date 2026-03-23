@@ -9,6 +9,8 @@ effort: high
 color: red
 mcpServers:
   - serena
+skills:
+  - verify
 ---
 
 # Security Reviewer

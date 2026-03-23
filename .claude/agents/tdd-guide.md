@@ -7,6 +7,9 @@ maxTurns: 20
 memory: project
 effort: high
 color: green
+isolation: worktree
+mcpServers:
+  - serena
 skills:
   - verify
 ---

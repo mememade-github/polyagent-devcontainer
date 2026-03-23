@@ -115,8 +115,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[$(date +%H:%M:%S)] SubagentStop\" >> \"$CLAUDE_PROJECT_DIR\"/.claude/subagent.log",
-            "timeout": 2
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/subagent-stop-report.sh",
+            "timeout": 5
           }
         ]
       }

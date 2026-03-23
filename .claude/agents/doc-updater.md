@@ -7,6 +7,7 @@ maxTurns: 15
 memory: project
 effort: high
 color: cyan
+background: true
 mcpServers:
   - context7
 ---
