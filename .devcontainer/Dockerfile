@@ -56,9 +56,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Python LSP (Serena 의존성)
+# Python 도구: LSP (Serena) + 정제 루프 검증 도구 (verify-score.sh 의존)
+# Poetiq sandbox가 numpy/scipy를 사전 설치하듯, 우리 sandbox(verify-score.sh)는
+# ruff/pytest/mypy로 결정론적 보상 신호를 생성한다. 미설치 시 score=0 (루프 무의미).
 # --break-system-packages: pip 23.0+ 필수, Ubuntu 22.04 기본 pip(22.x)에서는 미지원
-RUN pip3 install --no-cache-dir $(pip3 install --help 2>&1 | grep -q break-system-packages && echo "--break-system-packages") jedi
+RUN pip3 install --no-cache-dir $(pip3 install --help 2>&1 | grep -q break-system-packages && echo "--break-system-packages") \
+    jedi ruff pytest mypy
 
 # =============================================================================
 # Layer 2: 사용자 설정 (root → vscode)

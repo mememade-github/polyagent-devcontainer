@@ -80,7 +80,7 @@ postStartCommand (매 시작 시)
 | **Network** | curl, wget, openssh-client |
 | **Claude** | Claude Code CLI, Context7 MCP, Serena MCP |
 | **Node.js** | node 22 LTS, npm, npx (Context7 MCP 인프라용) |
-| **Python** | python3, uv, jedi (Serena 인프라용) |
+| **Python** | python3, uv, jedi (Serena 인프라용), ruff, pytest, mypy (정제 루프 검증용) |
 
 ## Agent System
 
