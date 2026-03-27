@@ -360,6 +360,21 @@ fi
 # --- HK-18: SKIP (helper script error propagation — runtime only) ---
 result "SKIP" "HK-18" "helper script error propagation" "runtime only"
 
+# --- HK-19: Stop hooks count (refinement-gate included) ---
+STOP_COUNT=$(jq '.hooks.Stop[0].hooks | length' "$SETTINGS" 2>/dev/null || echo "0")
+if [ "$STOP_COUNT" -ge 3 ]; then
+  result "PASS" "HK-19" "Stop hooks count" "$STOP_COUNT hooks (incl. refinement-gate)"
+else
+  result "FAIL" "HK-19" "Stop hooks count" "expected >=3, got $STOP_COUNT"
+fi
+
+# --- HK-20: refinement-gate.sh registered in settings.json ---
+if jq -r '.hooks.Stop[0].hooks[].command' "$SETTINGS" 2>/dev/null | grep -q 'refinement-gate'; then
+  result "PASS" "HK-20" "refinement-gate registered in Stop hooks"
+else
+  result "FAIL" "HK-20" "refinement-gate registered in Stop hooks" "not found"
+fi
+
 TOTAL=$((PASS + FAIL + SKIP))
 echo "---"
 echo "TOTAL: $TOTAL  PASS: $PASS  FAIL: $FAIL  SKIP: $SKIP"
