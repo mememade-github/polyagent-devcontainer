@@ -15,7 +15,7 @@
 ├── .claude/                        # Claude Code agent system
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 14 agents
-│   ├── hooks/                      # 21 automation hooks
+│   ├── hooks/                      # 22 automation hooks
 │   ├── skills/                     # 12 /command skills
 │   ├── rules/                      # Standard rules (portable)
 │   ├── rules/project/              # Project-specific rules
