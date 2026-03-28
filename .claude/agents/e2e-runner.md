@@ -5,7 +5,6 @@ tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"
 model: opus
 maxTurns: 20
 color: green
-isolation: worktree
 skills:
   - verify
 ---

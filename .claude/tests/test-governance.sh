@@ -79,7 +79,7 @@ gv3_fails=""
 for rf in "$CLAUDE_DIR"/rules/*.md; do
   [ -f "$rf" ] || continue
   fname=$(basename "$rf")
-  if grep -iE '<internal-rag>|<internal-web>|<internal-leaf>|<internal-root>' "$rf" > /dev/null 2>&1; then
+  if grep -iE '\bmememade\b|<internal-rag>|<internal-web>|<internal-leaf>|<internal-root>' "$rf" > /dev/null 2>&1; then
     gv3_fails+=" $fname"
   fi
 done
@@ -181,124 +181,7 @@ else
   result "FAIL" "KM-5" "all skills have SKILL.md with description" "issues:${km5_fails}"
 fi
 
-# KM-6: instincts dirs exist (personal, inherited, archive)
-km6_missing=""
-for subdir in personal inherited archive; do
-  if [ ! -d "$CLAUDE_DIR/instincts/$subdir" ]; then
-    km6_missing+=" $subdir"
-  fi
-done
-if [ -z "$km6_missing" ]; then
-  result "PASS" "KM-6" "instincts dirs exist" "personal, inherited, archive"
-else
-  result "FAIL" "KM-6" "instincts dirs exist" "missing:${km6_missing}"
-fi
-
-# ===== EVOLUTION (EV-1..5) =====
-
-# EV-1: instinct frontmatter has id, trigger, confidence, domain
-ev1_fails=""
-instinct_count=0
-for inst in "$CLAUDE_DIR"/instincts/personal/*.md "$CLAUDE_DIR"/instincts/inherited/*.md; do
-  [ -f "$inst" ] || continue
-  instinct_count=$((instinct_count + 1))
-  fm=$(get_frontmatter "$inst")
-  missing=""
-  has_field "$fm" "id" || missing+="id,"
-  has_field "$fm" "trigger" || missing+="trigger,"
-  has_field "$fm" "confidence" || missing+="confidence,"
-  has_field "$fm" "domain" || missing+="domain,"
-  if [ -n "$missing" ]; then
-    ev1_fails+=" $(basename "$inst")(${missing%,})"
-  fi
-done
-if [ "$instinct_count" -eq 0 ]; then
-  result "SKIP" "EV-1" "instinct frontmatter has required fields" "no instincts found"
-else
-  if [ -z "$ev1_fails" ]; then
-    result "PASS" "EV-1" "instinct frontmatter has required fields" "$instinct_count instincts"
-  else
-    result "FAIL" "EV-1" "instinct frontmatter has required fields" "missing:${ev1_fails}"
-  fi
-fi
-
-# EV-2: confidence in [0.0, 1.0]
-ev2_fails=""
-ev2_count=0
-for inst in "$CLAUDE_DIR"/instincts/personal/*.md "$CLAUDE_DIR"/instincts/inherited/*.md; do
-  [ -f "$inst" ] || continue
-  fm=$(get_frontmatter "$inst")
-  conf=$(get_field "$fm" "confidence")
-  if [ -n "$conf" ]; then
-    ev2_count=$((ev2_count + 1))
-    in_range=$(python3 -c "c=float('$conf'); print('yes' if 0.0 <= c <= 1.0 else 'no')" 2>/dev/null || echo "no")
-    if [ "$in_range" != "yes" ]; then
-      ev2_fails+=" $(basename "$inst")($conf)"
-    fi
-  fi
-done
-if [ "$ev2_count" -eq 0 ]; then
-  result "SKIP" "EV-2" "confidence in [0.0, 1.0]" "no instincts with confidence"
-else
-  if [ -z "$ev2_fails" ]; then
-    result "PASS" "EV-2" "confidence in [0.0, 1.0]" "$ev2_count instincts"
-  else
-    result "FAIL" "EV-2" "confidence in [0.0, 1.0]" "out of range:${ev2_fails}"
-  fi
-fi
-
-# EV-3: archived instincts below 0.2
-ev3_fails=""
-ev3_count=0
-for inst in "$CLAUDE_DIR"/instincts/archive/*.md; do
-  [ -f "$inst" ] || continue
-  ev3_count=$((ev3_count + 1))
-  fm=$(get_frontmatter "$inst")
-  conf=$(get_field "$fm" "confidence")
-  if [ -n "$conf" ]; then
-    below=$(python3 -c "c=float('$conf'); print('yes' if c < 0.2 else 'no')" 2>/dev/null || echo "no")
-    if [ "$below" != "yes" ]; then
-      ev3_fails+=" $(basename "$inst")($conf)"
-    fi
-  fi
-done
-if [ "$ev3_count" -eq 0 ]; then
-  result "PASS" "EV-3" "archived instincts below 0.2" "no archived instincts (vacuous pass)"
-else
-  if [ -z "$ev3_fails" ]; then
-    result "PASS" "EV-3" "archived instincts below 0.2" "$ev3_count archived"
-  else
-    result "FAIL" "EV-3" "archived instincts below 0.2" "above threshold:${ev3_fails}"
-  fi
-fi
-
-# EV-4: evolved artifact locations — mark-evolved.sh writes to .claude/ subdir
-ev4_ok=true
-MARK_EVOLVED="$CLAUDE_DIR/hooks/mark-evolved.sh"
-if [ -f "$MARK_EVOLVED" ]; then
-  # Verify marker path uses .claude/ prefix (not arbitrary location)
-  if grep -q '\.claude/\.last-evolution' "$MARK_EVOLVED"; then
-    # Verify it uses ACTUAL_ROOT resolution for worktree support
-    if grep -q 'ACTUAL_ROOT' "$MARK_EVOLVED"; then
-      result "PASS" "EV-4" "evolved artifact locations" ".claude/ subdir + worktree-aware"
-    else
-      ev4_ok=false
-      result "FAIL" "EV-4" "evolved artifact locations" "no worktree resolution"
-    fi
-  else
-    ev4_ok=false
-    result "FAIL" "EV-4" "evolved artifact locations" "marker not in .claude/"
-  fi
-else
-  result "FAIL" "EV-4" "evolved artifact locations" "mark-evolved.sh not found"
-fi
-
-# EV-5: mark-evolved.sh exists
-if [ -f "$CLAUDE_DIR/hooks/mark-evolved.sh" ]; then
-  result "PASS" "EV-5" "mark-evolved.sh exists" "found"
-else
-  result "FAIL" "EV-5" "mark-evolved.sh exists" "not found"
-fi
+# KM-6..EV-5: removed (instinct/evolution system removed — autoresearch simplification 2026-03-28)
 
 # ===== TEAM PATTERNS (TP-1..2 + 4 SKIPs) =====
 

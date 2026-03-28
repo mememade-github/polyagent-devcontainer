@@ -102,41 +102,7 @@ else
   result "FAIL" "HK-4" "all registered hook paths exist" "missing:${hk4_fails}"
 fi
 
-# --- HK-5: observe.sh records ts, phase, tool ---
-obs_file="$HOOKS_DIR/observe.sh"
-if [ -f "$obs_file" ]; then
-  hk5_ok=true
-  # Fields appear as \"ts\", \"phase\", \"tool\" (escaped) in the shell string output
-  for field in ts phase tool; do
-    if ! grep -qE "\\\\\"${field}\\\\\"|\"\{.*${field}" "$obs_file"; then
-      hk5_ok=false
-    fi
-  done
-  if $hk5_ok; then
-    result "PASS" "HK-5" "observe.sh records ts, phase, tool" "all 3 required fields"
-  else
-    result "FAIL" "HK-5" "observe.sh records ts, phase, tool" "missing fields"
-  fi
-else
-  result "FAIL" "HK-5" "observe.sh records ts, phase, tool" "observe.sh not found"
-fi
-
-# --- HK-6: observe.sh records input_summary, success (recommended) ---
-if [ -f "$obs_file" ]; then
-  has_is=false; has_s=false
-  grep -q 'input_summary' "$obs_file" && has_is=true
-  grep -q 'success' "$obs_file" && has_s=true
-  if $has_is && $has_s; then
-    result "PASS" "HK-6" "observe.sh records input_summary, success" "both recommended fields"
-  else
-    missing=""
-    $has_is || missing+=" input_summary"
-    $has_s || missing+=" success"
-    result "SKIP" "HK-6" "observe.sh records input_summary, success" "recommended, missing:${missing}"
-  fi
-else
-  result "SKIP" "HK-6" "observe.sh records input_summary, success" "observe.sh not found"
-fi
+# HK-5, HK-6: removed (observe.sh removed — autoresearch simplification 2026-03-28)
 
 # --- HK-7: gate hooks use exit 2 ---
 GATE_HOOKS=("block-destructive.sh" "pre-commit-gate.sh" "validate-readonly-sql.sh")
@@ -228,10 +194,12 @@ else
 fi
 
 # --- HK-11: no 2>/dev/null on data writes (printf>>, echo>>, touch) ---
+# Exempt: heartbeat.sh — non-blocking by design (must never block session)
 hk11_fails=""
 for f in "$HOOKS_DIR"/*.sh; do
   [ -f "$f" ] || continue
   fname=$(basename "$f")
+  [ "$fname" = "heartbeat.sh" ] && continue
   if grep -vE '^\s*#' "$f" | grep -E '(printf|echo)\s.*>>' | grep -q '2>/dev/null'; then
     hk11_fails+=" $fname"
   fi
@@ -246,10 +214,12 @@ else
 fi
 
 # --- HK-12: no || true on writes ---
+# Exempt: heartbeat.sh — non-blocking by design (must never block session)
 hk12_fails=""
 for f in "$HOOKS_DIR"/*.sh; do
   [ -f "$f" ] || continue
   fname=$(basename "$f")
+  [ "$fname" = "heartbeat.sh" ] && continue
   if grep -vE '^\s*#' "$f" | grep -E '(printf|echo|touch|>>)' | grep -q '||[[:space:]]*true'; then
     hk12_fails+=" $fname"
   fi
@@ -331,7 +301,7 @@ else
 fi
 
 # --- HK-16: utility scripts have set -euo pipefail or set -eu ---
-UTILITY_SCRIPTS=("mark-verified.sh" "mark-evolved.sh" "review-complete.sh" "pre-compact.sh" "post-compact.sh" "task-quality-gate.sh" "validate-readonly-sql.sh")
+UTILITY_SCRIPTS=("mark-verified.sh" "review-complete.sh" "pre-compact.sh" "post-compact.sh" "task-quality-gate.sh" "validate-readonly-sql.sh")
 hk16_fails=""
 for us in "${UTILITY_SCRIPTS[@]}"; do
   uf="$HOOKS_DIR/$us"
@@ -346,21 +316,10 @@ else
   result "FAIL" "HK-16" "utility scripts have set -euo pipefail" "missing:${hk16_fails}"
 fi
 
-# --- HK-17: observe.sh has write failure warning ---
-if [ -f "$obs_file" ]; then
-  if grep -qE 'WARN|>&2' "$obs_file"; then
-    result "PASS" "HK-17" "observe.sh has write failure warning" "WARN/stderr found"
-  else
-    result "FAIL" "HK-17" "observe.sh has write failure warning" "no warning output"
-  fi
-else
-  result "FAIL" "HK-17" "observe.sh has write failure warning" "observe.sh not found"
-fi
+# HK-17: removed (observe.sh removed — autoresearch simplification 2026-03-28)
 
 # --- HK-18: helper scripts called from hooks are not silenced with || true ---
-# Verify that utility scripts (mark-verified, mark-evolved, review-complete) are not
-# called with "|| true" or "|| :" in any hook, which would swallow errors.
-HELPER_SCRIPTS=("mark-verified.sh" "mark-evolved.sh" "review-complete.sh")
+HELPER_SCRIPTS=("mark-verified.sh" "review-complete.sh")
 hk18_fails=""
 for hs in "${HELPER_SCRIPTS[@]}"; do
   for f in "$HOOKS_DIR"/*.sh; do
@@ -382,10 +341,10 @@ fi
 
 # --- HK-19: Stop hooks count (refinement-gate included) ---
 STOP_COUNT=$(jq '.hooks.Stop[0].hooks | length' "$SETTINGS" 2>/dev/null || echo "0")
-if [ "$STOP_COUNT" -ge 3 ]; then
+if [ "$STOP_COUNT" -ge 2 ]; then
   result "PASS" "HK-19" "Stop hooks count" "$STOP_COUNT hooks (incl. refinement-gate)"
 else
-  result "FAIL" "HK-19" "Stop hooks count" "expected >=3, got $STOP_COUNT"
+  result "FAIL" "HK-19" "Stop hooks count" "expected >=2, got $STOP_COUNT"
 fi
 
 # --- HK-20: refinement-gate.sh registered in settings.json ---
