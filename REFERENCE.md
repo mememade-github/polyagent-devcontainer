@@ -84,24 +84,16 @@ postStartCommand (매 시작 시)
 
 ## Agent System
 
-### Agents (14)
+### Agents (6)
 
 | Agent | Purpose | Auto-trigger |
 |-------|---------|-------------|
-| agent-evolver | Session outcome analysis, agent/rule/skill evolution | After meaningful work |
-| code-reviewer | Code review with severity framework | After code changes |
-| security-reviewer | Security vulnerability detection (OWASP) | After security-sensitive changes |
-| database-reviewer | PostgreSQL optimization, schema design | After DB changes |
-| build-error-resolver | Fix build/type errors with minimal diffs | On build failure |
-| tdd-guide | TDD: RED→GREEN→REFACTOR cycle | On new feature |
-| e2e-runner | E2E testing | On feature completion |
-| doc-updater | Documentation specialist | On system changes |
-| refactor-cleaner | Dead code cleanup | On maintenance |
-| architect | Architecture design review | On design decisions |
-| planner | Implementation planning | On complex tasks |
-| debugger | Root cause analysis | On errors |
-| environment-checker | Workspace health | On env issues |
-| wip-manager | Multi-session tracking | When task spans sessions |
+| agent-evolver | Standards compliance auditor | On audit request |
+| build-error-resolver | Build errors + runtime debugging | On build failure |
+| code-reviewer | Code + security + DB review | After code changes |
+| e2e-runner | TDD + unit + E2E testing | On feature completion |
+| planner | Planning + architecture | On complex tasks |
+| wip-manager | Multi-session task tracking | When task spans sessions |
 
 ### Hooks (23)
 
@@ -110,42 +102,36 @@ postStartCommand (매 시작 시)
 | session-start.sh | SessionStart | Git status, WIP resume, Known Issues |
 | block-destructive.sh | PreToolUse(Bash) | Block rm -rf, git push --force |
 | pre-commit-gate.sh | PreToolUse(Bash) | Require verification before commit |
-| observe.sh | PreToolUse/PostToolUse | Tool usage observation for evolution |
+| pre-push-gate.sh | PreToolUse(Bash) | Git push safety gate |
+| heartbeat.sh | PreToolUse/PostToolUse | Per-worktree heartbeat for worker detection |
 | code-review-reminder.sh | PostToolUse(Edit/Write) | Track modified files |
 | suggest-compact.sh | PostToolUse(Edit/Write) | Suggest context compaction |
 | standards-reminder.sh | PostToolUse(Edit/Write) | Enforce standards-first for .claude/ changes |
 | error-tracker.sh | PostToolUseFailure | Track errors, enforce root cause fix |
-| subagent-stop-report.sh | SubagentStop | Log subagent completion summary |
 | stop-gate.sh | Stop | Block stop if review pending |
-| evolution-gate.sh | Stop | Block stop if evolution needed |
-| refinement-gate.sh | Stop | Block stop during active refinement loop |
+| refinement-gate.sh | Stop | Block stop if refinement pending |
+| subagent-start-report.sh | SubagentStart | Log subagent start summary |
+| subagent-stop-report.sh | SubagentStop | Log subagent completion summary |
 | pre-compact.sh | PreCompact | Save critical state before compaction |
 | post-compact.sh | PostCompact | Restore context after compaction |
 | task-quality-gate.sh | TaskCompleted | Verify task completion quality |
+| user-prompt-submit.sh | UserPromptSubmit | User prompt preprocessing |
+| session-end.sh | SessionEnd | Session cleanup |
 | mark-verified.sh | Utility | Set verification marker |
-| mark-evolved.sh | Utility | Set evolution marker |
 | review-complete.sh | Utility | Clear review marker |
 | claude-update-check.sh | Utility | Check for Claude updates |
-| validate-readonly-sql.sh | Utility | Block destructive SQL in database-reviewer |
-| worker-guard.sh | SessionStart | Multi-worker collision detection |
+| worker-guard.sh | Utility | Multi-worker collision detection |
 | test-hooks.sh | Testing | Validate hooks |
-| test-refinement.sh | Testing | Validate refinement infrastructure |
 
-### Skills (/commands — 13)
+### Skills (/commands — 7)
 
 | Skill | Description |
 |-------|-------------|
 | /audit | Standards compliance audit |
 | /build-fix | Build error resolution |
 | /commit | Git commit with format |
-| /eval | Eval-Driven Development |
-| /evolve | Agent evolution trigger |
-| /instinct-export | Export instincts for sharing |
-| /instinct-import | Import instincts from external sources |
-| /instinct-status | Show instinct confidence scores |
-| /learn | Extract patterns and save as instincts |
 | /pr | Create pull request |
-| /refine | Deterministic refinement loop for code-producing agents |
+| /refine | Deterministic refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |
 

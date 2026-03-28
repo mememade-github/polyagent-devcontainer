@@ -14,9 +14,9 @@
 ├── REFERENCE.md                    # Commands and procedures
 ├── .claude/                        # Claude Code agent system
 │   ├── settings.json               # Hooks & environment
-│   ├── agents/                     # 14 agents
+│   ├── agents/                     # 6 agents
 │   ├── hooks/                      # 23 automation hooks
-│   ├── skills/                     # 13 /command skills
+│   ├── skills/                     # 7 /command skills
 │   ├── rules/                      # Standard rules (portable)
 │   ├── rules/project/              # Project-specific rules
 │   └── agent-memory/               # Per-agent cross-session memory
@@ -35,7 +35,7 @@
 
 | Tier | 역할 | 포함 |
 |------|------|------|
-| **Tier 1** | 베이스 템플릿 (이 저장소) | 14 agents, 23 hooks, 13 skills, DevContainer 인프라 |
+| **Tier 1** | 베이스 템플릿 (이 저장소) | 6 agents, 23 hooks, 7 skills, DevContainer 인프라 |
 | **Domain** | Tier 1 + 도메인 특화 기능 | 파생 프로젝트가 필요에 따라 추가 |
 
 ### Tier 1에 포함되지 않는 요소
@@ -43,9 +43,6 @@
 프로젝트별로 독립 관리되는 데이터 (sync 대상 아님):
 - `rules/project/` 내 프로젝트 고유 규칙 (`agent-overrides.md` 제외 — 이것은 sync 대상)
 - `agent-memory/` 내용 (에이전트별 크로스세션 학습 데이터)
-- `instincts/` 내용 (관찰 데이터 및 개인 instinct 파일)
-
-> Evolution 시스템 (agent-evolver, evolution hooks/skills, instincts 구조)은 Tier 1 기본 기능입니다.
 
 ## Core Principle: INTEGRITY
 
@@ -96,16 +93,15 @@ Before ANY `git commit`:
 
 | Team | Agent | Auto-trigger |
 |------|-------|-------------|
-| quality | code-reviewer | After code changes |
-| quality | environment-checker | On env issues |
+| quality | code-reviewer, agent-evolver | After code changes; on audit request |
+| build | build-error-resolver | On build failure; on runtime error |
+| testing | e2e-runner | On feature completion; on regression check |
 | workflow | wip-manager | When task spans sessions |
 
 Delegation via Task tool with `subagent_type` parameter.
 - **Team lifecycle**: `TeamCreate` at first delegation → `TeamDelete` when all agents complete.
   Do NOT leave teams running between tasks.
-- Agent model is set per agent in `.claude/agents/` frontmatter (`model: opus/sonnet/haiku`).
-- Each agent has its own memory directory (`.claude/agent-memory/<agent-name>/`).
-  Enable cross-session learning with `memory: project` in agent frontmatter.
+- Agent model and tool policy: see `.claude/rules/project/agent-overrides.md`
 
 ## Coding Rules
 
