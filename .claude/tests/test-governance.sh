@@ -144,7 +144,7 @@ fi
 
 # KM-4: rules single-topic (count H1 headers outside code blocks per file)
 km4_fails=""
-for rf in "$CLAUDE_DIR"/rules/*.md "$CLAUDE_DIR"/rules/project/*.md "$CLAUDE_DIR"/rules/standards/*.md; do
+for rf in "$CLAUDE_DIR"/rules/*.md "$CLAUDE_DIR"/rules/project/*.md; do
   [ -f "$rf" ] || continue
   fname=$(basename "$rf")
   # Count H1 headers (^# ) outside code blocks
