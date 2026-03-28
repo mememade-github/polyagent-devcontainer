@@ -151,10 +151,9 @@ for marker in "$ACTUAL_ROOT"/.claude/.last-verification.* "$ACTUAL_ROOT"/.claude
   fi
 done
 
-# legacy stop marker cleanup (v2 → shared marker migration)
-rm -f "$ACTUAL_ROOT"/.claude/.stop-blocked-review.* \
-      "$ACTUAL_ROOT"/.claude/.stop-blocked-evolution.* \
-      "$ACTUAL_ROOT"/.claude/.stop-blocked-refinement.*
+# legacy stop marker cleanup (v2 shared marker → v3 per-hook markers)
+rm -f "$ACTUAL_ROOT"/.claude/.stop-blocked-any.* \
+      "$ACTUAL_ROOT"/.claude/.stop-blocked-evolution.*
 
 # 6. Session collaboration guard (detect other active sessions via heartbeat)
 # use PROJECT_DIR (not ACTUAL_ROOT) — hooks are code, not shared data

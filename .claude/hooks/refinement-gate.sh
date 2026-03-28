@@ -26,7 +26,7 @@ BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "
 BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 
 # --- Loop prevention: if already blocked once recently, allow stop ---
-BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-any.$BRANCH_SAFE"
+BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-refinement.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
   BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {  # P-4: stat error handled by || block
     rm -f "$BLOCK_MARKER"

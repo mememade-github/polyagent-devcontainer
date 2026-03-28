@@ -27,7 +27,7 @@ BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "
 BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 
 # File-based loop prevention: if we already blocked once recently, allow stop
-BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-any.$BRANCH_SAFE"
+BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-review.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
   BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {
     # Cannot read block marker — safe to clear and continue

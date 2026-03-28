@@ -14,7 +14,7 @@ Run automated compliance tests for the `.claude/` agent system.
 |------|---------|-------|
 | `all` | `/audit` or `/audit all` | Run all 4 test suites |
 | `agents` | `/audit agents` | Agent definitions (13 checks) |
-| `hooks` | `/audit hooks` | Hook scripts + settings.json (18 checks) |
+| `hooks` | `/audit hooks` | Hook scripts + settings.json (21 checks) |
 | `governance` | `/audit governance` | Governance + knowledge + evolution (21 checks) |
 | `sync` | `/audit sync` | Sync consistency across 5 targets |
 | `docs` | `/audit docs` | Product documentation (CLAUDE.md, PROJECT.md, REFERENCE.md) |
