@@ -624,10 +624,3 @@ After E2E test run:
 
 **Remember**: E2E tests are your last line of defense before production. They catch integration issues that unit tests miss. Invest time in making them stable, fast, and comprehensive.
 
-## Memory Management
-
-Consult your agent memory at the start of each invocation. After completing E2E testing, update your memory (MEMORY.md) with:
-- Test journey inventory and their pass/fail history
-- Flaky test patterns and quarantine status
-- Environment-specific test configurations
-- Test infrastructure decisions and their rationale

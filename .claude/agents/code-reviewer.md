@@ -125,10 +125,3 @@ Add your project-specific checks here. Examples:
 
 Customize based on your project's `CLAUDE.md` or skill files.
 
-## Memory Management
-
-Consult your agent memory at the start of each invocation. After completing code review, update your memory (MEMORY.md) with:
-- Recurring code quality issues found in this project
-- Project-specific patterns validated as correct
-- Security findings and their resolution status
-- Review quality metrics and patterns

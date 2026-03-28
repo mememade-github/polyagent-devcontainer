@@ -75,7 +75,7 @@ SSH_KEY_FOUND=$(find "${HOME}/.ssh/" -name "*_ed25519" -o -name "*_rsa" 2>/dev/n
 
 if [ -n "$ENV_ISSUES" ]; then
   CONTEXT="${CONTEXT}Environment issues:\n${ENV_ISSUES}"
-  CONTEXT="${CONTEXT}AUTO_CHECK: Delegate to environment-checker agent (team: quality) to diagnose.\n"
+  CONTEXT="${CONTEXT}AUTO_CHECK: Review environment issues above and resolve if blocking.\n"
 fi
 
 # 4. Known Issues — parse from auto memory (use ACTUAL_ROOT for consistent PROJECT_KEY)

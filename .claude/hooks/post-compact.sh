@@ -29,9 +29,10 @@ if [ -d "$PROJECT_DIR/wip" ]; then
   fi
 fi
 
-# check for pending review
+# check for pending review (branch-scoped marker)
 REVIEW_NOTE=""
-if [ -f "$PROJECT_DIR/.claude/.pending-review" ]; then
+BRANCH_SAFE=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo "unknown")
+if [ -f "$PROJECT_DIR/.claude/.pending-review.$BRANCH_SAFE" ]; then
   REVIEW_NOTE="Pending code review exists. Delegate to code-reviewer before committing."
 fi
 

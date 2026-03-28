@@ -5,6 +5,7 @@ tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"
 model: opus
 maxTurns: 15
 color: red
+isolation: worktree
 skills:
   - verify
   - build-fix
@@ -386,10 +387,3 @@ Parameter 'market' implicitly has an 'any' type.
 - [ ] Deploy to staging for QA
 ```
 
-## Memory Management
-
-Consult your agent memory at the start of each invocation. After resolving build errors, update your memory (MEMORY.md) with:
-- Error patterns encountered and fixes applied
-- Project-specific build configurations
-- Recurring issues and their root causes
-- Build tool versions and compatibility notes

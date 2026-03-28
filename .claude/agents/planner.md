@@ -128,10 +128,3 @@ Create detailed steps with:
 
 **Remember**: A great plan is specific, actionable, and considers both the happy path and edge cases. The best plans enable confident, incremental implementation.
 
-## Memory Management
-
-Consult your agent memory at the start of each invocation. After completing a plan, update your memory (MEMORY.md) with:
-- Planning templates that worked well for this project
-- Common risks and effective mitigations
-- Project-specific constraints and dependencies
-- Estimation accuracy observations
