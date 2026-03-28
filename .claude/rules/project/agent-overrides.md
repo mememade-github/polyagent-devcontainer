@@ -35,7 +35,7 @@ Global `effortLevel: high` in `settings.json`. Per-agent `effort` field not used
 | quality | code-reviewer, agent-evolver | After code changes; on audit request |
 | build | build-error-resolver | On build failure; on runtime error |
 | testing | e2e-runner | On feature completion; on regression check |
-| workflow | wip-manager | When tasks span sessions |
+| workflow | wip-manager | When task spans sessions |
 
 > planner is not team-bound — invoked on-demand for design/architecture tasks.
 
@@ -76,4 +76,4 @@ All agents: `model: opus`, full tools, `maxTurns` 8-20.
 | code-reviewer | 15 | review/report | verify | green | serena | hooks | Code + security + DB review |
 | e2e-runner | 20 | — | verify | green | — | — | TDD + unit + E2E testing |
 | planner | 20 | plan/document | — | cyan | serena, context7 | — | Planning + architecture |
-| wip-manager | 8 | wip/ dir only | status | blue | — | memory | Multi-session task tracking |
+| wip-manager | 8 | wip/ dir only | status | blue | — | memory | Multi-session task tracker |
