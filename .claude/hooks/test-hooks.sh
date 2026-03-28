@@ -263,6 +263,6 @@ rm -f "$PROJECT_DIR/.claude/.error-log"
 touch "$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 
 echo ""
-echo "=== Results: $PASS PASS / $FAIL FAIL (total $((PASS + FAIL))) ==="
-[ $FAIL -eq 0 ] && echo "ALL TESTS PASSED" || echo "SOME TESTS FAILED"
-exit $FAIL
+TOTAL=$((PASS + FAIL))
+echo "TOTAL: $TOTAL  PASS: $PASS  FAIL: $FAIL  SKIP: 0"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

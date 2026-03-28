@@ -3,8 +3,6 @@
 # Event: PostCompact
 # Purpose: Re-inject critical context that may have been lost during compaction
 
-set -euo pipefail
-
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # read JSON from stdin

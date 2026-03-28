@@ -19,4 +19,6 @@ jq -n --arg tool "$TOOL" '{
     hookEventName: "PostToolUseFailure",
     additionalContext: ("Tool " + $tool + " failed. Per Coding Rule #6: diagnose and fix the root cause before proceeding. Do NOT silently skip or work around the error.")
   }
-}'
+}' || true  # Observation hook: jq failure must not block session
+
+exit 0

@@ -61,4 +61,6 @@ jq -n --arg count "$FILE_COUNT" --arg file "$RELATIVE_PATH" '{
     hookEventName: "PostToolUse",
     additionalContext: ("products/ file modified: " + $file + " (" + $count + " file(s) pending review). Per CLAUDE.md §2: delegate to code-reviewer agent before committing. After review, mark complete to clear the pending-review marker.")
   }
-}'
+}' || true  # Suggestion hook: jq failure must not block session
+
+exit 0

@@ -25,4 +25,6 @@ jq -n --arg file "$RELATIVE_PATH" --arg test "$TEST" '{
     hookEventName: "PostToolUse",
     additionalContext: (".claude/ file modified: " + $file + ". Verify: " + $test)
   }
-}'
+}' || true  # Suggestion hook: jq failure must not block session
+
+exit 0

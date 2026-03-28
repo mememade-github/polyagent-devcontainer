@@ -18,7 +18,14 @@ echo "  Executable Standards Test Suite"
 echo "=========================================="
 echo ""
 
-for test_script in "$TESTS_DIR"/test-*.sh; do
+# Include hooks/test-hooks.sh (functional integration tests) if present
+HOOKS_FUNC_TEST="$ROOT/.claude/hooks/test-hooks.sh"
+ALL_TESTS=("$TESTS_DIR"/test-*.sh)
+if [ -f "$HOOKS_FUNC_TEST" ]; then
+  ALL_TESTS+=("$HOOKS_FUNC_TEST")
+fi
+
+for test_script in "${ALL_TESTS[@]}"; do
   [ -f "$test_script" ] || continue
   test_name=$(basename "$test_script" .sh)
 

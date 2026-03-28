@@ -4,6 +4,13 @@ description: Run pre-commit verification checks on a product
 argument-hint: "[product-name|all]"
 user-invocable: true
 allowed-tools: Bash, Read
+paths:
+  - "products/**/*.py"
+  - "products/**/*.ts"
+  - "products/**/*.tsx"
+  - "**/pyproject.toml"
+  - "**/package.json"
+  - "**/Cargo.toml"
 ---
 
 Run verification checks for the specified product. Default is "all".

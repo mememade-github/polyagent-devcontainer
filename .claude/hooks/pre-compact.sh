@@ -3,8 +3,6 @@
 # Event: PreCompact
 # Purpose: Preserve task progress and key context that might be lost during compaction
 
-set -euo pipefail
-
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # read JSON from stdin (PreCompact provides session context)

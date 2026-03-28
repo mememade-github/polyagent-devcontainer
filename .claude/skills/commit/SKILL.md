@@ -32,7 +32,7 @@ If checks fail, fix issues before proceeding.
 
 [optional body]
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 ```
 
 ### Types

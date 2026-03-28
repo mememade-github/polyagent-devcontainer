@@ -203,4 +203,6 @@ jq -n --arg ctx "$(echo -e "$CONTEXT")" '{
     hookEventName: "SessionStart",
     additionalContext: $ctx
   }
-}'
+}' || true  # Context hook: jq failure must not block session
+
+exit 0

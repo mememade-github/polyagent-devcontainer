@@ -28,7 +28,7 @@ BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 # --- Loop prevention: if already blocked once recently, allow stop ---
 BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-any.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
-  BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {
+  BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {  # P-4: stat error handled by || block
     rm -f "$BLOCK_MARKER"
     BLOCK_MTIME=0
   }
@@ -55,6 +55,7 @@ if [ ! -f "$REFINE_MARKER" ]; then
 fi
 
 # --- Read marker data ---
+# Honest fallback: jq unavailable or malformed marker (P-6)
 TASK_ID=$(jq -r '.task_id // ""' "$REFINE_MARKER" 2>/dev/null || echo "")
 THRESHOLD=$(jq -r '.threshold // "0.85"' "$REFINE_MARKER" 2>/dev/null || echo "0.85")
 MAX_ITER=$(jq -r '.max_iterations // "5"' "$REFINE_MARKER" 2>/dev/null || echo "5")
@@ -72,11 +73,13 @@ if [ ! -f "$SCRIPTS_DIR/memory-ops.sh" ]; then
   exit 0
 fi
 
+# Honest fallback: script or jq failure → safe defaults (P-6)
 BEST_SCORE=$(bash "$SCRIPTS_DIR/memory-ops.sh" best --task "$TASK_ID" 2>/dev/null | jq -r '.score // "0"' 2>/dev/null || echo "0")
 ITERATION=$(bash "$SCRIPTS_DIR/memory-ops.sh" count --task "$TASK_ID" 2>/dev/null || echo "0")
 
 # --- Termination check (bc 금지, awk only) ---
 # Score >= threshold → allow stop
+# P-6: awk failure on non-numeric input → exit non-zero → falls through to block (fail-safe)
 if awk "BEGIN{exit !($BEST_SCORE >= $THRESHOLD)}" 2>/dev/null; then
   exit 0
 fi

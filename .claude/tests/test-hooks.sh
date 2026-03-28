@@ -7,6 +7,7 @@ set -euo pipefail
 ROOT="${1:-/workspaces}"
 HOOKS_DIR="$ROOT/.claude/hooks"
 SETTINGS="$ROOT/.claude/settings.json"
+ACTUAL_ROOT="$ROOT"
 PASS=0; FAIL=0; SKIP=0
 
 result() {
@@ -105,12 +106,12 @@ fi
 # HK-5, HK-6: removed (observe.sh removed — autoresearch simplification 2026-03-28)
 
 # --- HK-7: gate hooks use exit 2 ---
-GATE_HOOKS=("block-destructive.sh" "pre-commit-gate.sh" "validate-readonly-sql.sh")
+GATE_HOOKS=("block-destructive.sh" "pre-commit-gate.sh" "pre-push-gate.sh")
 hk7_fails=""
 for gh in "${GATE_HOOKS[@]}"; do
   gf="$HOOKS_DIR/$gh"
   [ -f "$gf" ] || continue
-  if ! grep -q 'exit 2' "$gf"; then
+  if ! grep -vE '^\s*#' "$gf" | grep -q 'exit 2'; then
     hk7_fails+=" $gh"
   fi
 done
@@ -125,7 +126,7 @@ hk8_fails=""
 for gh in "${GATE_HOOKS[@]}"; do
   gf="$HOOKS_DIR/$gh"
   [ -f "$gf" ] || continue
-  if ! grep -q '>&2' "$gf"; then
+  if ! grep -vE '^\s*#' "$gf" | grep -q '>&2'; then
     hk8_fails+=" $gh"
   fi
 done
@@ -301,7 +302,7 @@ else
 fi
 
 # --- HK-16: utility scripts have set -euo pipefail or set -eu ---
-UTILITY_SCRIPTS=("mark-verified.sh" "review-complete.sh" "pre-compact.sh" "post-compact.sh" "task-quality-gate.sh" "validate-readonly-sql.sh")
+UTILITY_SCRIPTS=("mark-verified.sh" "review-complete.sh")
 hk16_fails=""
 for us in "${UTILITY_SCRIPTS[@]}"; do
   uf="$HOOKS_DIR/$us"
@@ -352,6 +353,62 @@ if jq -r '.hooks.Stop[0].hooks[].command' "$SETTINGS" 2>/dev/null | grep -q 'ref
   result "PASS" "HK-20" "refinement-gate registered in Stop hooks"
 else
   result "FAIL" "HK-20" "refinement-gate registered in Stop hooks" "not found"
+fi
+
+# --- HK-21: subagent-start-report.sh functional test ---
+SUBSTART_HOOK="$HOOKS_DIR/subagent-start-report.sh"
+if [ -f "$SUBSTART_HOOK" ]; then
+  SUBSTART_OUT=$(echo '{"agent_type":"test-agent","agent_id":"test-123","session_id":"s1"}' | bash "$SUBSTART_HOOK" 2>&1)
+  if grep -q 'SubagentStart.*agent=test-agent.*id=test-123' "$ACTUAL_ROOT/.claude/subagent.log" 2>/dev/null; then
+    result "PASS" "HK-21" "subagent-start-report functional" "logged agent_type+agent_id"
+  else
+    result "FAIL" "HK-21" "subagent-start-report functional" "log entry not found"
+  fi
+else
+  result "SKIP" "HK-21" "subagent-start-report functional" "file missing"
+fi
+
+# --- HK-22: session-end.sh functional test ---
+SESSEND_HOOK="$HOOKS_DIR/session-end.sh"
+if [ -f "$SESSEND_HOOK" ]; then
+  echo '{"source":"test","session_id":"test-sess"}' | bash "$SESSEND_HOOK" 2>&1 >/dev/null
+  if [ -f "$ACTUAL_ROOT/.claude/session-metrics.log" ] && \
+     grep -q '"event":"session_end".*"session_id":"test-sess"' "$ACTUAL_ROOT/.claude/session-metrics.log" 2>/dev/null; then
+    result "PASS" "HK-22" "session-end functional" "JSONL entry written"
+  else
+    result "FAIL" "HK-22" "session-end functional" "log entry not found"
+  fi
+else
+  result "SKIP" "HK-22" "session-end functional" "file missing"
+fi
+
+# --- HK-23: user-prompt-submit.sh functional test (no active state) ---
+UPS_HOOK="$HOOKS_DIR/user-prompt-submit.sh"
+if [ -f "$UPS_HOOK" ]; then
+  UPS_OUT=$(echo '{}' | bash "$UPS_HOOK" 2>&1)
+  if [ -z "$UPS_OUT" ]; then
+    result "PASS" "HK-23" "user-prompt-submit no-state" "silent when no active markers"
+  else
+    result "FAIL" "HK-23" "user-prompt-submit no-state" "unexpected output: $UPS_OUT"
+  fi
+else
+  result "SKIP" "HK-23" "user-prompt-submit no-state" "file missing"
+fi
+
+# --- HK-24: all hooks on disk are either registered or documented helpers ---
+REGISTERED_HOOKS=$(jq -r '.. | .command? // empty' "$SETTINGS" 2>/dev/null | grep -oE '[^/]+\.sh' | sort -u)
+HELPER_HOOKS="claude-update-check.sh worker-guard.sh mark-verified.sh review-complete.sh test-hooks.sh"
+hk24_fails=""
+for hook_file in "$HOOKS_DIR"/*.sh; do
+  fname=$(basename "$hook_file")
+  if ! echo "$REGISTERED_HOOKS" | grep -qF "$fname" && ! echo "$HELPER_HOOKS" | grep -qwF "$fname"; then
+    hk24_fails+=" $fname"
+  fi
+done
+if [ -z "$hk24_fails" ]; then
+  result "PASS" "HK-24" "all hooks registered or documented helpers" "no orphans"
+else
+  result "FAIL" "HK-24" "all hooks registered or documented helpers" "orphans:${hk24_fails}"
 fi
 
 TOTAL=$((PASS + FAIL + SKIP))

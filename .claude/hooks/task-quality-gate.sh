@@ -3,8 +3,6 @@
 # Event: TaskCompleted
 # Purpose: Verify task completion meets quality standards before accepting
 
-set -euo pipefail
-
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # read JSON from stdin
