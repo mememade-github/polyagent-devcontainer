@@ -93,7 +93,7 @@ postStartCommand (매 시작 시)
 | code-reviewer | Code + security + DB review | After code changes |
 | e2e-runner | TDD + unit + E2E testing | On feature completion |
 | planner | Planning + architecture | On complex tasks |
-| wip-manager | Multi-session task tracking | When task spans sessions |
+| wip-manager | Multi-session task tracker | When task spans sessions |
 
 ### Hooks (23)
 
