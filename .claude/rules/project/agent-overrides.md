@@ -32,7 +32,7 @@ Global `effortLevel: high` in `settings.json`. Per-agent `effort` field not used
 |------|--------|-------------|
 | workflow | wip-manager | When task spans sessions |
 
-> evaluator and planner are not team-bound — invoked on-demand.
+> evaluator is not team-bound — invoked on-demand.
 
 ## Frontmatter Reference
 
@@ -60,16 +60,15 @@ Global `effortLevel: high` in `settings.json`. Per-agent `effort` field not used
 
 > Verified by: `bash .claude/tests/test-agents.sh`
 
-## Agent Inventory (3)
+## Agent Inventory (2)
 
 All agents: `model: opus`, full tools, `maxTurns` 8-20.
 
 | Agent | maxTurns | Boundary | Skills | Color | MCP | Extra | Purpose |
 |-------|----------|----------|--------|-------|-----|-------|---------|
 | evaluator | 12 | evaluate/score | — | yellow | — | — | Context-isolated quality evaluation |
-| planner | 20 | plan/document | — | cyan | serena, context7 | — | Planning + architecture |
 | wip-manager | 8 | wip/ dir only | status | blue | — | memory | Multi-session task tracker |
 
-> evaluator and planner are not team-bound — invoked on-demand.
+> evaluator is not team-bound — invoked on-demand.
 
 *Last updated: 2026-03-31*

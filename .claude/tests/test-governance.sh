@@ -255,9 +255,9 @@ fi
 tp5_ok=true
 if [ -f "$CLAUDE_MD" ] && [ -f "$OVERRIDES" ]; then
   # Extract agent names from CLAUDE.md delegation table
-  claude_agents=$(grep -E '^\| (evaluator|planner|wip-manager) ' "$CLAUDE_MD" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | sort)
+  claude_agents=$(grep -E '^\| (evaluator|wip-manager) ' "$CLAUDE_MD" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | sort)
   # Extract agent names from agent-overrides.md inventory table
-  override_agents=$(grep -E '^\| (evaluator|planner|wip-manager) ' "$OVERRIDES" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | sort)
+  override_agents=$(grep -E '^\| (evaluator|wip-manager) ' "$OVERRIDES" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | sort)
   if [ "$claude_agents" = "$override_agents" ] && [ -n "$claude_agents" ]; then
     agent_count=$(echo "$claude_agents" | wc -l)
     result "PASS" "TP-5" "agent delegation protocol" "$agent_count agents consistent across CLAUDE.md and overrides"
