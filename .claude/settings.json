@@ -1,8 +1,7 @@
 {
   "effortLevel": "high",
   "env": {
-    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
   "hooks": {
     "SessionStart": [
@@ -20,11 +19,6 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-destructive.sh",
-            "timeout": 5
-          },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-commit-gate.sh",

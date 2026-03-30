@@ -84,35 +84,27 @@ postStartCommand (매 시작 시)
 
 ## Agent System
 
-### Agents (3)
+### Agents (2)
 
 | Agent | Purpose | Invocation |
 |-------|---------|------------|
-| evaluator | Context-isolated quality evaluation | After code changes; within /refine loop |
-| planner | Planning + architecture | On-demand for design/architecture tasks |
+| evaluator | Context-isolated quality evaluation | After changes; within /refine loop |
 | wip-manager | Multi-session task tracker | When task spans sessions |
 
-### Hooks (9)
+### Hooks (5)
 
 | Hook | Event | Purpose |
 |------|-------|---------|
 | session-start.sh | SessionStart | Git status, WIP resume, Known Issues |
-| block-destructive.sh | PreToolUse(Bash) | Block destructive commands |
 | pre-commit-gate.sh | PreToolUse(Bash) | Require verification before commit |
 | pre-push-gate.sh | PreToolUse(Bash) | Git push safety gate |
-| heartbeat.sh | PreToolUse/PostToolUse | Per-worktree heartbeat for worker detection |
 | refinement-gate.sh | Stop | Block stop if refinement pending |
 | mark-verified.sh | Utility | Set verification marker |
-| worker-guard.sh | Utility | Multi-worker collision detection |
-| test-hooks.sh | Testing | Validate hooks |
 
-### Skills (/commands — 6)
+### Skills (/commands — 3)
 
 | Skill | Description |
 |-------|-------------|
-| /audit | Standards compliance audit |
-| /commit | Git commit with format |
-| /pr | Create pull request |
 | /refine | Autonomous iterative refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |

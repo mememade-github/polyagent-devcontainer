@@ -14,12 +14,11 @@
 ├── REFERENCE.md                    # Commands and procedures
 ├── .claude/                        # Claude Code agent system
 │   ├── settings.json               # Hooks & environment
-│   ├── agents/                     # 3 agents
-│   ├── hooks/                      # 9 hook scripts
-│   ├── skills/                     # 6 /command skills
+│   ├── agents/                     # 2 agents (evaluator, wip-manager)
+│   ├── hooks/                      # 5 hook scripts
+│   ├── skills/                     # 3 /command skills (refine, status, verify)
 │   ├── rules/                      # Standard rules (portable)
-│   ├── rules/project/              # Project-specific rules
-│   └── agent-memory/               # Per-agent cross-session memory
+│   └── rules/project/              # Project-specific rules
 ├── .devcontainer/                  # Container configuration
 │   ├── Dockerfile                  # Image (Claude Code + Python/Serena + tools)
 │   ├── docker-compose.yml          # Service + ports + volumes
@@ -35,14 +34,13 @@
 
 | Tier | 역할 | 포함 |
 |------|------|------|
-| **Tier 1** | 베이스 템플릿 (이 저장소) | 3 agents, 9 hooks, 6 skills, DevContainer 인프라 |
+| **Tier 1** | 베이스 템플릿 (이 저장소) | 2 agents, 5 hooks, 3 skills, DevContainer 인프라 |
 | **Domain** | Tier 1 + 도메인 특화 기능 | 파생 프로젝트가 필요에 따라 추가 |
 
 ### Tier 1에 포함되지 않는 요소
 
 프로젝트별로 독립 관리되는 데이터 (sync 대상 아님):
-- `rules/project/` 내 프로젝트 고유 규칙 (`agent-overrides.md` 제외 — 이것은 sync 대상)
-- `agent-memory/` 내용 (에이전트별 크로스세션 학습 데이터)
+- `rules/project/` 내 프로젝트 고유 규칙
 
 ## Core Principle: INTEGRITY
 
@@ -69,20 +67,20 @@ These rules are enforced automatically by hooks. No user commands required.
 - **If no WIP**: Report readiness and wait for user instruction.
 - **Always**: Check auto memory (MEMORY.md) for Known Issues.
 
-### 2. Code Change Cycle (Evaluator)
+### 2. Change Evaluation
 
-- **Meaningful changes** (feature, refactor, bug fix): use `/refine` — evaluation
-  is structural (modify → evaluate → keep/discard loop). Not optional.
+- **Meaningful changes**: use `/refine` — evaluation is structural
+  (modify → evaluate → keep/discard loop). Not optional.
 - **Trivial changes** (typo, single config line): direct edit, no evaluation needed.
-- Never self-evaluate. Evaluation is performed by a context-isolated **evaluator**
-  agent that does not see the generator's reasoning.
+- Never self-evaluate. Delegate to **evaluator** agent.
+
 ### 3. Pre-Commit Gate (automated by pre-commit-gate.sh)
 
 Before ANY `git commit`:
 1. Run verification for affected code (auto-detected by file type)
 2. All checks MUST pass before commit. No `--no-verify`.
 
-### 4. Multi-Session Tasks (Agent Teams: workflow)
+### 4. Multi-Session Tasks
 
 - Tasks likely to span sessions → create WIP via **wip-manager** agent
 - WIP location: `wip/task-YYYYMMDD-description/README.md`
@@ -92,12 +90,9 @@ Before ANY `git commit`:
 ### 5. Agent Delegation
 
 | Agent | Invocation |
-|-------|------------|
-| evaluator | After code changes (1-pass review); within /refine loop |
-| planner | On-demand for design/architecture tasks |
+|-------|-----------|
+| evaluator | After changes (1-pass review); within /refine loop |
 | wip-manager | When task spans sessions |
-
-- Agent model and tool policy: see `.claude/rules/project/agent-overrides.md`
 
 ## Coding Rules
 

@@ -1,7 +1,6 @@
 #!/bin/bash
 # SessionStart hook: Inject project context + WIP auto-resume + env check
 # Outputs JSON with additionalContext that Claude receives at session start.
-# This is the core automation driver — Claude acts on these directives without user prompting.
 # Worktree-aware: resolves actual project root via git-common-dir.
 
 INPUT=$(cat)
