@@ -69,8 +69,14 @@ If WIP directories exist, read each README.md to show current task status.
 Check `~/.claude/plans/` for plan files. Show name and age of each.
 
 ## 6. Stale Markers
-- `$WORKSPACE_ROOT/.claude/.pending-review` — show file list if exists
-- `$WORKSPACE_ROOT/.claude/.last-verification` — show age
+Check for branch-scoped verification markers:
+```bash
+for marker in "$WORKSPACE_ROOT"/.claude/.last-verification.*; do
+  [ -f "$marker" ] || continue
+  AGE=$(( $(date +%s) - $(stat -c '%Y' "$marker" 2>/dev/null || echo 0) ))
+  echo "  $(basename "$marker") — ${AGE}s ago"
+done
+```
 
 ## 7. Summary
 Summarize findings concisely: repos status, unpushed count, WIP count, stale items.

@@ -83,8 +83,7 @@ for rf in "$CLAUDE_DIR"/rules/*.md; do
     gv3_fails+=" $fname"
   fi
 done
-# Note: rules/standards/ is NOT checked — it is being replaced by tests/
-# and will be deleted. Only portable rules (rules/*.md) are checked.
+# Only portable rules (rules/*.md) are checked, not rules/project/.
 if [ -z "$gv3_fails" ]; then
   result "PASS" "GV-3" "no project-specific refs in portable rules" "clean"
 else

@@ -25,8 +25,8 @@ SYNC_TARGETS=(
 )
 
 # Syncable directories (what syncs per PROJECT.md):
-# rules/ (root-level), rules/standards/, skills/, hooks/, agents/, settings.json
-# What does NOT sync: rules/project/, agent-memory/
+# rules/ (root-level), skills/, hooks/, agents/, tests/, docs/, settings.json
+# What does NOT sync: rules/project/ (except agent-overrides.md), agent-memory/
 
 # Build list of syncable dirs that actually exist in ROOT
 SYNC_DIRS=()
@@ -78,21 +78,6 @@ for target_rel in "${SYNC_TARGETS[@]}"; do
           diff_count=$((diff_count + 1))
         fi
       done
-      # Check rules/standards/
-      if [ -d "$root_dir/standards" ]; then
-        for rf in "$root_dir/standards/"*.md; do
-          [ -f "$rf" ] || continue
-          fname=$(basename "$rf")
-          tf="$target_dir/standards/$fname"
-          if [ ! -f "$tf" ]; then
-            diffs+=" $sync_dir/standards/$fname(missing)"
-            diff_count=$((diff_count + 1))
-          elif ! diff -q "$rf" "$tf" > /dev/null 2>&1; then
-            diffs+=" $sync_dir/standards/$fname(differs)"
-            diff_count=$((diff_count + 1))
-          fi
-        done
-      fi
       # Check rules/project/agent-overrides.md (synced per PROJECT.md)
       ao_root="$root_dir/project/agent-overrides.md"
       ao_target="$target_dir/project/agent-overrides.md"

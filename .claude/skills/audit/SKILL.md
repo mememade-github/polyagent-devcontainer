@@ -12,11 +12,11 @@ Run automated compliance tests for the `.claude/` agent system.
 
 | Mode | Command | Scope |
 |------|---------|-------|
-| `all` | `/audit` or `/audit all` | Run all 4 test suites |
+| `all` | `/audit` or `/audit all` | Run all 6 test suites |
 | `agents` | `/audit agents` | Agent definitions (13 checks) |
-| `hooks` | `/audit hooks` | Hook scripts + settings.json (21 checks) |
-| `governance` | `/audit governance` | Governance + knowledge + evolution (21 checks) |
-| `sync` | `/audit sync` | Sync consistency across 5 targets |
+| `hooks` | `/audit hooks` | Hook scripts + settings.json (18 checks) |
+| `governance` | `/audit governance` | Governance + knowledge + team patterns (14 checks) |
+| `sync` | `/audit sync` | Sync consistency across 3 targets |
 | `docs` | `/audit docs` | Product documentation (CLAUDE.md, PROJECT.md, REFERENCE.md) |
 
 ## Execution
