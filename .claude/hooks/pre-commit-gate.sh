@@ -22,9 +22,7 @@ fi
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # Resolve actual project root (worktree -> original repo root)
-# Intentional: graceful fallback when git is not installed (P-1)
 if command -v git &>/dev/null; then
-  # Worktree resolution: may not be in a git repo (P-2)
   GIT_COMMON=$(git -C "$PROJECT_DIR" rev-parse --git-common-dir 2>/dev/null)
   if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
     ACTUAL_ROOT=$(dirname "$GIT_COMMON")
@@ -36,7 +34,6 @@ else
 fi
 
 # resolve branch name for per-worktree marker isolation
-# Honest fallback: "unknown" signals uncertainty (P-3)
 BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 

@@ -4,11 +4,7 @@ description: Manage work-in-progress for multi-session tasks. Auto-invoked when 
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 8
-memory: project
 color: blue
-skills:
-  - status
-# NOTE: Edit required for partial updates to WIP README.md (Remaining table, Done section)
 ---
 
 # WIP Manager — Multi-Session Task Tracker

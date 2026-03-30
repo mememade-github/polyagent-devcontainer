@@ -6,11 +6,6 @@
 INPUT=$(cat)
 SOURCE=$(echo "$INPUT" | jq -r '.source // "startup"')
 
-# Set environment variables for the session
-if [ -n "$CLAUDE_ENV_FILE" ]; then
-  echo 'export CLAUDE_CODE_DISABLE_AUTO_MEMORY=0' >> "$CLAUDE_ENV_FILE"
-fi
-
 # Gather live context
 CONTEXT=""
 
@@ -18,9 +13,7 @@ CONTEXT=""
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # Resolve actual project root (worktree → original repo root)
-# Intentional: graceful fallback when git is not installed (P-1)
 if command -v git &>/dev/null; then
-  # Worktree resolution: may not be in a git repo (P-2)
   GIT_COMMON=$(git -C "$PROJECT_DIR" rev-parse --git-common-dir 2>/dev/null)
   if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
     ACTUAL_ROOT=$(dirname "$GIT_COMMON")
@@ -32,18 +25,14 @@ else
 fi
 
 # 1. Git status summary
-# Intentional: graceful fallback when git is not installed (P-1)
 if command -v git &>/dev/null && [ -e "$PROJECT_DIR/.git" ]; then
-  # Honest fallback: "unknown" signals uncertainty (P-3)
   BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-  # Optional: porcelain may fail if not in git repo (P-5)
   DIRTY=$(git -C "$PROJECT_DIR" status --porcelain 2>/dev/null | wc -l)
   CONTEXT="${CONTEXT}Git branch: ${BRANCH} (${DIRTY} uncommitted changes)\n"
 fi
 
 # 2. Active WIP tasks — auto-resume directive (always check ACTUAL_ROOT)
 if [ -d "$ACTUAL_ROOT/wip" ]; then
-  # Optional: wip directories may not exist (P-5)
   WIP_DIRS=$(ls -d "$ACTUAL_ROOT"/wip/*/ 2>/dev/null)
   if [ -n "$WIP_DIRS" ]; then
     CONTEXT="${CONTEXT}Active WIP tasks:\n"
@@ -64,11 +53,9 @@ fi
 ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
 # Check for any SSH deploy key (project-agnostic)
-# Optional: .ssh directory may not exist (P-5)
 SSH_KEY_FOUND=$(find "${HOME}/.ssh/" -name "*_ed25519" -o -name "*_rsa" 2>/dev/null | head -1)
 [ -z "$SSH_KEY_FOUND" ] && ENV_ISSUES="${ENV_ISSUES}  - No SSH deploy key found\n"
 # Check for env directory (use ACTUAL_ROOT — .env/ lives at project root, not worktree)
-# Optional: .env directory may not exist (P-5)
 [ -d "$ACTUAL_ROOT/.env" ] && [ -z "$(ls "$ACTUAL_ROOT/.env/"*.env 2>/dev/null)" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory has no .env files\n"
 [ ! -d "$ACTUAL_ROOT/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory missing\n"
 
@@ -77,28 +64,7 @@ if [ -n "$ENV_ISSUES" ]; then
   CONTEXT="${CONTEXT}AUTO_CHECK: Review environment issues above and resolve if blocking.\n"
 fi
 
-# 4. Known Issues — parse from auto memory (use ACTUAL_ROOT for consistent PROJECT_KEY)
-PROJECT_KEY=$(echo "$ACTUAL_ROOT" | tr "/" "-" | sed "s/^-//")
-MEMORY_DIR="${HOME}/.claude/projects/${PROJECT_KEY}/memory"
-MEMORY_FILE="$MEMORY_DIR/MEMORY.md"
-if [ -f "$MEMORY_FILE" ]; then
-  # Optional: grep may find no matches (P-5)
-  KNOWN_ISSUES=$(grep -E 'ISSUE-[0-9]+' "$MEMORY_FILE" 2>/dev/null | head -10)
-  if [ -n "$KNOWN_ISSUES" ]; then
-    CONTEXT="${CONTEXT}Known Issues (from MEMORY.md — system-parsed):\n"
-    while IFS= read -r line; do
-      CONTEXT="${CONTEXT}  ${line}\n"
-    done <<< "$KNOWN_ISSUES"
-    CONTEXT="${CONTEXT}AUTO_REPORT: Include these Known Issues in your session start summary.\n"
-  fi
-fi
-
-# 5. Stale markers cleanup (per-worktree, branch-scoped markers)
-# Active marker system: .last-verification.$BRANCH (created by completion-checker.sh)
-# Active marker system: .refinement-active (created by /refine)
-# Active marker system: .stop-blocked-refinement.$BRANCH (created by refinement-gate.sh)
-
-# clean up legacy format (no branch suffix — superseded by branch-scoped markers)
+# 4. Stale markers cleanup
 rm -f "$ACTUAL_ROOT/.claude/.last-verification"
 
 # orphan marker cleanup: remove verification markers for deleted branches
@@ -112,7 +78,7 @@ for marker in "$ACTUAL_ROOT"/.claude/.last-verification.*; do
   fi
 done
 
-# 6. Environment info (auto-detected)
+# 5. Environment info (auto-detected)
 if [ -f /.dockerenv ]; then
   # Optional: os-release may not exist (P-5)
   OS_INFO=$(. /etc/os-release 2>/dev/null && echo "$NAME $VERSION_ID" || echo "Linux")

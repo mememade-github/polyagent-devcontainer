@@ -21,8 +21,8 @@ fi
 
 # Resolve repo root (worktree-aware)
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
-if command -v git &>/dev/null; then  # Intentional: graceful fallback (P-1)
-  REPO_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null)  # Worktree resolution (P-2)
+if command -v git &>/dev/null; then
+  REPO_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null)
 else
   REPO_ROOT="$PROJECT_DIR"
 fi
@@ -51,7 +51,6 @@ BASELINE_DIR="$REPO_ROOT/.claude"
 BASELINE_FILE="$BASELINE_DIR/.last-push-url.${PUSH_REMOTE}"
 
 if [ -f "$BASELINE_FILE" ]; then
-  # Optional resource: baseline file may be empty or corrupted (P-5)
   BASELINE_URL=$(cat "$BASELINE_FILE" 2>/dev/null)
   if [ -n "$BASELINE_URL" ] && [ "$ACTUAL_URL" != "$BASELINE_URL" ]; then
     echo "Warning: remote '$PUSH_REMOTE' URL changed since last push." >&2
@@ -71,7 +70,7 @@ fi
 # === LAYER 3: Declaration validation (OPT-IN) ===
 DECL_FILE="$REPO_ROOT/.claude/.push-remote"
 if [ -f "$DECL_FILE" ]; then
-  EXPECTED=$(grep "^${PUSH_REMOTE}=" "$DECL_FILE" 2>/dev/null | cut -d= -f2-)  # Optional resource: declaration file may not have this remote (P-5)
+  EXPECTED=$(grep "^${PUSH_REMOTE}=" "$DECL_FILE" 2>/dev/null | cut -d= -f2-)
   if [ -n "$EXPECTED" ]; then
     CLEAN_URL=$(echo "$ACTUAL_URL" | sed -E 's|https://[^@]+@|https://|')
     if ! echo "$CLEAN_URL" | grep -qF "$EXPECTED"; then

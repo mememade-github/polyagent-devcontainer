@@ -28,7 +28,7 @@ BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 # --- Loop prevention: if already blocked once recently, allow stop ---
 BLOCK_MARKER="$ACTUAL_ROOT/.claude/.stop-blocked-refinement.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
-  BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {  # P-4: stat error handled by || block
+  BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null) || {
     rm -f "$BLOCK_MARKER"
     BLOCK_MTIME=0
   }
@@ -55,7 +55,6 @@ if [ ! -f "$REFINE_MARKER" ]; then
 fi
 
 # --- Read marker data ---
-# Honest fallback: jq unavailable or malformed marker (P-6)
 TASK_ID=$(jq -r '.task_id // ""' "$REFINE_MARKER" 2>/dev/null || echo "")
 THRESHOLD=$(jq -r '.threshold // "0.85"' "$REFINE_MARKER" 2>/dev/null || echo "0.85")
 MAX_ITER=$(jq -r '.max_iterations // "5"' "$REFINE_MARKER" 2>/dev/null || echo "5")
@@ -73,13 +72,10 @@ if [ ! -f "$ATTEMPTS_FILE" ]; then
   exit 0
 fi
 
-# P-6: jq/wc failure → safe defaults
 BEST_SCORE=$(jq -s 'sort_by(.score) | last | .score // 0' "$ATTEMPTS_FILE" 2>/dev/null || echo "0")
 ITERATION=$(wc -l < "$ATTEMPTS_FILE" 2>/dev/null || echo "0")
 
 # --- Termination check (no bc, awk only) ---
-# Score >= threshold → allow stop
-# P-6: awk failure on non-numeric input → exit non-zero → falls through to block (fail-safe)
 if awk "BEGIN{exit !($BEST_SCORE >= $THRESHOLD)}" 2>/dev/null; then
   exit 0
 fi
