@@ -1,7 +1,6 @@
 # DevContainer Development Patterns
 
 > Prevents Docker-in-Docker (DinD) anti-pattern and defines container validation.
-> Testing protocol details: `.claude/docs/hook-reference.md` ## DevContainer Details
 
 ## Core Principle
 

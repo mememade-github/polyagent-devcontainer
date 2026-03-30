@@ -95,48 +95,23 @@ if [ -f "$MEMORY_FILE" ]; then
 fi
 
 # 5. Stale markers cleanup (per-worktree, branch-scoped markers)
-# Honest fallback: "unknown" signals uncertainty (P-3)
-SESSION_BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-SESSION_BRANCH_SAFE=$(echo "$SESSION_BRANCH" | tr '/' '-')
+# Active marker system: .last-verification.$BRANCH (created by mark-verified.sh)
+# Active marker system: .refinement-active (created by /refine)
+# Active marker system: .stop-blocked-refinement.$BRANCH (created by refinement-gate.sh)
 
-# clean up legacy markers (pre-isolation format, no branch suffix)
-rm -f "$ACTUAL_ROOT/.claude/.pending-review" "$ACTUAL_ROOT/.claude/.stop-blocked-review" "$ACTUAL_ROOT/.claude/.stop-blocked-evolution"
-rm -f "$ACTUAL_ROOT/.claude/.pending-review.$SESSION_BRANCH_SAFE" "$ACTUAL_ROOT/.claude/.stop-blocked-review.$SESSION_BRANCH_SAFE"
-rm -f "$ACTUAL_ROOT/.claude/.last-verification" "$ACTUAL_ROOT/.claude/.last-evolution"
+# clean up legacy format (no branch suffix — superseded by branch-scoped markers)
+rm -f "$ACTUAL_ROOT/.claude/.last-verification"
 
-# clean up stale markers from removed worktrees (orphan cleanup)
-for stale_marker in "$ACTUAL_ROOT"/.claude/.pending-review.* "$ACTUAL_ROOT"/.claude/.stop-blocked-*.* ; do
-  [ -f "$stale_marker" ] || continue
-  stale_mtime=$(stat -c %Y "$stale_marker" 2>/dev/null) || {
-    echo "WARN: cannot read orphan marker: $stale_marker" >&2
-    continue
-  }
-  stale_age=$(( $(date +%s) - stale_mtime ))
-  if [ "$stale_age" -gt 3600 ]; then
-    rm -f "$stale_marker"
-  fi
-done
-
-# orphan marker cleanup: remove markers for deleted branches
-for marker in "$ACTUAL_ROOT"/.claude/.last-verification.* "$ACTUAL_ROOT"/.claude/.last-evolution.*; do
+# orphan marker cleanup: remove verification markers for deleted branches
+for marker in "$ACTUAL_ROOT"/.claude/.last-verification.*; do
   [ -f "$marker" ] || continue
   MARKER_FILE=$(basename "$marker")
-  MARKER_BRANCH=""
-  for PREFIX in ".last-verification." ".last-evolution."; do
-    if [[ "$MARKER_FILE" == ${PREFIX}* ]]; then
-      MARKER_BRANCH="${MARKER_FILE#${PREFIX}}"
-      break
-    fi
-  done
+  MARKER_BRANCH="${MARKER_FILE#.last-verification.}"
   [ -z "$MARKER_BRANCH" ] && continue
   if ! git -C "$PROJECT_DIR" rev-parse --verify "$MARKER_BRANCH" &>/dev/null; then
     rm -f "$marker"
   fi
 done
-
-# legacy stop marker cleanup (v2 shared marker → v3 per-hook markers)
-rm -f "$ACTUAL_ROOT"/.claude/.stop-blocked-any.* \
-      "$ACTUAL_ROOT"/.claude/.stop-blocked-evolution.*
 
 # 6. Session collaboration guard (detect other active sessions via heartbeat)
 # use PROJECT_DIR (not ACTUAL_ROOT) — hooks are code, not shared data
