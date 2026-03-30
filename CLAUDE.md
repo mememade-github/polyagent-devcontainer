@@ -110,8 +110,8 @@ Delegation via Task tool with `subagent_type` parameter.
 3. **Follow patterns** — Match existing codebase style
 4. **Protect secrets** — Never commit credentials or API keys
 5. **Verify** — Build and test before claiming success
-6. **Fix root causes** — 에러 발생 시 근본 원인을 진단·해결. 우회(workaround)나 무시 금지
-7. **Explicit failure** — No form of arbitrary success is permitted; every operation must genuinely succeed or explicitly fail
+6. **Fix root causes** — Diagnose and fix the root cause. No workarounds, no ignoring errors
+7. **Explicit failure** — Every operation must genuinely succeed or explicitly fail. No arbitrary success
 
 ## Communication
 

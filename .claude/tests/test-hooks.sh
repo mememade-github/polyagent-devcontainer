@@ -358,7 +358,7 @@ fi
 # --- HK-21: subagent-start-report.sh functional test ---
 SUBSTART_HOOK="$HOOKS_DIR/subagent-start-report.sh"
 if [ -f "$SUBSTART_HOOK" ]; then
-  SUBSTART_OUT=$(echo '{"agent_type":"test-agent","agent_id":"test-123","session_id":"s1"}' | bash "$SUBSTART_HOOK" 2>&1)
+  SUBSTART_OUT=$(echo '{"agent_type":"test-agent","agent_id":"test-123","session_id":"s1"}' | CLAUDE_PROJECT_DIR="$ROOT" bash "$SUBSTART_HOOK" 2>&1)
   if grep -q 'SubagentStart.*agent=test-agent.*id=test-123' "$ACTUAL_ROOT/.claude/subagent.log" 2>/dev/null; then
     result "PASS" "HK-21" "subagent-start-report functional" "logged agent_type+agent_id"
   else
@@ -371,7 +371,7 @@ fi
 # --- HK-22: session-end.sh functional test ---
 SESSEND_HOOK="$HOOKS_DIR/session-end.sh"
 if [ -f "$SESSEND_HOOK" ]; then
-  echo '{"source":"test","session_id":"test-sess"}' | bash "$SESSEND_HOOK" 2>&1 >/dev/null
+  echo '{"source":"test","session_id":"test-sess"}' | CLAUDE_PROJECT_DIR="$ROOT" bash "$SESSEND_HOOK" 2>&1 >/dev/null
   if [ -f "$ACTUAL_ROOT/.claude/session-metrics.log" ] && \
      grep -q '"event":"session_end".*"session_id":"test-sess"' "$ACTUAL_ROOT/.claude/session-metrics.log" 2>/dev/null; then
     result "PASS" "HK-22" "session-end functional" "JSONL entry written"

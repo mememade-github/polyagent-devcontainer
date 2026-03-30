@@ -1,6 +1,6 @@
 #!/bin/bash
-# test-refinement.sh — Refinement loop infrastructure tests (RF-1..RF-8)
-# Sprint 1: data layer (memory-ops, score, trajectory)
+# test-refinement.sh — Refinement loop infrastructure tests (RF-1..RF-17)
+# v3: autoresearch pattern — memory-ops, trajectory, gate, rubric
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ else
 fi
 
 # =============================================================================
-# RF-2: memory-ops.sh CRUD cycle (add→list→best→count→clear)
+# RF-2: memory-ops.sh CRUD cycle (add->list->best->count->clear)
 # =============================================================================
 TASK_TEST="test-crud-$$"
 
@@ -57,7 +57,7 @@ CLEAR=$(bash "$SCRIPTS/memory-ops.sh" clear --task "$TASK_TEST")
 COUNT_AFTER=$(bash "$SCRIPTS/memory-ops.sh" count --task "$TASK_TEST")
 
 if [ "$LIST_COUNT" = "2" ] && [ "$BEST_SCORE" = "0.7" ] && [ "$COUNT" = "2" ] && [ "$COUNT_AFTER" = "0" ]; then
-  result PASS RF-2 "CRUD cycle (add×2→list=2→best=0.7→count=2→clear→count=0)"
+  result PASS RF-2 "CRUD cycle (add x2->list=2->best=0.7->count=2->clear->count=0)"
 else
   result FAIL RF-2 "CRUD cycle" "list=$LIST_COUNT best=$BEST_SCORE count=$COUNT after=$COUNT_AFTER"
 fi
@@ -89,40 +89,7 @@ else
 fi
 
 # =============================================================================
-# RF-4: score.sh perfect/lowest/partial input
-# =============================================================================
-SCORE_PERFECT=$(echo '{"lint_errors":0,"build_ok":true,"test_passed":10,"test_total":10,"mypy_errors":0}' | bash "$SCRIPTS/score.sh" | jq '.score')
-SCORE_LOWEST=$(echo '{"lint_errors":100,"build_ok":false,"test_passed":0,"test_total":10,"mypy_errors":100}' | bash "$SCRIPTS/score.sh" | jq '.score')
-SCORE_PARTIAL=$(echo '{"lint_errors":2,"build_ok":true,"test_passed":8,"test_total":10,"mypy_errors":5}' | bash "$SCRIPTS/score.sh" | jq '.score')
-
-# Perfect should be 1.0, lowest should be 0.0, partial between 0 and 1
-SCORE_OK=true
-if ! awk "BEGIN{exit !($SCORE_PERFECT == 1.0)}" 2>/dev/null; then SCORE_OK=false; fi
-if ! awk "BEGIN{exit !($SCORE_LOWEST == 0.0)}" 2>/dev/null; then SCORE_OK=false; fi
-if ! awk "BEGIN{exit !($SCORE_PARTIAL > 0.0 && $SCORE_PARTIAL < 1.0)}" 2>/dev/null; then SCORE_OK=false; fi
-
-if $SCORE_OK; then
-  result PASS RF-4 "score.sh perfect=1.0 lowest=0.0 partial=$SCORE_PARTIAL"
-else
-  result FAIL RF-4 "score.sh" "perfect=$SCORE_PERFECT lowest=$SCORE_LOWEST partial=$SCORE_PARTIAL"
-fi
-
-# =============================================================================
-# RF-5: score.sh zero division safety (test_total=0)
-# =============================================================================
-SCORE_ZERO=$(echo '{"lint_errors":0,"build_ok":true,"test_passed":0,"test_total":0,"mypy_errors":0}' | bash "$SCRIPTS/score.sh")
-SCORE_ZERO_VAL=$(echo "$SCORE_ZERO" | jq '.score')
-SCORE_ZERO_TEST=$(echo "$SCORE_ZERO" | jq '.breakdown.test')
-
-# test should be null (excluded), score should still be valid number
-if [ "$SCORE_ZERO_TEST" = "null" ] && awk "BEGIN{exit !($SCORE_ZERO_VAL > 0)}" 2>/dev/null; then
-  result PASS RF-5 "zero division safe (test=null, score=$SCORE_ZERO_VAL)"
-else
-  result FAIL RF-5 "zero division" "test=$SCORE_ZERO_TEST score=$SCORE_ZERO_VAL"
-fi
-
-# =============================================================================
-# RF-6: trajectory.sh worst-first sort
+# RF-4: trajectory.sh worst-first sort
 # =============================================================================
 TASK_TRAJ="test-traj-$$"
 
@@ -132,245 +99,247 @@ bash "$SCRIPTS/memory-ops.sh" add --task "$TASK_TRAJ" --agent "ber" --score 0.5 
 
 TRAJ_XML=$(bash "$SCRIPTS/trajectory.sh" --task "$TASK_TRAJ")
 
-# Extract scores in order from <attempt> tags only — should be 0.2, 0.5, 0.8 (worst first)
+# Extract scores in order from <attempt> tags — should be 0.2, 0.5, 0.8 (worst first)
 TRAJ_SCORES=$(echo "$TRAJ_XML" | grep '<attempt ' | grep -oP 'score="\K[0-9.]+' | tr '\n' ',')
 
 if [ "$TRAJ_SCORES" = "0.2,0.5,0.8," ]; then
-  result PASS RF-6 "trajectory worst→best sort (0.2→0.5→0.8)"
+  result PASS RF-4 "trajectory worst->best sort (0.2->0.5->0.8)"
 else
-  result FAIL RF-6 "trajectory sort" "got: $TRAJ_SCORES"
+  result FAIL RF-4 "trajectory sort" "got: $TRAJ_SCORES"
 fi
 
 # =============================================================================
-# RF-7: trajectory.sh --max limit
+# RF-5: trajectory.sh --max limit
 # =============================================================================
 TRAJ_MAX=$(bash "$SCRIPTS/trajectory.sh" --task "$TASK_TRAJ" --max 2)
 TRAJ_MAX_COUNT=$(echo "$TRAJ_MAX" | grep '<previous_attempts' | grep -oP 'count="\K[0-9]+')
-# --max 2 should select top 2 by score (0.5, 0.8), display worst→best
 TRAJ_MAX_SCORES=$(echo "$TRAJ_MAX" | grep '<attempt ' | grep -oP 'score="\K[0-9.]+' | tr '\n' ',')
 
 if [ "$TRAJ_MAX_COUNT" = "2" ] && [ "$TRAJ_MAX_SCORES" = "0.5,0.8," ]; then
-  result PASS RF-7 "trajectory --max 2 (top-2 by score: 0.5→0.8)"
+  result PASS RF-5 "trajectory --max 2 (top-2 by score: 0.5->0.8)"
 else
-  result FAIL RF-7 "trajectory --max" "count=$TRAJ_MAX_COUNT scores=$TRAJ_MAX_SCORES"
+  result FAIL RF-5 "trajectory --max" "count=$TRAJ_MAX_COUNT scores=$TRAJ_MAX_SCORES"
 fi
 
 # =============================================================================
-# RF-8: trajectory.sh CDATA format
+# RF-6: trajectory.sh CDATA format
 # =============================================================================
 if echo "$TRAJ_XML" | grep -q '<!\[CDATA\['; then
   if echo "$TRAJ_XML" | grep -q '</previous_attempts>'; then
-    result PASS RF-8 "trajectory CDATA + XML structure"
+    result PASS RF-6 "trajectory CDATA + XML structure"
   else
-    result FAIL RF-8 "trajectory missing closing tag"
+    result FAIL RF-6 "trajectory missing closing tag"
   fi
 else
-  result FAIL RF-8 "trajectory CDATA not found"
+  result FAIL RF-6 "trajectory CDATA not found"
 fi
 
 # =============================================================================
-# RF-9: refinement-gate.sh exists + bash -n
+# RF-7: refinement-gate.sh exists + bash -n
 # =============================================================================
 GATE="$ROOT/.claude/hooks/refinement-gate.sh"
 if [ -f "$GATE" ]; then
   if bash -n "$GATE" 2>/dev/null; then
-    result PASS RF-9 "refinement-gate.sh exists + syntax OK"
+    result PASS RF-7 "refinement-gate.sh exists + syntax OK"
   else
-    result FAIL RF-9 "refinement-gate.sh syntax error"
+    result FAIL RF-7 "refinement-gate.sh syntax error"
   fi
 else
-  result FAIL RF-9 "refinement-gate.sh not found"
+  result FAIL RF-7 "refinement-gate.sh not found"
 fi
 
 # =============================================================================
-# RF-10: refinement-gate.sh — no marker → exit 0
+# RF-8: refinement-gate.sh — no marker -> exit 0
 # =============================================================================
 GATE_TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR" "$GATE_TMPDIR"' EXIT
-# Run gate with no marker in a clean project dir
 GATE_OUT=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_TMPDIR" bash "$GATE" 2>/dev/null)
 GATE_EXIT=$?
 if [ "$GATE_EXIT" -eq 0 ] && [ -z "$GATE_OUT" ]; then
-  result PASS RF-10 "gate: no marker → exit 0 (silent pass)"
+  result PASS RF-8 "gate: no marker -> exit 0 (silent pass)"
 else
-  result FAIL RF-10 "gate: no marker" "exit=$GATE_EXIT out=$GATE_OUT"
+  result FAIL RF-8 "gate: no marker" "exit=$GATE_EXIT out=$GATE_OUT"
 fi
 
 # =============================================================================
-# RF-11: refinement-gate.sh — marker + score below threshold → block
+# RF-9: refinement-gate.sh — marker + score below threshold -> block
 # =============================================================================
-GATE_DIR_11=$(mktemp -d)
-mkdir -p "$GATE_DIR_11/.claude"
-mkdir -p "$GATE_DIR_11/.claude/skills/refine"
-# Create marker
-echo '{"task_id":"test-rf11","threshold":0.9,"max_iterations":5}' > "$GATE_DIR_11/.claude/.refinement-active"
-# Create memory-ops.sh stub that returns low score
-cat > "$GATE_DIR_11/.claude/skills/refine/memory-ops.sh" <<'STUB'
+GATE_DIR_9=$(mktemp -d)
+mkdir -p "$GATE_DIR_9/.claude"
+mkdir -p "$GATE_DIR_9/.claude/skills/refine"
+echo '{"task_id":"test-rf9","threshold":0.9,"max_iterations":5}' > "$GATE_DIR_9/.claude/.refinement-active"
+cat > "$GATE_DIR_9/.claude/skills/refine/memory-ops.sh" <<'STUB'
 #!/bin/bash
 case "$1" in
   best)  echo '{"score":0.3}' ;;
   count) echo "1" ;;
 esac
 STUB
-chmod +x "$GATE_DIR_11/.claude/skills/refine/memory-ops.sh"
+chmod +x "$GATE_DIR_9/.claude/skills/refine/memory-ops.sh"
 
-GATE_OUT_11=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_11" bash "$GATE" 2>/dev/null)
-if echo "$GATE_OUT_11" | jq -e '.decision == "block"' >/dev/null 2>&1; then
-  result PASS RF-11 "gate: below threshold → block"
+GATE_OUT_9=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_9" bash "$GATE" 2>/dev/null)
+if echo "$GATE_OUT_9" | jq -e '.decision == "block"' >/dev/null 2>&1; then
+  result PASS RF-9 "gate: below threshold -> block"
 else
-  result FAIL RF-11 "gate: expected block" "out=$GATE_OUT_11"
+  result FAIL RF-9 "gate: expected block" "out=$GATE_OUT_9"
 fi
-rm -rf "$GATE_DIR_11"
+rm -rf "$GATE_DIR_9"
 
 # =============================================================================
-# RF-12: refinement-gate.sh — score meets threshold → exit 0
+# RF-10: refinement-gate.sh — score meets threshold -> exit 0
 # =============================================================================
-GATE_DIR_12=$(mktemp -d)
-mkdir -p "$GATE_DIR_12/.claude"
-mkdir -p "$GATE_DIR_12/.claude/skills/refine"
-echo '{"task_id":"test-rf12","threshold":0.8,"max_iterations":5}' > "$GATE_DIR_12/.claude/.refinement-active"
-cat > "$GATE_DIR_12/.claude/skills/refine/memory-ops.sh" <<'STUB'
+GATE_DIR_10=$(mktemp -d)
+mkdir -p "$GATE_DIR_10/.claude"
+mkdir -p "$GATE_DIR_10/.claude/skills/refine"
+echo '{"task_id":"test-rf10","threshold":0.8,"max_iterations":5}' > "$GATE_DIR_10/.claude/.refinement-active"
+cat > "$GATE_DIR_10/.claude/skills/refine/memory-ops.sh" <<'STUB'
 #!/bin/bash
 case "$1" in
   best)  echo '{"score":0.85}' ;;
   count) echo "2" ;;
 esac
 STUB
-chmod +x "$GATE_DIR_12/.claude/skills/refine/memory-ops.sh"
+chmod +x "$GATE_DIR_10/.claude/skills/refine/memory-ops.sh"
 
-GATE_OUT_12=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_12" bash "$GATE" 2>/dev/null)
-GATE_EXIT_12=$?
-# exit 0 + no block decision = allow stop (empty output or no "block" in output)
-if [ "$GATE_EXIT_12" -eq 0 ] && ! echo "$GATE_OUT_12" | grep -q '"decision".*"block"'; then
-  result PASS RF-12 "gate: score >= threshold → exit 0"
+GATE_OUT_10=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_10" bash "$GATE" 2>/dev/null)
+GATE_EXIT_10=$?
+if [ "$GATE_EXIT_10" -eq 0 ] && ! echo "$GATE_OUT_10" | grep -q '"decision".*"block"'; then
+  result PASS RF-10 "gate: score >= threshold -> exit 0"
 else
-  result FAIL RF-12 "gate: expected pass" "exit=$GATE_EXIT_12 out=$GATE_OUT_12"
+  result FAIL RF-10 "gate: expected pass" "exit=$GATE_EXIT_10 out=$GATE_OUT_10"
 fi
-rm -rf "$GATE_DIR_12"
+rm -rf "$GATE_DIR_10"
 
 # =============================================================================
-# RF-13: refinement-gate.sh — symlink marker rejected
+# RF-11: refinement-gate.sh — symlink marker rejected
 # =============================================================================
-GATE_DIR_13=$(mktemp -d)
-mkdir -p "$GATE_DIR_13/.claude"
-# Create symlink marker (should be rejected)
-ln -sf /etc/passwd "$GATE_DIR_13/.claude/.refinement-active"
+GATE_DIR_11=$(mktemp -d)
+mkdir -p "$GATE_DIR_11/.claude"
+ln -sf /etc/passwd "$GATE_DIR_11/.claude/.refinement-active"
 
-GATE_OUT_13=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_13" bash "$GATE" 2>/dev/null)
-GATE_EXIT_13=$?
-if [ "$GATE_EXIT_13" -eq 0 ] && [ ! -L "$GATE_DIR_13/.claude/.refinement-active" ]; then
-  result PASS RF-13 "gate: symlink marker rejected + removed"
+GATE_OUT_11=$(echo '{}' | CLAUDE_PROJECT_DIR="$GATE_DIR_11" bash "$GATE" 2>/dev/null)
+GATE_EXIT_11=$?
+if [ "$GATE_EXIT_11" -eq 0 ] && [ ! -L "$GATE_DIR_11/.claude/.refinement-active" ]; then
+  result PASS RF-11 "gate: symlink marker rejected + removed"
 else
-  result FAIL RF-13 "gate: symlink" "exit=$GATE_EXIT_13 link_exists=$(test -L "$GATE_DIR_13/.claude/.refinement-active" && echo yes || echo no)"
+  result FAIL RF-11 "gate: symlink" "exit=$GATE_EXIT_11"
 fi
-rm -rf "$GATE_DIR_13"
+rm -rf "$GATE_DIR_11"
 
 # =============================================================================
-# RF-14: task-quality-gate.sh — no marker → existing behavior
+# RF-12: task-quality-gate.sh — no marker -> existing behavior
 # =============================================================================
 TQG="$ROOT/.claude/hooks/task-quality-gate.sh"
 if [ -f "$TQG" ]; then
-  TQG_DIR_14=$(mktemp -d)
-  mkdir -p "$TQG_DIR_14/.claude"
-  TQG_OUT=$(echo '{"tool_input":"{}"}' | CLAUDE_PROJECT_DIR="$TQG_DIR_14" bash "$TQG" 2>/dev/null)
+  TQG_DIR_12=$(mktemp -d)
+  mkdir -p "$TQG_DIR_12/.claude"
+  TQG_OUT=$(echo '{"tool_input":"{}"}' | CLAUDE_PROJECT_DIR="$TQG_DIR_12" bash "$TQG" 2>/dev/null)
   if echo "$TQG_OUT" | jq -e '.hookSpecificOutput.additionalContext' >/dev/null 2>&1; then
-    # Check it does NOT contain refinement info when no marker
     if echo "$TQG_OUT" | grep -q 'Refinement active'; then
-      result FAIL RF-14 "task-quality-gate shows refinement without marker"
+      result FAIL RF-12 "task-quality-gate shows refinement without marker"
     else
-      result PASS RF-14 "task-quality-gate: no marker → existing behavior"
+      result PASS RF-12 "task-quality-gate: no marker -> existing behavior"
     fi
   else
-    result FAIL RF-14 "task-quality-gate: no hookSpecificOutput"
+    result FAIL RF-12 "task-quality-gate: no hookSpecificOutput"
   fi
-  rm -rf "$TQG_DIR_14"
+  rm -rf "$TQG_DIR_12"
 else
-  result SKIP RF-14 "task-quality-gate.sh not found"
+  result SKIP RF-12 "task-quality-gate.sh not found"
 fi
 
 # =============================================================================
-# RF-15: settings.json has refinement-gate registered
+# RF-13: settings.json has refinement-gate registered
 # =============================================================================
 SETTINGS="$ROOT/.claude/settings.json"
 if [ -f "$SETTINGS" ]; then
   if jq -r '.hooks.Stop[0].hooks[].command' "$SETTINGS" 2>/dev/null | grep -q 'refinement-gate'; then
-    result PASS RF-15 "settings.json: refinement-gate in Stop hooks"
+    result PASS RF-13 "settings.json: refinement-gate in Stop hooks"
   else
-    result FAIL RF-15 "settings.json: refinement-gate not found in Stop hooks"
+    result FAIL RF-13 "settings.json: refinement-gate not found in Stop hooks"
   fi
 else
-  result FAIL RF-15 "settings.json not found"
+  result FAIL RF-13 "settings.json not found"
 fi
 
 # =============================================================================
-# RF-16: SKILL.md contains DEGRADATION check (v3.1)
+# RF-14: SKILL.md contains autoresearch evaluation protocol
 # =============================================================================
 SKILL="$ROOT/.claude/skills/refine/SKILL.md"
 if [ -f "$SKILL" ]; then
-  if grep -q 'DEGRADATION' "$SKILL"; then
-    result PASS RF-16 "SKILL.md: DEGRADATION check present"
+  HAS_RUBRIC=$(grep -c 'immutable rubric\|Evaluation Protocol\|rubrics/default.yml' "$SKILL" || true)
+  HAS_BINARY=$(grep -c 'KEEP\|DISCARD' "$SKILL" || true)
+  if [ "$HAS_RUBRIC" -ge 2 ] && [ "$HAS_BINARY" -ge 2 ]; then
+    result PASS RF-14 "SKILL.md: autoresearch pattern (rubric=$HAS_RUBRIC, binary=$HAS_BINARY)"
   else
-    result FAIL RF-16 "SKILL.md: DEGRADATION not found"
+    result FAIL RF-14 "SKILL.md: autoresearch markers" "rubric=$HAS_RUBRIC binary=$HAS_BINARY"
   fi
 else
-  result FAIL RF-16 "SKILL.md not found"
+  result FAIL RF-14 "SKILL.md not found"
 fi
 
 # =============================================================================
-# RF-17: SKILL.md references .claude/skills/refine (internalized infrastructure)
+# RF-15: SKILL.md does NOT reference deleted scripts
 # =============================================================================
 if [ -f "$SKILL" ]; then
-  if grep -q '\.claude/skills/refine' "$SKILL"; then
-    result PASS RF-17 "SKILL.md: .claude/skills/refine reference present"
+  DELETED_REFS=$(grep -c 'verify-score\.sh\|score\.sh\|feedback-builder\.sh' "$SKILL" || true)
+  if [ "$DELETED_REFS" -eq 0 ]; then
+    result PASS RF-15 "SKILL.md: no references to deleted scripts"
   else
-    result FAIL RF-17 "SKILL.md: .claude/skills/refine not found"
+    result FAIL RF-15 "SKILL.md: still references deleted scripts" "count=$DELETED_REFS"
   fi
 else
-  result FAIL RF-17 "SKILL.md not found"
+  result FAIL RF-15 "SKILL.md not found"
 fi
 
 # =============================================================================
-# RF-18: verify-score.sh — ruff unavailable → valid JSON
+# RF-16: rubric file exists with required dimensions
 # =============================================================================
-VS="$SCRIPTS/verify-score.sh"
-if [ -f "$VS" ]; then
-  # Use a temp dir with no tools installed as project
-  VS_DIR=$(mktemp -d)
-  mkdir -p "$VS_DIR/src"
-  echo "x = 1" > "$VS_DIR/src/dummy.py"
-  echo '[project]' > "$VS_DIR/pyproject.toml"
-  VS_OUT=$(bash "$VS" --project "$VS_DIR" --score 2>/dev/null)
-  if echo "$VS_OUT" | jq -e '.metrics' >/dev/null 2>&1; then
-    RUFF_STATUS=$(echo "$VS_OUT" | jq -r '.tools.ruff // "missing"')
-    if [ "$RUFF_STATUS" = "unavailable" ] || [ "$RUFF_STATUS" = "available" ]; then
-      result PASS RF-18 "verify-score.sh: ruff status=$RUFF_STATUS, valid JSON"
-    else
-      result FAIL RF-18 "verify-score.sh: unexpected ruff status=$RUFF_STATUS"
+RUBRIC="$ROOT/.claude/skills/refine/rubrics/default.yml"
+if [ -f "$RUBRIC" ]; then
+  HAS_DIMS=true
+  for DIM in correctness improvement completeness consistency; do
+    if ! grep -q "^    $DIM:" "$RUBRIC"; then
+      HAS_DIMS=false
+      break
     fi
+  done
+  HAS_ANCHORS=$(grep -c '"0\.\(0\|25\|5\|75\|0\)"' "$RUBRIC" || true)
+  if $HAS_DIMS && [ "$HAS_ANCHORS" -ge 16 ]; then
+    result PASS RF-16 "rubric: 4 dimensions + anchors present (anchors=$HAS_ANCHORS)"
   else
-    result FAIL RF-18 "verify-score.sh: invalid JSON output" "$VS_OUT"
+    result FAIL RF-16 "rubric structure" "dims=$HAS_DIMS anchors=$HAS_ANCHORS"
   fi
-  rm -rf "$VS_DIR"
 else
-  result FAIL RF-18 "verify-score.sh not found"
+  result FAIL RF-16 "rubric not found"
 fi
 
 # =============================================================================
-# RF-19: verify-score.sh — all tools unavailable → valid JSON with score
+# RF-17: file inventory — only 4 files remain (v3 minimal)
 # =============================================================================
-if [ -f "$VS" ]; then
-  # Empty project with no Python, no npm, no tools
-  VS_DIR_19=$(mktemp -d)
-  VS_OUT_19=$(bash "$VS" --project "$VS_DIR_19" --score 2>/dev/null)
-  if echo "$VS_OUT_19" | jq -e '.score' >/dev/null 2>&1; then
-    VS_SCORE=$(echo "$VS_OUT_19" | jq '.score')
-    result PASS RF-19 "verify-score.sh: all tools unavailable → valid JSON (score=$VS_SCORE)"
+EXPECTED_FILES="SKILL.md memory-ops.sh trajectory.sh rubrics/default.yml"
+ACTUAL_COUNT=0
+MISSING=""
+for F in $EXPECTED_FILES; do
+  if [ -f "$SCRIPTS/$F" ]; then
+    ACTUAL_COUNT=$((ACTUAL_COUNT + 1))
   else
-    result FAIL RF-19 "verify-score.sh: invalid JSON when no tools" "$VS_OUT_19"
+    MISSING="$MISSING $F"
   fi
-  rm -rf "$VS_DIR_19"
+done
+
+# Check no deleted scripts remain
+GHOST=""
+for G in verify-score.sh score.sh feedback-builder.sh; do
+  if [ -f "$SCRIPTS/$G" ]; then
+    GHOST="$GHOST $G"
+  fi
+done
+
+if [ "$ACTUAL_COUNT" -eq 4 ] && [ -z "$GHOST" ]; then
+  result PASS RF-17 "file inventory: 4 expected files, 0 ghost files"
 else
-  result FAIL RF-19 "verify-score.sh not found"
+  result FAIL RF-17 "file inventory" "found=$ACTUAL_COUNT missing=$MISSING ghost=$GHOST"
 fi
 
 # =============================================================================

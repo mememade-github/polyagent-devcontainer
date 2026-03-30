@@ -36,7 +36,7 @@ fi
 
 # --- Select best N, display worst→best (Poetiq create_examples pattern) ---
 # sort_by(.score) | .[-N:] = select top N by score, already in worst→best order
-# GAP-7: "점수 최상위 N개" not "최근 N개"
+# Select top N by score, not most recent N
 ATTEMPTS=$(jq -s --argjson max "$MAX_ITEMS" '
   sort_by(.score) | .[-$max:]
 ' "$FILE")

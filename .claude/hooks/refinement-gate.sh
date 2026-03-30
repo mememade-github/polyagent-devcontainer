@@ -77,7 +77,7 @@ fi
 BEST_SCORE=$(bash "$SCRIPTS_DIR/memory-ops.sh" best --task "$TASK_ID" 2>/dev/null | jq -r '.score // "0"' 2>/dev/null || echo "0")
 ITERATION=$(bash "$SCRIPTS_DIR/memory-ops.sh" count --task "$TASK_ID" 2>/dev/null || echo "0")
 
-# --- Termination check (bc 금지, awk only) ---
+# --- Termination check (no bc, awk only) ---
 # Score >= threshold → allow stop
 # P-6: awk failure on non-numeric input → exit non-zero → falls through to block (fail-safe)
 if awk "BEGIN{exit !($BEST_SCORE >= $THRESHOLD)}" 2>/dev/null; then
