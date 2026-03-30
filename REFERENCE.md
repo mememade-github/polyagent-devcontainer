@@ -91,7 +91,7 @@ postStartCommand (매 시작 시)
 | evaluator | Context-isolated quality evaluation | After changes; within /refine loop |
 | wip-manager | Multi-session task tracker | When task spans sessions |
 
-### Hooks (5)
+### Hooks (4)
 
 | Hook | Event | Purpose |
 |------|-------|---------|
@@ -99,7 +99,6 @@ postStartCommand (매 시작 시)
 | pre-commit-gate.sh | PreToolUse(Bash) | Require verification before commit |
 | pre-push-gate.sh | PreToolUse(Bash) | Git push safety gate |
 | refinement-gate.sh | Stop | Block stop if refinement pending |
-| mark-verified.sh | Utility | Set verification marker |
 
 ### Skills (/commands — 3)
 

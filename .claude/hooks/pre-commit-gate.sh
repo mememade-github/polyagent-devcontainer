@@ -5,7 +5,7 @@
 #   "Exit 2 means a blocking error. stderr text is fed back to Claude."
 # Reference: https://code.claude.com/docs/en/hooks#exit-code-output
 #
-# Marker file: written by mark-verified.sh at ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE
+# Marker file: created by completion-checker.sh at ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')

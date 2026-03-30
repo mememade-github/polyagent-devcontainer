@@ -94,7 +94,7 @@ if [ -f "$MEMORY_FILE" ]; then
 fi
 
 # 5. Stale markers cleanup (per-worktree, branch-scoped markers)
-# Active marker system: .last-verification.$BRANCH (created by mark-verified.sh)
+# Active marker system: .last-verification.$BRANCH (created by completion-checker.sh)
 # Active marker system: .refinement-active (created by /refine)
 # Active marker system: .stop-blocked-refinement.$BRANCH (created by refinement-gate.sh)
 
