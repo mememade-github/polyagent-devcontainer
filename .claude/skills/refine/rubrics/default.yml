@@ -1,6 +1,6 @@
 # default.yml — Rubric Fallback for non-objective evaluation
 #
-# ROLE IN v5: This rubric serves as calibration anchors for the evaluator
+# This rubric serves as calibration anchors for the evaluator
 # subagent when Contract.mode == "calibrated" (last resort).
 # For most projects with tests/build/lint, objective mode takes priority.
 # For non-code domains, tool-augmented mode with checks[] is preferred.

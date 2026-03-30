@@ -53,10 +53,7 @@ done
 Check for active WIP tasks: `ls "$WORKSPACE_ROOT/wip/" 2>/dev/null`
 If WIP directories exist, read each README.md to show current task status.
 
-## 5. Active Plans
-Check `~/.claude/plans/` for plan files. Show name and age of each.
-
-## 6. Stale Markers
+## 5. Stale Markers
 Check for branch-scoped verification markers:
 ```bash
 for marker in "$WORKSPACE_ROOT"/.claude/.last-verification.*; do
@@ -66,5 +63,5 @@ for marker in "$WORKSPACE_ROOT"/.claude/.last-verification.*; do
 done
 ```
 
-## 7. Summary
+## 6. Summary
 Summarize findings concisely: repos status, unpushed count, WIP count, stale items.

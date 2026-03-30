@@ -54,6 +54,7 @@ ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
 # Check for any SSH deploy key (project-agnostic)
 SSH_KEY_FOUND=$(find "${HOME}/.ssh/" -name "*_ed25519" -o -name "*_rsa" 2>/dev/null | head -1)
+[ -z "$SSH_KEY_FOUND" ] && [ -f "$ACTUAL_ROOT/.env/ssh-key" ] && SSH_KEY_FOUND="project"
 [ -z "$SSH_KEY_FOUND" ] && ENV_ISSUES="${ENV_ISSUES}  - No SSH deploy key found\n"
 # Check for env directory (use ACTUAL_ROOT — .env/ lives at project root, not worktree)
 [ -d "$ACTUAL_ROOT/.env" ] && [ -z "$(ls "$ACTUAL_ROOT/.env/"*.env 2>/dev/null)" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory has no .env files\n"
@@ -65,13 +66,13 @@ if [ -n "$ENV_ISSUES" ]; then
 fi
 
 # 4. Stale markers cleanup: remove verification markers for deleted branches
-# orphan marker cleanup: remove verification markers for deleted branches
+ACTIVE_SAFE=$(git -C "$PROJECT_DIR" for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null | while read -r b; do echo "$b" | tr '/' '-'; done)
 for marker in "$ACTUAL_ROOT"/.claude/.last-verification.*; do
   [ -f "$marker" ] || continue
   MARKER_FILE=$(basename "$marker")
   MARKER_BRANCH="${MARKER_FILE#.last-verification.}"
   [ -z "$MARKER_BRANCH" ] && continue
-  if ! git -C "$PROJECT_DIR" rev-parse --verify "$MARKER_BRANCH" &>/dev/null; then
+  if ! echo "$ACTIVE_SAFE" | grep -qxF "$MARKER_BRANCH"; then
     rm -f "$marker"
   fi
 done
