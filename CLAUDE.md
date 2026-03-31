@@ -30,17 +30,17 @@
 
 ## Template Hierarchy
 
-이 저장소는 **Tier 1 베이스 템플릿**입니다. 모든 Claude DevContainer 프로젝트가 이 템플릿에서 파생됩니다.
+This repository is a **Tier 1 base template**. All Claude DevContainer projects are derived from this template.
 
-| Tier | 역할 | 포함 |
-|------|------|------|
-| **Tier 1** | 베이스 템플릿 (이 저장소) | 2 agents, 4 hooks, 3 skills, DevContainer 인프라 |
-| **Domain** | Tier 1 + 도메인 특화 기능 | 파생 프로젝트가 필요에 따라 추가 |
+| Tier | Role | Includes |
+|------|------|----------|
+| **Tier 1** | Base template (this repo) | 2 agents, 4 hooks, 3 skills, DevContainer infrastructure |
+| **Domain** | Tier 1 + domain-specific features | Derived projects add as needed |
 
-### Tier 1에 포함되지 않는 요소
+### Elements NOT included in Tier 1
 
-프로젝트별로 독립 관리되는 데이터 (sync 대상 아님):
-- `rules/project/` 내 프로젝트 고유 규칙
+Data managed independently per project (not a sync target):
+- Project-specific rules in `rules/project/`
 
 ## Core Principle: INTEGRITY
 
@@ -106,16 +106,16 @@ Before ANY `git commit`:
 
 ## Communication
 
-- **Language**: 사용자에게 응답할 때 반드시 한국어를 사용합니다.
+- **Language**: Always respond to users in Korean.
 
 ## Environment
 
-- **Ports**: `.devcontainer/.env`에서 관리 (PORT_APP, PORT_API, PORT_DB, PORT_EXTRA)
-- **Claude Code**: 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
-- **Node.js**: MCP 인프라용 Node 22 LTS 항상 설치. PROJECT_NODE_VERSION 설정 시 추가 버전 설치
-- **Persistent volumes**: `~/.claude` (인증 토큰), `/commandhistory` (히스토리)
-- **9p mount**: `core.filemode=false` (postStartCommand 자동 적용)
-- **MCP**: Context7 (documentation), Serena (code intelligence) — 플러그인 자동 관리
+- **Ports**: Managed in `.devcontainer/.env` (PORT_APP, PORT_API, PORT_DB, PORT_EXTRA)
+- **Claude Code**: Native binary (~/.local/bin/claude, auto-updated)
+- **Node.js**: Node 22 LTS always installed for MCP infrastructure. Additional version installed if PROJECT_NODE_VERSION is set
+- **Persistent volumes**: `~/.claude` (auth tokens), `/commandhistory` (history)
+- **9p mount**: `core.filemode=false` (auto-applied by postStartCommand)
+- **MCP**: Context7 (documentation), Serena (code intelligence) — plugins auto-managed
 
 ## Extended Reference
 
