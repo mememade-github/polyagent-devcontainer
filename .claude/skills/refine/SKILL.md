@@ -60,6 +60,7 @@ Read the project and construct a Verification Contract.
       Projects can provide `.refine/score.sh` as a domain-specific scorer with JSON interface:
       `{"score": 0.0-1.0, "feedback": "...", "metrics": {...}}`.
       The project owns and evolves this scorer — it is the authoritative metric source when present.
+      If `.refine/score.sh` hits an error, fails, or crashes internally, the scorer must still output `{"score":0}` — it should never crash silently or produce no output.
    b. Test suites, build systems, linters, type checkers, verification scripts
 3. **Construct the Verification Contract**:
 
@@ -192,6 +193,8 @@ ITERATION=$(wc -l < "$ATTEMPTS" 2>/dev/null || echo "0")
 | `ITERATION >= MAX_ITER` | **STOP** — `rm -f .claude/.refinement-active`, report best |
 | Otherwise | Continue to Step 3 |
 
+**Mandatory: clean up `.refinement-active` on every exit path.** Whether the loop ends by ACCEPT, STOP, or error, you must always `rm -f .claude/.refinement-active` before reporting results.
+
 On exit: `jq -s 'sort_by(.score)|last' "$ATTEMPTS"`
 
 ### Next Iteration
@@ -208,7 +211,8 @@ Return to **Step 3** with:
 1. **Zero-memory** — rediscover from scratch every run
 2. **Contract is immutable** — once frozen, no modification
 3. **Metric over judgment** — objective if available; calibrated is last resort
-4. **Baseline must not be perfect** — Contract must distinguish improvement
+4. **Baseline must not be perfect** — Contract must distinguish improvement.
+   Recalibration: if baseline is perfect (1.0), add stricter checks or introduce additional criteria to lower the baseline score before proceeding.
 5. **Generated tests must fail** — TDD RED principle
 6. **Parse failure = score 0** — treat as crash, DISCARD
 
