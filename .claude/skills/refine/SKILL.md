@@ -377,6 +377,22 @@ Run 3: score.sh adds R10-R14 (code quality, branding, integration)
 
 Each new run discovers the evolved scorer and builds a fresh Contract around it.
 
+### Scorer Independence (Generator ≠ Evaluator)
+
+> Empirical: when the same agent modifies both product code and scorer checks in one pass,
+> all new checks trivially pass — the evaluator is optimized for the generator, not for quality.
+
+**Rule**: The Modifier (Step 4) MUST NOT modify `score.sh` in the same iteration that it
+modifies product code. Scorer evolution happens BETWEEN /refine runs:
+
+```
+✗ Anti-pattern: Iteration 1 modifies search.js + score.sh → 1.0 (self-validated)
+✓ Correct:     Run 1 evolves score.sh → Run 2 modifies search.js (independently evaluated)
+```
+
+If the current scorer lacks checks for the target improvement area, the scorer MUST be
+evolved in a **separate /refine run** (or manually before the run) — not alongside product changes.
+
 ## Evidence-Before-Modification Principle
 
 > Empirical: modifications without prior evidence gathering produce unstable fixes.
@@ -403,3 +419,4 @@ it receives evidence from a separate Audit agent, not from its own assumptions.
 12. **No dead data** — only store what has a consumer (score, gaps, result, feedback)
 13. **Self-contained** — SKILL.md + evaluator agent + rubric fallback. Portable with `.claude/`
 14. **Evidence before modification** — structurally enforced by Audit→Modify separation
+15. **Scorer independence** — scorer and product code never modified in same iteration (empirical: <internal-rag> 2026-04-04)
