@@ -55,8 +55,12 @@ Read the project and construct a Verification Contract.
 **Every /refine run rediscovers from scratch. No cached config. Ground truth only.**
 
 1. **Read the project** — Glob, Read, Grep to understand structure.
-2. **Find verification infrastructure**:
-   - Test suites, build systems, linters, type checkers, verification scripts
+2. **Find verification infrastructure** (in priority order):
+   a. **Check for `.refine/score.sh`** — project-local scorer plugin (checked BEFORE other infrastructure).
+      Projects can provide `.refine/score.sh` as a domain-specific scorer with JSON interface:
+      `{"score": 0.0-1.0, "feedback": "...", "metrics": {...}}`.
+      The project owns and evolves this scorer — it is the authoritative metric source when present.
+   b. Test suites, build systems, linters, type checkers, verification scripts
 3. **Construct the Verification Contract**:
 
 ```json
@@ -78,9 +82,10 @@ Read the project and construct a Verification Contract.
 | `calibrated` | No objective metric (last resort) | evaluator subagent | `rubrics/default.yml` anchors |
 
 4. **No infrastructure?** (tool-augmented): write tests that FAIL in current state (TDD RED).
-5. **No objective metric?** (calibrated): use `rubrics/default.yml` — last resort only.
-6. **Validate**: run verify_cmd once. Must produce parseable output. Baseline must NOT be perfect.
-7. **Freeze** into `.refinement-active`:
+5. **Calibrated mode gate** — before entering calibrated mode, the orchestrator MUST document in `discovery_log` the reason why objective and tool-augmented modes are impossible, list what alternatives were attempted (e.g. search for tests, probe for .refine/score.sh, check build tools), and confirm no `.refine/score.sh` exists. If any objective or tool-augmented path exists but was skipped, the Contract is invalid.
+6. **No objective metric?** (calibrated): use `rubrics/default.yml` — last resort only.
+7. **Validate**: run verify_cmd once. Must produce parseable output. Baseline must NOT be perfect.
+8. **Freeze** into `.refinement-active`:
 
 ```bash
 cat > .claude/.refinement-active <<MARKER
