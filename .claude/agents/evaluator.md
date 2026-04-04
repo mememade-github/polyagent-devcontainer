@@ -3,7 +3,7 @@ name: evaluator
 description: Context-isolated evaluation specialist. Default 1-pass review after changes. In /refine loop, scores against frozen Contract.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
-maxTurns: 12
+maxTurns: 20
 color: yellow
 ---
 

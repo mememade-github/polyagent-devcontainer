@@ -1,5 +1,5 @@
 {
-  "effortLevel": "high",
+  "effortLevel": "max",
   "env": {
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
