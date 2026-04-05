@@ -76,5 +76,18 @@ if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
   exit 2
 fi
 
+# --- Layer 2: /refine requirement check for multi-file changes ---
+SCORER="$ACTUAL_ROOT/.refine/score.sh"
+REFINE_MARKER="$ACTUAL_ROOT/.claude/.refinement-active"
+if [ -f "$SCORER" ] && [ ! -f "$REFINE_MARKER" ]; then
+  STAGED_COUNT=$(git -C "$PROJECT_DIR" diff --cached --name-only | wc -l)
+  if [ "$STAGED_COUNT" -ge 2 ]; then
+    echo "WARNING: $STAGED_COUNT files staged but /refine is not active." >&2
+    echo "CLAUDE.md §2 requires /refine for changes affecting 2+ files when scorer exists." >&2
+    echo "Consider running /refine instead of direct commit." >&2
+    # WARNING only, not blocking — agent can proceed with justification
+  fi
+fi
+
 # Verification is recent — allow commit
 exit 0

@@ -147,10 +147,13 @@ Task context: <original task description>
 Scorer output file: <PROJECT>/.claude/.refine-output
 Attempts file: <$ATTEMPTS path>
 Current GAPS: <$GAPS array from last evaluation>
+Skill Library: <$PROJECT/.claude/agent-memory/skills/strategies.jsonl> (if exists)
+Anti-patterns: <$PROJECT/.claude/agent-memory/skills/anti-patterns.jsonl> (if exists)
 
 PROTOCOL:
 1. Read .claude/.refine-output to identify which checks are FAILING (metrics with "fail" value).
 2. Read $ATTEMPTS to see which gaps were addressed in prior iterations — avoid re-diagnosing resolved gaps.
+   Also read any "reflection" and "principle" entries — these are lessons from failed approaches.
 3. For each failing check, gather EVIDENCE across ALL system layers:
    - Code: Read the referenced file:line, understand expected vs actual state.
    - Configuration: Check service configs, environment variables, deployment settings.
@@ -160,11 +163,15 @@ PROTOCOL:
    If a previously-passing check now fails, flag it as REGRESSION (highest priority).
 5. Rank remaining failures: REGRESSION > CRITICAL (health, API) > STANDARD (integration) > COSMETIC (branding).
 6. Select the single highest-priority cluster (1-3 related gaps that share a root cause).
+7. Read strategies.jsonl (if exists) for previously successful approaches to similar gaps.
+8. Read anti-patterns.jsonl (if exists) to AVOID previously failed approaches.
+9. Include relevant strategies/anti-patterns in your report under PRIOR_KNOWLEDGE section.
 
 RETURN FORMAT (structured text, not JSON):
 PRIORITY_GAP: <gap ID(s)> — <one-line description>
 EVIDENCE: <what you observed — actual file content, config values, error messages>
 ROOT_CAUSE: <why it fails — diagnosed from evidence, not assumed>
+PRIOR_KNOWLEDGE: <relevant strategies to reuse or anti-patterns to avoid, from skill library>
 REGRESSION: <yes/no — did any previously-passing check regress?>
 REMAINING: <count and list of unresolved gaps>
 ```
@@ -251,10 +258,38 @@ PREV_BEST=$(jq -s 'sort_by(.score)|last|.score//0' "$ATTEMPTS" 2>/dev/null || ec
 | `SCORE <= PREV_BEST` | **DISCARD**: `git checkout -- . && git clean -fd` (remove untracked files too) |
 | `SCORE >= THRESHOLD` | **ACCEPT**: exit loop |
 
-### Step 7: Record
+### Step 7: Record + Learn
 
+**A. Record attempt** (always):
 ```bash
 echo "{\"score\":$SCORE,\"gaps\":$GAPS,\"result\":\"<KEEP|DISCARD>: $SUMMARY\",\"feedback\":\"$SUGGESTION\"}" >> "$ATTEMPTS"
+```
+
+**B. Reflexion** (on DISCARD — verbal RL per Shinn et al.):
+
+When the iteration is DISCARDED, generate a structured reflection and append to the attempts file:
+```bash
+# Only on DISCARD — reflect on why the approach failed
+echo "{\"reflection\":\"<why this specific code change failed — concrete, not vague>\",\"principle\":\"<general rule to prevent this class of failure>\"}" >> "$ATTEMPTS"
+```
+
+The next Audit agent (Step 3) reads the attempts file and uses reflections + principles as context to avoid repeating the same mistake.
+
+**C. Skill Library** (accumulate strategies and anti-patterns):
+
+```bash
+SKILLS_DIR="$PROJECT/.claude/agent-memory/skills"
+mkdir -p "$SKILLS_DIR"
+```
+
+On **KEEP** — extract the successful strategy:
+```bash
+echo "{\"id\":\"S-$ITERATION\",\"domain\":\"<gap area>\",\"pattern\":\"<problem solved>\",\"approach\":\"<specific technique>\",\"files\":[\"<modified files>\"],\"score_delta\":\"<prev→new>\"}" >> "$SKILLS_DIR/strategies.jsonl"
+```
+
+On **DISCARD** — record the anti-pattern:
+```bash
+echo "{\"id\":\"A-$ITERATION\",\"domain\":\"<gap area>\",\"pattern\":\"<what was attempted>\",\"cause\":\"<why it failed>\",\"prevention\":\"<how to avoid>\"}" >> "$SKILLS_DIR/anti-patterns.jsonl"
 ```
 
 ### Step 8: Check Termination
@@ -272,6 +307,30 @@ ITERATION=$(wc -l < "$ATTEMPTS" 2>/dev/null || echo "0")
 **Mandatory: clean up `.refinement-active` on every exit path.** Whether the loop ends by ACCEPT, STOP, or error, you must always `rm -f .claude/.refinement-active` before reporting results.
 
 On exit: `jq -s 'sort_by(.score)|last' "$ATTEMPTS"`
+
+### Step 9: Scorer Evolution Check (meta-learning)
+
+After the loop exits (ACCEPT or STOP), evaluate the scorer itself:
+
+```bash
+SCORER_LOG="$PROJECT/.claude/agent-memory/scorer-evolution.jsonl"
+mkdir -p "$(dirname "$SCORER_LOG")"
+
+# 1. Record final state
+echo "{\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"task_id\":\"$TASK_ID\",\"final_score\":$SCORE,\"iterations\":$ITERATION,\"threshold\":$THRESHOLD}" >> "$SCORER_LOG"
+
+# 2. If perfect score (1.00) on a broad task, flag potential scorer gaps
+if [ "$SCORE" = "1" ] || [ "$SCORE" = "1.0" ] || [ "$SCORE" = "1.00" ]; then
+  echo "Scorer achieved perfect score. Consider adding checks for uncovered areas."
+  # Scorer modification happens in a SEPARATE /refine run (scorer independence)
+fi
+
+# 3. Record regressions (any DISCARD that occurred during this run)
+DISCARD_COUNT=$(grep -c '"DISCARD' "$ATTEMPTS" 2>/dev/null || echo "0")
+if [ "$DISCARD_COUNT" -gt 0 ]; then
+  echo "{\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"regressions_during_run\",\"task_id\":\"$TASK_ID\",\"discard_count\":$DISCARD_COUNT}" >> "$SCORER_LOG"
+fi
+```
 
 ### Next Iteration
 
@@ -422,3 +481,6 @@ it receives evidence from a separate Audit agent, not from its own assumptions.
 13. **Self-contained** — SKILL.md + evaluator agent + rubric fallback. Portable with `.claude/`
 14. **Evidence before modification** — structurally enforced by Audit→Modify separation
 15. **Scorer independence** — scorer and product code never modified in same iteration (empirical: <internal-rag> 2026-04-04)
+16. **Reflexion on failure** — DISCARD generates structured reflection + principle for next Audit (verbal RL)
+17. **Skill accumulation** — KEEP→strategies.jsonl, DISCARD→anti-patterns.jsonl (cross-run learning)
+18. **Scorer evolution tracking** — post-run meta-learning records to scorer-evolution.jsonl
