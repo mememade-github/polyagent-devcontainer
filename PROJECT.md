@@ -8,7 +8,7 @@
 
 ## Overview
 
-Claude Code 개발을 위한 베이스 DevContainer 템플릿. 2 agents, 4 hooks, 3 skills, MCP 서버(Context7, Serena)를 포함한 완전한 Claude Code 워크스페이스를 제공합니다.
+Claude Code 개발을 위한 베이스 DevContainer 템플릿. 2 agents, 6 hooks, 4 skills, MCP 서버(Context7, Serena)를 포함한 완전한 Claude Code 워크스페이스를 제공합니다.
 
 ## Tech Stack
 

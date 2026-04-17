@@ -91,7 +91,7 @@ postStartCommand (매 시작 시)
 | evaluator | Context-isolated quality evaluation | After changes; within /refine loop |
 | wip-manager | Multi-session task tracker | When task spans sessions |
 
-### Hooks (4)
+### Hooks (6)
 
 | Hook | Event | Purpose |
 |------|-------|---------|
@@ -99,14 +99,17 @@ postStartCommand (매 시작 시)
 | pre-commit-gate.sh | PreToolUse(Bash) | Require verification before commit |
 | pre-push-gate.sh | PreToolUse(Bash) | Git push safety gate |
 | refinement-gate.sh | Stop | Block stop if refinement pending |
+| meta-evolution-guard.sh | PreToolUse(Bash) | Meta-Evolution delegation wrapper enforcement (§6 projects) |
+| sub-project-edit-guard.sh | PreToolUse(Edit\|Write) | Block Edit/Write on §6 sub-project trees (§6 projects) |
 
-### Skills (/commands — 3)
+### Skills (/commands — 4)
 
 | Skill | Description |
 |-------|-------------|
 | /refine | Autonomous iterative refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |
+| /wiki | Structured knowledge wiki (init, ingest, query, lint) |
 ## Troubleshooting
 
 | 문제 | 해결 |

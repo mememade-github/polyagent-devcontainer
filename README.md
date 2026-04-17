@@ -1,6 +1,6 @@
 # Claude DevContainer
 
-Claude Code + 13 Agent System이 포함된 격리 개발 환경 템플릿.
+Claude Code thin-orchestrator 격리 개발 환경 템플릿 (2 agents, 6 hooks, 4 skills).
 
 ---
 
@@ -100,9 +100,9 @@ git add -A && git commit -m "chore: initialize project"
 
 | 구성 | 수량 |
 |------|------|
-| Agents | 13 (code-reviewer, debugger, planner, architect 등) |
-| Hooks | 12 (세션 시작, 파괴적 명령 차단, 코드리뷰, 커밋 전 검증 등) |
-| Skills | 8 (/commit, /pr, /verify, /status, /deploy, /build-fix, /eval, /audit) |
+| Agents | 2 (evaluator, wip-manager) |
+| Hooks | 6 (session-start, pre-commit-gate, pre-push-gate, refinement-gate, meta-evolution-guard, sub-project-edit-guard) |
+| Skills | 4 (/refine, /status, /verify, /wiki) |
 | MCP | 2 (Context7, Serena) |
 | Tools | 20+ (ripgrep, fd, fzf, jq, tmux, docker CLI, gh 등) |
 

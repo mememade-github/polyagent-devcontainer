@@ -15,8 +15,8 @@
 ├── .claude/                        # Claude Code agent system
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 2 agents (evaluator, wip-manager)
-│   ├── hooks/                      # 4 hook scripts
-│   ├── skills/                     # 3 /command skills (refine, status, verify)
+│   ├── hooks/                      # 6 hook scripts
+│   ├── skills/                     # 4 /command skills (refine, status, verify, wiki)
 │   ├── rules/                      # Standard rules (portable)
 │   └── rules/project/              # Project-specific rules
 ├── .devcontainer/                  # Container configuration
@@ -34,7 +34,7 @@ This repository is a **Tier 1 base template**. All Claude DevContainer projects 
 
 | Tier | Role | Includes |
 |------|------|----------|
-| **Tier 1** | Base template (this repo) | 2 agents, 4 hooks, 3 skills, DevContainer infrastructure |
+| **Tier 1** | Base template (this repo) | 2 agents, 6 hooks, 4 skills, DevContainer infrastructure |
 | **Domain** | Tier 1 + domain-specific features | Derived projects add as needed |
 
 ### Elements NOT included in Tier 1
