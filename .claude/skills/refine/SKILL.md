@@ -295,25 +295,93 @@ On **DISCARD** — record the anti-pattern:
 echo "{\"id\":\"A-$ITERATION\",\"domain\":\"<gap area>\",\"pattern\":\"<what was attempted>\",\"cause\":\"<why it failed>\",\"prevention\":\"<how to avoid>\"}" >> "$SKILLS_DIR/anti-patterns.jsonl"
 ```
 
-**D. Wiki Integration** (if `.claude/agent-memory/wiki/index.md` exists):
+**D. Wiki Integration** (additive — fires only when wiki is initialized):
 
 ```bash
 WIKI_DIR="$PROJECT/.claude/agent-memory/wiki"
-if [ -f "$WIKI_DIR/index.md" ]; then
-  # On KEEP: create/update wiki/strategies/<domain>-<slug>.md
-  #   Include: frontmatter, approach, files modified, score delta
-  #   Add [[wikilinks]] to related anti-patterns and prior strategies
-  #   Update wiki/index.md and append to wiki/log.md
-
-  # On DISCARD: create wiki/anti-patterns/<domain>-<slug>.md
-  #   Include: what was attempted, why it failed, prevention
-  #   Add [[wikilink]] to the strategy it was attempting
-  #   Update wiki/index.md and append to wiki/log.md
-fi
 ```
 
-Wiki writes are additive — JSONL is always written first (backward compatibility).
-Projects without wiki initialization work exactly as before.
+On **KEEP** (if `$WIKI_DIR/index.md` exists) — create strategy page:
+```bash
+SLUG="<domain-slug>-<pattern-slug>"   # kebab-case from iteration gap area
+DATE=$(date +%Y-%m-%d)
+
+cat > "$WIKI_DIR/wiki/strategies/$SLUG.md" <<EOF
+---
+title: "Strategy: <Pattern Title>"
+type: strategy
+sources:
+  - skills/strategies.jsonl
+related:
+  - "[[strategies-jsonl]]"
+created: $DATE
+updated: $DATE
+confidence: high
+---
+
+# <Pattern Title>
+
+**Domain**: <domain>
+**ID**: S-$ITERATION
+**Score Delta**: $PREV_BEST → $SCORE
+
+## Pattern
+
+<problem solved>
+
+## Approach
+
+<specific technique>
+
+## Files Modified
+
+- <file>
+EOF
+
+echo -e "\n## [$DATE] keep | <domain> — <pattern>\nPage: wiki/strategies/$SLUG.md" >> "$WIKI_DIR/wiki/log.md"
+```
+
+On **DISCARD** (if `$WIKI_DIR/index.md` exists) — create anti-pattern page:
+```bash
+SLUG="<domain-slug>-<pattern-slug>"
+DATE=$(date +%Y-%m-%d)
+
+cat > "$WIKI_DIR/wiki/anti-patterns/$SLUG.md" <<EOF
+---
+title: "Anti-pattern: <Pattern Title>"
+type: anti-pattern
+sources:
+  - skills/anti-patterns.jsonl
+related: []
+created: $DATE
+updated: $DATE
+confidence: high
+---
+
+# <Pattern Title>
+
+**Domain**: <domain>
+**ID**: A-$ITERATION
+
+## Attempted
+
+<what was attempted>
+
+## Cause
+
+<why it failed>
+
+## Prevention
+
+<how to avoid>
+EOF
+
+echo -e "\n## [$DATE] discard | <domain> — <pattern>\nPage: wiki/anti-patterns/$SLUG.md" >> "$WIKI_DIR/wiki/log.md"
+```
+
+**Index update** — after the heredoc, use the Edit tool to insert `- [[<slug>]] — <one-line hook>` into `$WIKI_DIR/wiki/index.md` under the appropriate section header (`### Strategies` for KEEP, `### Anti-patterns` for DISCARD). Create the section header if it does not exist.
+
+Projects without wiki initialization work exactly as before — JSONL is always written first.
 
 ### Step 8: Check Termination
 
@@ -351,10 +419,29 @@ fi
 # 3. Wiki scorer insight (if wiki exists)
 WIKI_DIR="$PROJECT/.claude/agent-memory/wiki"
 if [ -f "$WIKI_DIR/index.md" ]; then
-  # Create/update wiki/scorer-insights/<task_id>.md
-  # Include: final score, iterations, threshold, discard count
-  # Cross-reference strategies used during this run
-  # Update wiki/index.md and append to wiki/log.md
+  DATE=$(date +%Y-%m-%d)
+  DISCARD_COUNT=$(grep -c '"DISCARD' "$ATTEMPTS" 2>/dev/null || echo "0")
+  cat > "$WIKI_DIR/wiki/scorer-insights/$TASK_ID.md" <<EOF
+---
+title: "Run Summary: $TASK_ID"
+type: scorer-insight
+sources:
+  - scorer-evolution.jsonl
+related: []
+created: $DATE
+updated: $DATE
+confidence: high
+---
+
+# $TASK_ID
+
+- **Final score**: $SCORE
+- **Iterations**: $ITERATION
+- **Threshold**: $THRESHOLD
+- **Discard count**: $DISCARD_COUNT
+EOF
+
+  echo -e "\n## [$DATE] scorer-insight | $TASK_ID\nFinal score: $SCORE, iterations: $ITERATION" >> "$WIKI_DIR/wiki/log.md"
 fi
 
 # 4. Record regressions (any DISCARD that occurred during this run)
