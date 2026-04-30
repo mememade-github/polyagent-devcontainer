@@ -1,7 +1,12 @@
 #!/bin/bash
-# Template verification script — run inside container
+# Template verification — defaults to /workspaces, override via PROJECT_DIR.
+# Designed for use both inside a polyagent-derived devcontainer (where /workspaces IS the
+# project) and from outside (where PROJECT_DIR points at the template directory).
+PROJECT_DIR="${PROJECT_DIR:-/workspaces}"
+
 echo "=============================================="
 echo "  Template Full Verification"
+echo "  PROJECT_DIR: $PROJECT_DIR"
 echo "=============================================="
 echo ""
 
@@ -20,8 +25,6 @@ node --version > /dev/null 2>&1 && record PASS "node ($(node --version))" || rec
 python3 --version > /dev/null 2>&1 && record PASS "python3 ($(python3 --version 2>&1))" || record FAIL "python3"
 
 # --- PHASE 1b: MCP ---
-# MCP 플러그인(context7, serena)은 setup-env.sh 실행 + Claude Code 플러그인 동기화 후 등록됨.
-# Image-only test에서는 미등록 상태가 정상 — 이때는 SKIP. 등록 여부는 ~/.claude.json 내용으로 판정.
 echo ""
 echo "=== Phase 1b: MCP ==="
 [ -x "/home/vscode/.local/bin/uv" ] && record PASS "Serena uv path (/home/vscode/.local/bin/uv)" || record FAIL "Serena uv path"
@@ -38,25 +41,26 @@ fi
 # --- PHASE 2: Config files ---
 echo ""
 echo "=== Phase 2: Config Files ==="
-[ -f /workspaces/.claude/settings.json ] && record PASS "settings.json exists" || record FAIL "settings.json"
-grep -q '"SessionStart"' /workspaces/.claude/settings.json 2>/dev/null && record PASS "SessionStart hook registered" || record FAIL "SessionStart hook"
-grep -q '"Stop"' /workspaces/.claude/settings.json 2>/dev/null && record PASS "Stop hook registered" || record FAIL "Stop hook"
-[ -f /workspaces/.codex/config.toml ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
-[ -f /workspaces/.codex/hooks.json ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
-[ -f /workspaces/AGENTS.md ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
+[ -f "$PROJECT_DIR/.claude/settings.json" ] && record PASS "settings.json exists" || record FAIL "settings.json"
+grep -q '"SessionStart"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "SessionStart hook registered" || record FAIL "SessionStart hook"
+grep -q '"Stop"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "Stop hook registered" || record FAIL "Stop hook"
+[ -f "$PROJECT_DIR/.codex/config.toml" ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
+[ -f "$PROJECT_DIR/.codex/hooks.json" ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
+[ -f "$PROJECT_DIR/AGENTS.md" ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
 
-# --- PHASE 2a: Karpathy alignment (load-bearing import 체인) ---
+# --- PHASE 2a: Karpathy alignment ---
 echo ""
 echo "=== Phase 2a: Karpathy Alignment ==="
-grep -q "behavioral-core" /workspaces/CLAUDE.md 2>/dev/null && record PASS "CLAUDE.md → behavioral-core import" || record FAIL "CLAUDE.md → behavioral-core import"
-grep -q "behavioral-core" /workspaces/AGENTS.md 2>/dev/null && record PASS "AGENTS.md → behavioral-core import" || record FAIL "AGENTS.md → behavioral-core import"
-[ -f /workspaces/.claude/rules/behavioral-core.md ] && record PASS ".claude/rules/behavioral-core.md exists" || record FAIL ".claude/rules/behavioral-core.md"
-[ -f /workspaces/.agents/rules/behavioral-core.md ] && record PASS ".agents/rules/behavioral-core.md (mirror) exists" || record FAIL ".agents/rules/behavioral-core.md (mirror)"
+grep -q "behavioral-core" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null && record PASS "CLAUDE.md -> behavioral-core import" || record FAIL "CLAUDE.md -> behavioral-core import"
+grep -q "behavioral-core" "$PROJECT_DIR/AGENTS.md" 2>/dev/null && record PASS "AGENTS.md -> behavioral-core import" || record FAIL "AGENTS.md -> behavioral-core import"
+[ -f "$PROJECT_DIR/.claude/rules/behavioral-core.md" ] && record PASS ".claude/rules/behavioral-core.md exists" || record FAIL ".claude/rules/behavioral-core.md"
+[ -f "$PROJECT_DIR/.agents/rules/behavioral-core.md" ] && record PASS ".agents/rules/behavioral-core.md (mirror) exists" || record FAIL ".agents/rules/behavioral-core.md (mirror)"
 
-# --- PHASE 3: Hooks ---
+# --- PHASE 3: Hooks syntax ---
 echo ""
-echo "=== Phase 3A: Hook Syntax (6) ==="
-for f in /workspaces/.claude/hooks/*.sh; do
+echo "=== Phase 3A: Hook Syntax (Claude side) ==="
+for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
+    [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
 done
 
@@ -65,7 +69,7 @@ echo ""
 echo "=== Phase 2b: Agents ==="
 count=0
 total=0
-for f in /workspaces/.claude/agents/*.md; do
+for f in "$PROJECT_DIR"/.claude/agents/*.md; do
     [ -f "$f" ] || continue
     name=$(basename "$f")
     [ "$name" = "_schema.md" ] && continue
@@ -76,34 +80,34 @@ done
 [ "$total" -eq 2 ] && record PASS "Agent count: $total (evaluator, wip-manager)" || record FAIL "Agent count: $total (expected 2)"
 record PASS "Agent frontmatter ($count/$total)"
 
-# --- PHASE 2c: Skills (Tier 1: 4 + karpathy-guidelines reference) ---
+# --- PHASE 2c: Skills (4 + karpathy-guidelines reference) ---
 echo ""
 echo "=== Phase 2c: Skills ==="
-skills=$(ls /workspaces/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
+skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
 [ "$skills" -eq 5 ] && record PASS "Skills: $skills/5 (refine, status, verify, wiki, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 5)"
 
-# --- PHASE 2d: Rules (Tier 1: 2 portable) ---
+# --- PHASE 2d: Rules (2 portable) ---
 echo ""
 echo "=== Phase 2d: Rules ==="
-rules=$(ls /workspaces/.claude/rules/*.md 2>/dev/null | wc -l)
+rules=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
 [ "$rules" -eq 2 ] && record PASS "Rules: $rules/2 (behavioral-core, devcontainer-patterns)" || record FAIL "Rules: $rules (expected 2)"
 
 # --- PHASE 2e: Codex hooks (4) ---
 echo ""
 echo "=== Phase 2e: Codex Hooks ==="
-codex_hooks=$(ls /workspaces/.codex/hooks/*.sh 2>/dev/null | wc -l)
+codex_hooks=$(ls "$PROJECT_DIR"/.codex/hooks/*.sh 2>/dev/null | wc -l)
 [ "$codex_hooks" -eq 4 ] && record PASS "Codex hooks: $codex_hooks/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Codex hooks: $codex_hooks (expected 4)"
-for f in /workspaces/.codex/hooks/*.sh; do
+for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
 done
 
-# --- PHASE 2f: Mirror integrity (.claude/ → .agents/) ---
+# --- PHASE 2f: Mirror integrity ---
 echo ""
 echo "=== Phase 2f: Mirror Integrity ==="
-[ -d /workspaces/.agents/skills/evaluator ] && record PASS ".agents/skills/evaluator (agent→skill mirror)" || record FAIL ".agents/skills/evaluator missing"
-[ -d /workspaces/.agents/skills/wip-manager ] && record PASS ".agents/skills/wip-manager (agent→skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
-[ -x /workspaces/scripts/sync-agents-mirror.sh ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
+[ -d "$PROJECT_DIR/.agents/skills/evaluator" ] && record PASS ".agents/skills/evaluator (agent->skill mirror)" || record FAIL ".agents/skills/evaluator missing"
+[ -d "$PROJECT_DIR/.agents/skills/wip-manager" ] && record PASS ".agents/skills/wip-manager (agent->skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
+[ -x "$PROJECT_DIR/scripts/sync-agents-mirror.sh" ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
 
 # --- Summary ---
 echo ""
