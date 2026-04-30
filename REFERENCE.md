@@ -86,6 +86,19 @@ postStartCommand (every start)
 | Node.js | Node 22 LTS, npm, npx |
 | Python | python3, uv, ruff, pytest, mypy |
 
+### Tool versioning policy: rolling, not pinned
+
+The template intentionally pulls latest releases at build/run time:
+- **Claude Code**: `curl https://claude.ai/install.sh | bash` (latest at build).
+- **Codex CLI**: `npm install -g @openai/codex` (latest published, unpinned).
+- **`claude update`**: runs on every container start (`setup-env.sh` step 3),
+  unless `SKIP_CLAUDE_UPDATE=1` is set.
+
+Same git commit may produce different installed versions on different days.
+For reproducible images, pin: replace the Claude installer URL with a tagged
+release, set `npm install -g @openai/codex@<version>`, and export
+`SKIP_CLAUDE_UPDATE=1` in `devcontainer.json`.
+
 ## Agent system
 
 ### Sub-agents (Claude side, 2)
