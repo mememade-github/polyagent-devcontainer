@@ -96,6 +96,7 @@ RUN mkdir -p ${HOME}/.npm-global \
     && npm config set prefix "${HOME}/.npm-global" \
     && npm install -g @openai/codex \
     && echo 'export PATH="${HOME}/.npm-global/bin:${PATH}"' >> ${HOME}/.bashrc \
+    && sudo ln -sf ${HOME}/.npm-global/bin/codex /usr/local/bin/codex \
     && ${HOME}/.npm-global/bin/codex --version
 
 # =============================================================================

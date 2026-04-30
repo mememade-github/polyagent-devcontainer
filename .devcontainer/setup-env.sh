@@ -7,7 +7,7 @@ set -e
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-STEP_TOTAL=3
+STEP_TOTAL=4
 STEP=0
 step() { STEP=$((STEP + 1)); echo "[${STEP}/${STEP_TOTAL}] $1"; }
 
@@ -77,6 +77,29 @@ else
     else
         echo "      $BEFORE -> $AFTER"
     fi
+fi
+
+# =============================================================================
+# 4. Codex CLI — project-local config symlink
+# =============================================================================
+# Codex auto-loads ~/.codex/config.toml only. If the project ships its own
+# .codex/config.toml at the workspace root, link it so the project's sandbox/
+# approval policy applies. Auth (auth.json) stays in ~/.codex/ unchanged.
+step "Codex project config..."
+WORKSPACE_CODEX_CONFIG="/workspaces/.codex/config.toml"
+USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
+if [ -f "$WORKSPACE_CODEX_CONFIG" ]; then
+    mkdir -p "${HOME}/.codex"
+    if [ ! -e "$USER_CODEX_CONFIG" ]; then
+        ln -sf "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
+        echo "      Linked: ~/.codex/config.toml -> $WORKSPACE_CODEX_CONFIG"
+    elif [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$WORKSPACE_CODEX_CONFIG" ]; then
+        echo "      Already linked"
+    else
+        echo "      User config exists — preserved (not overwritten)"
+    fi
+else
+    echo "      No project-local .codex/config.toml — using user defaults"
 fi
 
 # =============================================================================
