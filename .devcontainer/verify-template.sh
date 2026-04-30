@@ -72,11 +72,21 @@ echo "=== Phase 2c: Skills ==="
 skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
 [ "$skills" -eq 5 ] && record PASS "Skills: $skills/5 (refine, status, verify, wiki, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 5)"
 
-# --- PHASE 2d: Rules (2 portable) ---
+# --- PHASE 2d: Rules (5 portable) ---
 echo ""
 echo "=== Phase 2d: Rules ==="
-rules=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
-[ "$rules" -eq 2 ] && record PASS "Rules: $rules/2 (behavioral-core, devcontainer-patterns)" || record FAIL "Rules: $rules (expected 2)"
+EXPECTED_RULES="audit-discipline behavioral-core commit-discipline destructive-ops-discipline devcontainer-patterns"
+missing=""
+for r in $EXPECTED_RULES; do
+    [ -f "$PROJECT_DIR/.claude/rules/$r.md" ] || missing="$missing $r"
+done
+if [ -z "$missing" ]; then
+    record PASS "Rules: all 5 portable rules present ($EXPECTED_RULES)"
+else
+    record FAIL "Rules: missing$missing"
+fi
+rules_total=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
+[ "$rules_total" -eq 5 ] && record PASS "Rules count: $rules_total/5" || record FAIL "Rules count: $rules_total (expected 5)"
 
 # --- PHASE 2e: Codex hooks (4) ---
 echo ""
