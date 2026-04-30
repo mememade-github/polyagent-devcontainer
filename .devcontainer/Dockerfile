@@ -39,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep fd-find fzf tree htop vim nano zsh tmux jq unzip zip man-db gh \
     # Python — general development (project code, refinement loop verification)
     python3 python3-pip python3-venv \
+    # bubblewrap — Codex CLI sandbox runtime (DevContainer kernel blocks namespaces;
+    # vendored fallback used at runtime, but installation removes the PATH warning)
+    bubblewrap \
     docker.io \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     # Node.js LTS — Codex CLI infrastructure
