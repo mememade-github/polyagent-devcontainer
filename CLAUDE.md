@@ -1,5 +1,7 @@
 # CLAUDE.md — Project Workspace
 
+Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below).
+
 ## Identity
 
 - **Workspace**: `/workspaces/`
@@ -9,18 +11,27 @@
 
 ```
 /workspaces/                        # Project root
-├── CLAUDE.md                       # Governance rules (this file)
+├── CLAUDE.md                       # Governance rules — Claude (this file)
+├── AGENTS.md                       # Governance rules — Codex (mirror)
 ├── PROJECT.md                      # Domain context (customize per project)
 ├── REFERENCE.md                    # Commands and procedures
-├── .claude/                        # Claude Code agent system
+├── .claude/                        # Claude Code agent system (ground truth)
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 2 agents (evaluator, wip-manager)
 │   ├── hooks/                      # 6 hook scripts
 │   ├── skills/                     # 4 /command skills (refine, status, verify, wiki)
 │   ├── rules/                      # Standard rules (portable)
 │   └── rules/project/              # Project-specific rules
+├── .agents/                        # Codex agent assets (mirror of .claude/)
+├── .codex/                         # Codex CLI configuration
+│   ├── config.toml                 # Sandbox / approval / MCP
+│   ├── hooks.json                  # Event hooks (SessionStart, PreToolUse, Stop)
+│   ├── hooks/                      # 4 hook scripts
+│   └── state/                      # Runtime markers (gitignored)
+├── scripts/
+│   └── sync-agents-mirror.sh       # .claude/ → .agents/ 단방향 동기화
 ├── .devcontainer/                  # Container configuration
-│   ├── Dockerfile                  # Image (Claude Code + Python/Serena + tools)
+│   ├── Dockerfile                  # Image (Claude + Codex + Python/Serena + tools)
 │   ├── docker-compose.yml          # Service + ports + volumes
 │   ├── devcontainer.json           # VS Code integration + lifecycle
 │   ├── setup-env.sh                # postCreateCommand
@@ -112,13 +123,27 @@ Before ANY `git commit`:
 
 - **Ports**: Managed in `.devcontainer/.env` (PORT_APP, PORT_API, PORT_DB, PORT_EXTRA)
 - **Claude Code**: Native binary (~/.local/bin/claude, auto-updated)
+- **Codex CLI**: npm global (~/.npm-global/bin/codex)
 - **Node.js**: Node 22 LTS always installed for MCP infrastructure. Additional version installed if PROJECT_NODE_VERSION is set
-- **Persistent volumes**: `~/.claude` (auth tokens), `/commandhistory` (history)
+- **Persistent volumes**: `~/.claude` (Claude auth), `~/.codex` (Codex auth), `/commandhistory` (history)
 - **9p mount**: `core.filemode=false` (auto-applied by postStartCommand)
 - **MCP**: Context7 (documentation), Serena (code intelligence) — plugins auto-managed
 
+## Codex Parity
+
+Codex CLI는 Claude Code와 동등 환경으로 병행 운영. Ground truth는 `.claude/`이며,
+`.agents/`는 Codex 호환 미러. Claude 측 변경 시 동기화:
+
+```bash
+bash scripts/sync-agents-mirror.sh         # 미러 갱신
+bash scripts/sync-agents-mirror.sh --dry   # 변경 확인만
+```
+
+Codex 거버넌스는 [AGENTS.md](AGENTS.md) 참조.
+
 ## Extended Reference
 
+@.claude/rules/behavioral-core.md
 @PROJECT.md
 @REFERENCE.md
 
