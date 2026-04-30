@@ -82,6 +82,8 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 | wip-manager | When a task spans sessions |
 | status | Workspace status snapshot |
 | verify | Pre-commit verification |
+| wiki | LLM wiki / knowledge base build and maintain |
+| karpathy-guidelines | Karpathy 4-rule reference handle (direct invocation or via evaluator) |
 
 ## Coding rules
 
