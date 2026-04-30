@@ -2,6 +2,8 @@
 
 Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below).
 
+**Karpathy skill 등재**: 동일 4-rule이 [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) 으로도 노출되어 evaluator agent / explicit invocation에서 reference handle로 사용 가능 (SKILL.md + EXAMPLES.md). Cursor parity: [`.cursor/rules/karpathy-guidelines.mdc`](.cursor/rules/karpathy-guidelines.mdc). 출처: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
+
 ## Identity
 
 - **Workspace**: `/workspaces/`
@@ -41,12 +43,21 @@ Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavi
 
 ## Template Hierarchy
 
-This repository is a **Tier 1 base template**. All Claude DevContainer projects are derived from this template.
+This repository is a **Tier 1 base template** for multi-agent (Polyagent) workflows. All derived
+projects start from this template — variants extend the base with domain-specific tooling.
 
 | Tier | Role | Includes |
 |------|------|----------|
-| **Tier 1** | Base template (this repo) | 2 agents, 6 hooks, 4 skills, DevContainer infrastructure |
-| **Domain** | Tier 1 + domain-specific features | Derived projects add as needed |
+| **Tier 1** | Base template (this repo, base variant) | 2 sub-agents, 6 hooks, 4 skills, Claude+Codex parity, DevContainer infrastructure |
+| **Variant** | Tier 1 + domain extension within same repo | `variants/<name>/` with own `.devcontainer/` and project skeleton |
+| **Domain** | Tier 1 (or variant) + project code | Derived projects add as needed |
+
+### Variants in this repo
+
+| Variant | Path | Port band | Adds |
+|---------|------|:---------:|------|
+| base (default) | `.devcontainer/` (root) | 31000 | (Tier 1 only) |
+| datascience | `variants/datascience/` | 32000 | Jupyter, data/, models/, notebooks/, src/, tests/ |
 
 ### Elements NOT included in Tier 1
 
@@ -129,17 +140,23 @@ Before ANY `git commit`:
 - **9p mount**: `core.filemode=false` (auto-applied by postStartCommand)
 - **MCP**: Context7 (documentation), Serena (code intelligence) — plugins auto-managed
 
-## Codex Parity
+## Polyagent Parity
 
-Codex CLI는 Claude Code와 동등 환경으로 병행 운영. Ground truth는 `.claude/`이며,
-`.agents/`는 Codex 호환 미러. Claude 측 변경 시 동기화:
+다중 AI 에이전트(현재 Claude Code · Codex CLI)를 동등 환경에서 병행 운영합니다.
+**Ground truth는 `.claude/`이며**, 다른 vendor 측은 호환 미러로 유지됩니다.
+
+| Vendor | Source of truth | Mirror |
+|--------|----------------|--------|
+| Claude Code | `CLAUDE.md`, `.claude/` | — |
+| Codex CLI | (mirror) | `AGENTS.md`, `.agents/`, `.codex/` |
+| (향후) Cursor/Aider 등 | (mirror) | 동일 패턴으로 추가 |
 
 ```bash
-bash scripts/sync-agents-mirror.sh         # 미러 갱신
+bash scripts/sync-agents-mirror.sh         # 미러 갱신 (.claude/ → .agents/)
 bash scripts/sync-agents-mirror.sh --dry   # 변경 확인만
 ```
 
-Codex 거버넌스는 [AGENTS.md](AGENTS.md) 참조.
+각 vendor 거버넌스 문서: Claude=이 파일, Codex=[AGENTS.md](AGENTS.md).
 
 ## Extended Reference
 

@@ -1,23 +1,23 @@
 # =============================================================================
-# Polyagent DevContainer — Universal Base Template
+# Polyagent DevContainer — DataScience variant
 # =============================================================================
-# Claude Code CLI + Codex CLI + Serena MCP + Shell 도구 + Agent System
-# 프로젝트 언어/프레임워크는 사용자가 직접 설치 (Go, Rust, Java, etc.)
+# Claude Code CLI + Codex CLI + Serena MCP + Miniconda + PyTorch CPU + Jupyter
+# VS Code Jupyter 노트북 multi-agent 바이브 코딩 환경
 #
-# Runtime 격리 (AI 에이전트 인프라 ≠ 프로젝트 코드):
+# Runtime 격리 (4-tier):
 #   Claude Code — 네이티브 바이너리 (~/.local/bin/claude, 자동 업데이트)
 #   Codex CLI   — npm global (~/.npm-global/bin/codex)
-#   Node.js     — Context7 MCP / Codex CLI 인프라 (nvm, MCP_NODE_VERSION=22)
+#   Node.js     — Context7 MCP / Codex 인프라 (nvm, MCP_NODE_VERSION=22)
 #   Python      — Serena MCP 전용 (시스템 python3, uv)
+#   Conda       — Data Science 전용 (Miniconda, conda env: ds)
 #   프로젝트용 Node.js는 PROJECT_NODE_VERSION으로 추가 설치 가능
 #
-# Variants:
-#   polyagent-devcontainer (base)         ← THIS (범용 베이스)
-#   polyagent-devcontainer (datascience)  ← Jupyter + Data Science (variants/datascience/)
+# Base: polyagent-devcontainer (base variant) — 동일 .claude/, .codex/, .agents/ 공유
 # =============================================================================
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 ARG PROJECT_NODE_VERSION=
+ARG CONDA_PYTHON_VERSION=3.12
 ARG USERNAME=vscode
 ARG DOCKER_GID=999
 
@@ -92,17 +92,6 @@ RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
     && claude --version
 
 # =============================================================================
-# Layer 3.5: Codex CLI — npm global install (parity with Claude)
-# OpenAI Codex CLI는 npm 글로벌 패키지. 사용자 ~/.npm-global에 설치하여
-# root 권한 없이 업데이트/관리 가능. PATH는 .bashrc에 추가.
-# =============================================================================
-RUN mkdir -p ${HOME}/.npm-global \
-    && npm config set prefix "${HOME}/.npm-global" \
-    && npm install -g @openai/codex \
-    && echo 'export PATH="${HOME}/.npm-global/bin:${PATH}"' >> ${HOME}/.bashrc \
-    && ${HOME}/.npm-global/bin/codex --version
-
-# =============================================================================
 # Layer 4: Node.js — Project (optional)
 # 시스템 Node.js(Layer 1)와 별도로, 프로젝트 전용 버전이 필요할 때만 nvm 설치.
 # 미설정 시 시스템 Node.js(LTS)만 사용.
@@ -157,7 +146,12 @@ RUN echo 'export LANG=en_US.UTF-8' >> ${HOME}/.bashrc \
     && echo 'if command -v nvm &>/dev/null; then if [ -f ".nvmrc" ]; then nvm use 2>/dev/null || true; else nvm use project-node 2>/dev/null || true; fi; fi' >> ${HOME}/.bashrc \
     && echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> ${HOME}/.bashrc \
     && echo 'alias ll="ls -alF"' >> ${HOME}/.bashrc \
-    && echo 'alias fd="fdfind"' >> ${HOME}/.bashrc
+    && echo 'alias fd="fdfind"' >> ${HOME}/.bashrc \
+    && echo '# Conda init (Data Science env)' >> ${HOME}/.bashrc \
+    && echo 'if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then' >> ${HOME}/.bashrc \
+    && echo '    . "${HOME}/miniconda3/etc/profile.d/conda.sh"' >> ${HOME}/.bashrc \
+    && echo '    conda activate ds 2>/dev/null || true' >> ${HOME}/.bashrc \
+    && echo 'fi' >> ${HOME}/.bashrc
 
 # Vim
 RUN echo 'set encoding=utf-8' >> ${HOME}/.vimrc \
@@ -175,6 +169,41 @@ RUN echo 'set tabsize 4' >> ${HOME}/.nanorc \
 RUN git config --global core.quotepath false \
     && git config --global i18n.commitEncoding utf-8 \
     && git config --global i18n.logOutputEncoding utf-8
+
+# =============================================================================
+# Layer 7: Miniconda — Data Science Python runtime
+# conda는 시스템 python3 (Serena용)과 완전 격리됨.
+# =============================================================================
+RUN curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh -o /tmp/miniconda.sh \
+    && bash /tmp/miniconda.sh -b -p ${HOME}/miniconda3 \
+    && rm /tmp/miniconda.sh \
+    && ${HOME}/miniconda3/bin/conda init bash \
+    && ${HOME}/miniconda3/bin/conda config --set auto_activate_base false \
+    # conda-forge 전용 — Anaconda defaults 채널 ToS 문제 회피
+    && printf 'channels:\n  - conda-forge\nchannel_priority: strict\n' > ${HOME}/.condarc
+
+# =============================================================================
+# Layer 8: conda env "ds" — Data Science 패키지
+# =============================================================================
+RUN ${HOME}/miniconda3/bin/conda create --override-channels -c conda-forge -n ds python=${CONDA_PYTHON_VERSION} -y \
+    && . ${HOME}/miniconda3/etc/profile.d/conda.sh \
+    && conda activate ds \
+    # 코어
+    && conda install -n ds --override-channels -c conda-forge -y numpy pandas scipy scikit-learn statsmodels \
+    # 시각화
+    && conda install -n ds --override-channels -c conda-forge -y matplotlib seaborn plotly \
+    # Jupyter
+    && conda install -n ds --override-channels -c conda-forge -y jupyterlab notebook ipykernel ipywidgets \
+    # 유틸
+    && conda install -n ds --override-channels -c conda-forge -y tqdm requests pillow openpyxl xlsxwriter \
+    # 데이터
+    && conda install -n ds --override-channels -c conda-forge -y sqlalchemy duckdb \
+    # 딥러닝 (CPU only — pytorch channel + conda-forge)
+    && conda install -n ds -y --override-channels -c pytorch -c conda-forge pytorch torchvision torchaudio cpuonly \
+    # Jupyter kernel 등록
+    && conda run -n ds python -m ipykernel install --user --name ds --display-name "Python (ds)" \
+    # 캐시 정리
+    && conda clean -afy
 
 # =============================================================================
 # Setup scripts + Entrypoint

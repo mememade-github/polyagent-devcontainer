@@ -1,7 +1,10 @@
-# AGENTS.md — Project Workspace (Codex CLI)
+# AGENTS.md — Polyagent DevContainer (Codex CLI 측 거버넌스)
 
-> **Codex equivalent of CLAUDE.md.** Codex CLI는 본 `AGENTS.md`, `.codex/`, `.agents/skills/`를
-> 기준으로 동작합니다. Claude Code(`CLAUDE.md`/`.claude/`)와 동일 거버넌스를 형식 변환한 미러.
+> **Codex 측 미러 of CLAUDE.md.** Codex CLI는 본 `AGENTS.md`, `.codex/`, `.agents/skills/`를
+> 기준으로 동작합니다. Claude Code(`CLAUDE.md`/`.claude/`)가 ground truth이며 본 문서는
+> Codex 호환 미러입니다 (Polyagent Parity 모델).
+
+**Karpathy 4-rule (Codex 미러)**: [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md) + Skill [`.agents/skills/karpathy-guidelines/`](.agents/skills/karpathy-guidelines/) (SKILL.md + EXAMPLES.md). 작업 시작 시 Read 도구로 우선 로드. 출처: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 ## Identity
 
@@ -113,14 +116,15 @@ Before ANY `git commit`:
 
 ## Behavioral Rules (Codex 미러)
 
-Claude `CLAUDE.md`가 `.claude/rules/`를 참조하는 것과 동등하게, Codex 작업 시
-다음 규칙 파일을 우선 적용합니다 (`Read` 도구로 작업 시작 시 로드):
+Polyagent Parity 원칙: Claude `CLAUDE.md`가 `.claude/rules/`를 참조하는 것과 동등하게, Codex
+작업 시 다음 규칙 파일을 우선 적용합니다 (`Read` 도구로 작업 시작 시 로드):
 
 - [.agents/rules/behavioral-core.md](.agents/rules/behavioral-core.md) — Karpathy 4-rule 행동 가이드 (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution)
 - [.agents/rules/devcontainer-patterns.md](.agents/rules/devcontainer-patterns.md) — DevContainer DinD 방지 + Volume Mount Path Translation
 
 > **운영 원칙**: `.claude/rules/`가 ground truth이고 `.agents/rules/`는 Codex 호환 미러입니다.
-> Claude 측 변경 시 `scripts/sync-agents-mirror.sh`로 동기화.
+> Claude 측 변경 시 `scripts/sync-agents-mirror.sh`로 동기화. 향후 다른 vendor가 추가될 경우
+> 동일 미러 모델로 흡수합니다.
 
 ## Extended Reference
 
@@ -132,4 +136,4 @@ Claude `CLAUDE.md`가 `.claude/rules/`를 참조하는 것과 동등하게, Code
 
 ---
 
-*Last updated: 2026-04-30 — initial Codex parity (<plan-id> derived)*
+*Last updated: 2026-04-30 — renamed claude-devcontainer → polyagent-devcontainer (Codex parity → Polyagent Parity 일반화 + DataScience variant 흡수)*

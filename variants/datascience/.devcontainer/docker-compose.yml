@@ -1,5 +1,5 @@
 # =============================================================================
-# Polyagent DevContainer — Docker Compose (base variant)
+# Polyagent DevContainer — Docker Compose (datascience variant)
 # =============================================================================
 # 모든 설정은 .env 파일에서 관리합니다.
 #
@@ -12,14 +12,15 @@
 # =============================================================================
 
 services:
-  polyagent-devcontainer:
-    container_name: ${CONTAINER_NAME:-polyagent-dev}
-    image: ${IMAGE_NAME:-polyagent-devcontainer}:${IMAGE_TAG:-latest}
+  polyagent-devcontainer-ds:
+    container_name: ${CONTAINER_NAME:-polyagent-ds-dev}
+    image: ${IMAGE_NAME:-polyagent-devcontainer-ds}:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
       args:
         - PROJECT_NODE_VERSION=${PROJECT_NODE_VERSION:-}
+        - CONDA_PYTHON_VERSION=${CONDA_PYTHON_VERSION:-3.12}
 
     volumes:
       - ${HOST_WORKSPACE_PATH:-..}:/workspaces:cached
@@ -32,10 +33,10 @@ services:
     # 사용하지 않는 포트는 주석 처리하세요.
     # =========================================================================
     ports:
-      - "${PORT_APP:-31000}:3000"
-      - "${PORT_API:-31080}:8080"
-      - "${PORT_DB:-31432}:5432"
-      - "${PORT_EXTRA:-31379}:6379"
+      - "${PORT_APP:-32000}:3000"
+      - "${PORT_API:-32080}:8080"
+      - "${PORT_DB:-32432}:5432"
+      - "${PORT_EXTRA:-32888}:8888"
 
     # =========================================================================
     # DNS — Docker Desktop 내부 DNS에 의존하지 않음
@@ -53,11 +54,11 @@ services:
     tty: true
 
     healthcheck:
-      test: ["CMD-SHELL", "claude --version"]
+      test: ["CMD-SHELL", "claude --version && conda run -n ds python --version"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
     # command는 Dockerfile CMD ["sleep", "infinity"]가 담당
     # ENTRYPOINT가 항상 setup-env.sh를 실행한 후 CMD를 exec함

@@ -1,16 +1,15 @@
 {
   // ==========================================================================
-  // Polyagent DevContainer — Universal Base Template
+  // Polyagent DevContainer (DataScience)
   // ==========================================================================
   // 표준 근거:
   //   - DevContainer Specification: https://containers.dev/implementors/json_reference/
   //   - Anthropic Claude Code: https://github.com/anthropics/claude-code/tree/main/.devcontainer
-  //   - OpenAI Codex CLI: https://github.com/openai/codex
   // ==========================================================================
 
-  "name": "Polyagent DevContainer",
+  "name": "Polyagent DevContainer (DataScience)",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "polyagent-devcontainer",
+  "service": "polyagent-devcontainer-ds",
   "workspaceFolder": "/workspaces",
 
   // ==========================================================================
@@ -47,13 +46,28 @@
         "files.watcherExclude": {
           "**/.git/objects/**": true,
           "**/node_modules/**": true
-        }
+        },
+        "python.defaultInterpreterPath": "/home/vscode/miniconda3/envs/ds/bin/python",
+        "python.condaPath": "/home/vscode/miniconda3/bin/conda",
+        "jupyter.kernels.filter": [
+          {
+            "path": "/home/vscode/miniconda3/envs/ds/bin/python",
+            "preferred": true
+          }
+        ]
       },
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "eamodio.gitlens",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.autopep8",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-renderers",
+        "ms-toolsai.vscode-jupyter-cell-tags",
+        "ms-toolsai.vscode-jupyter-slideshow"
       ]
     }
   },
@@ -62,23 +76,23 @@
   // Ports — .env PORT_* 변수와 일치시키세요
   // .env 포트 변경 시 여기도 함께 수정 필요
   // ==========================================================================
-  "forwardPorts": [31000, 31080, 31432, 31379],
+  "forwardPorts": [32000, 32080, 32432, 32888],
   "portsAttributes": {
-    "31000": {
+    "32000": {
       "label": "App (.env PORT_APP)",
       "onAutoForward": "notify"
     },
-    "31080": {
+    "32080": {
       "label": "API (.env PORT_API)",
       "onAutoForward": "notify"
     },
-    "31432": {
+    "32432": {
       "label": "Database (.env PORT_DB)",
       "onAutoForward": "silent"
     },
-    "31379": {
-      "label": "Extra (.env PORT_EXTRA)",
-      "onAutoForward": "silent"
+    "32888": {
+      "label": "JupyterLab (.env PORT_EXTRA)",
+      "onAutoForward": "notify"
     }
   },
 
@@ -101,13 +115,11 @@
   // Mounts
   // SSH: 호스트 키 바인드 (git push/pull)
   // Claude config: 인증 토큰 영속 (rebuild 후에도 유지)
-  // Codex config: 인증 토큰 영속 (rebuild 후에도 유지)
   // Command history: 명령 히스토리 영속
   // ==========================================================================
   "mounts": [
     "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
     "source=claude-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
-    "source=codex-config-${devcontainerId},target=/home/vscode/.codex,type=volume",
     "source=command-history-${devcontainerId},target=/commandhistory,type=volume"
   ]
 }

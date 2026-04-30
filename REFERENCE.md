@@ -9,9 +9,9 @@
 
 | 변수 | 기본값 | 참조 위치 | 용도 |
 |------|--------|----------|------|
-| `COMPOSE_PROJECT_NAME` | `claude-devcontainer` | docker-compose.yml | Docker 네임스페이스 |
-| `CONTAINER_NAME` | `claude-dev` | docker-compose.yml | 컨테이너 이름 |
-| `IMAGE_NAME` | `claude-devcontainer` | docker-compose.yml | 이미지 이름 |
+| `COMPOSE_PROJECT_NAME` | `polyagent-devcontainer` | docker-compose.yml | Docker 네임스페이스 |
+| `CONTAINER_NAME` | `polyagent-dev` | docker-compose.yml | 컨테이너 이름 |
+| `IMAGE_NAME` | `polyagent-devcontainer` | docker-compose.yml | 이미지 이름 |
 | `IMAGE_TAG` | `latest` | docker-compose.yml | 이미지 태그 |
 | `TZ` | `UTC` | docker-compose.yml | 타임존 (.env에서 오버라이드) |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | 프로젝트 Node.js (비워두면 미설치) |
@@ -112,9 +112,10 @@ postStartCommand (매 시작 시)
 | /status | Workspace status |
 | /verify | Pre-commit verification |
 | /wiki | Structured knowledge wiki (init, ingest, query, lint) |
-## Codex Parity
+## Polyagent Parity
 
-본 템플릿은 Claude Code와 Codex CLI 병행 운영을 지원합니다.
+본 템플릿은 다중 AI 에이전트(현재 Claude Code · Codex CLI) 병행 운영을 지원합니다.
+새 vendor 추가 시 동일 ground-truth + mirror 패턴으로 흡수.
 
 ### Ground Truth & Mirror
 
