@@ -1,9 +1,21 @@
 # Codex CLI configuration — Tier 1 base template
 
 # --- Sandbox / Approval policy ---
-# 일반 개발 환경에 맞춰 workspace-write + on-request 조합 사용.
+# Host default: workspace-write + on-request.
 # - workspace-write: 워크스페이스 내 파일 편집/쉘 실행 허용, 외부 네트워크/시스템 쓰기 차단
 # - on-request: 모델이 필요하다고 판단할 때만 승인 요청
+#
+# IMPORTANT — DevContainer execution:
+#   The bubblewrap sandbox cannot create user namespaces inside Docker
+#   (kernel policy). Interactive `codex` from a DevContainer shell will fail
+#   with "bwrap: No permissions to create a new namespace".
+#   Use the README/REFERENCE.md flag for headless invocations from inside the
+#   container:
+#     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
+#   The DevContainer is itself the isolation boundary; outside containers,
+#   keep this workspace-write default. See REFERENCE.md §"Codex sandbox
+#   bypass (DevContainer only)" for the rationale.
+#
 # NOTE: TOML 규약상 최상위 키는 반드시 [section] 헤더보다 앞에 와야 함.
 sandbox_mode = "workspace-write"
 ask_for_approval = "on-request"
