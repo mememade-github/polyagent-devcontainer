@@ -49,7 +49,7 @@ These rules are enforced by hooks; no user commands required.
 
 1. **Session start**: hook reports current branch, active WIP tasks, environment. If WIP tasks exist, read the WIP `README.md` and resume immediately. Otherwise wait for user instruction. Always check auto memory (`MEMORY.md`) for known issues.
 2. **Change evaluation**:
-   - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop, not optional).
+   - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). The pre-commit hook emits a non-blocking WARNING when `/refine` marker is absent for multi-file commits.
    - *Trivial changes* (typo, single config line) → direct edit.
    - Never self-evaluate. Delegate to the **evaluator** agent.
 3. **Pre-commit gate**: `pre-commit-gate.sh` runs verification for affected code before any `git commit`. All checks must pass; no `--no-verify`.
@@ -98,6 +98,9 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 ## Extended reference
 
 @.claude/rules/behavioral-core.md
+@.claude/rules/audit-discipline.md
+@.claude/rules/commit-discipline.md
+@.claude/rules/destructive-ops-discipline.md
 @PROJECT.md
 @REFERENCE.md
 

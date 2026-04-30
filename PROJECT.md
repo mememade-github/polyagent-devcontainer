@@ -8,7 +8,7 @@
 
 Isolated environment for running Claude Code and Codex CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 6 hooks (Claude) / 4 hooks (Codex) · 4 skills.
+Default loadout: 2 sub-agents · 6 hooks (Claude) / 4 hooks (Codex) · 5 skills (4 /command + karpathy-guidelines reference handle).
 
 ## Tech Stack
 
@@ -17,7 +17,7 @@ Default loadout: 2 sub-agents · 6 hooks (Claude) / 4 hooks (Codex) · 4 skills.
 | Container | Docker Compose, DevContainer spec |
 | Runtime | Ubuntu 22.04, Node.js 22 LTS, Python 3 |
 | AI Agents | Claude Code CLI, OpenAI Codex CLI |
-| Tools | ripgrep, fd, jq, tmux, gh CLI, docker CLI, uv |
+| Tools | ripgrep, fd, fzf, jq, tmux, gh CLI, docker CLI, uv |
 
 ## Polyagent Parity Model
 

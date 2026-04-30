@@ -62,8 +62,7 @@ Initialize this project. Ask me about: project name, languages/frameworks,
 required services, port mapping, server info, test framework, CI/CD,
 commit message language. Then update CLAUDE.md/AGENTS.md/PROJECT.md/
 REFERENCE.md, .devcontainer/.env, devcontainer.json forwardPorts, and
-.claude/rules/project/. Verify with .devcontainer/verify-template.sh and
-.claude/hooks/test-hooks.sh.
+.claude/rules/project/. Verify with .devcontainer/verify-template.sh.
 ```
 
 Files **not** to edit by hand: `.claude/settings.json`, `.codex/hooks.json`, `.devcontainer/Dockerfile`, agent frontmatter.
