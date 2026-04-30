@@ -24,6 +24,12 @@ services:
     volumes:
       - ${HOST_WORKSPACE_PATH:-..}:/workspaces:cached
       - /var/run/docker.sock:/var/run/docker.sock
+      # Persistence (parity with devcontainer.json:107 mounts).
+      # Plain `docker compose up` and VS Code "Reopen in Container" must
+      # preserve auth tokens + history identically across rebuild.
+      - claude-config:/home/vscode/.claude
+      - codex-config:/home/vscode/.codex
+      - command-history:/commandhistory
 
     # =========================================================================
     # Ports — HOST:CONTAINER 분리 매핑
@@ -61,3 +67,11 @@ services:
 
     # command는 Dockerfile CMD ["sleep", "infinity"]가 담당
     # ENTRYPOINT가 항상 setup-env.sh를 실행한 후 CMD를 exec함
+
+# Named volumes (declared at the project level so plain `docker compose up`
+# creates them with the COMPOSE_PROJECT_NAME prefix, matching
+# devcontainer.json's per-devcontainerId scope.)
+volumes:
+  claude-config:
+  codex-config:
+  command-history:
