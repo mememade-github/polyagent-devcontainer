@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Claude Code DevContainer — Environment Setup (postCreateCommand)
+# Polyagent DevContainer — Environment Setup (postCreateCommand)
 # =============================================================================
 set -e
 
@@ -17,9 +17,9 @@ echo "=============================================="
 echo ""
 
 # =============================================================================
-# 1. Docker 소켓 + Workspace 권한
+# 1. Docker socket + workspace permissions
 # =============================================================================
-step "권한 설정..."
+step "Setting permissions..."
 
 if [ -S /var/run/docker.sock ]; then
     sudo chown root:docker /var/run/docker.sock 2>/dev/null || true
@@ -31,20 +31,20 @@ find "$WS" -maxdepth 3 -name ".git" -type d 2>/dev/null | while read gitdir; do
     git -C "$repo" config core.filemode false 2>/dev/null || true
 done
 
-# 9p/drvfs: root:root 소유 마운트에서 dubious ownership 방지
+# 9p/drvfs: prevent dubious-ownership warnings on root:root mounts
 git config --global safe.directory '*' 2>/dev/null || true
 
-# 명령 히스토리
+# Command history
 if [ -d /commandhistory ]; then
     export HISTFILE=/commandhistory/.bash_history
     touch "$HISTFILE" 2>/dev/null || true
 fi
-echo "      완료"
+echo "      Done"
 
 # =============================================================================
-# 2. SSH (선택사항)
+# 2. SSH (optional)
 # =============================================================================
-step "SSH 설정..."
+step "SSH setup..."
 SSH_DIR="${HOME}/.ssh"
 if [ -d "$SSH_DIR" ]; then
     chmod 700 "$SSH_DIR" 2>/dev/null || true
@@ -52,44 +52,44 @@ if [ -d "$SSH_DIR" ]; then
     find "$SSH_DIR" -type f -name "known_hosts*" -exec chmod 644 {} \; 2>/dev/null || true
     find "$SSH_DIR" -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" -exec chmod 600 {} \; 2>/dev/null || true
     [ -f "$SSH_DIR/config" ] && chmod 644 "$SSH_DIR/config" 2>/dev/null || true
-    echo "      SSH 키 발견됨"
+    echo "      SSH keys found"
 else
-    echo "      SSH 없음 (선택사항)"
+    echo "      No SSH (optional)"
 fi
 
 # =============================================================================
-# 3. Claude CLI — idempotent 최신 버전 동기화
+# 3. Claude CLI — idempotent latest-version sync
 # =============================================================================
-# 이미지 빌드 시점에 고정된 CLI 버전 드리프트를 방지하기 위해 컨테이너 시작
-# 시마다 `claude update` 실행. 실패는 소프트 (컨테이너 시작 차단하지 않음).
-# 건너뛰기: SKIP_CLAUDE_UPDATE=1 환경변수.
-step "Claude CLI 버전..."
+# Run `claude update` on every container start to prevent CLI version drift
+# from the image-build snapshot. Failure is soft (does not block startup).
+# Skip with SKIP_CLAUDE_UPDATE=1.
+step "Claude CLI version..."
 if ! command -v claude &>/dev/null; then
-    echo "      WARN: claude CLI 미설치 — 업데이트 건너뜀"
+    echo "      WARN: claude CLI not installed — skipping update"
 elif [ "${SKIP_CLAUDE_UPDATE:-}" = "1" ]; then
-    echo "      건너뜀 (SKIP_CLAUDE_UPDATE=1), 현재: $(claude --version 2>/dev/null)"
+    echo "      Skipped (SKIP_CLAUDE_UPDATE=1), current: $(claude --version 2>/dev/null)"
 else
     BEFORE=$(claude --version 2>/dev/null | awk '{print $1}')
     claude update 2>&1 >/dev/null || true
     AFTER=$(claude --version 2>/dev/null | awk '{print $1}')
     if [ "$BEFORE" = "$AFTER" ]; then
-        echo "      $AFTER (이미 최신)"
+        echo "      $AFTER (already latest)"
     else
-        echo "      $BEFORE → $AFTER"
+        echo "      $BEFORE -> $AFTER"
     fi
 fi
 
 # =============================================================================
-# MCP: 플러그인 제공 (setup-env.sh에서 직접 등록하지 않음)
+# MCP: plugin-managed (this script does not register manually)
 # =============================================================================
-# Context7, Serena, Playwright MCP 서버는 Claude Code 플러그인이 자동 관리합니다.
-# 플러그인: context7, serena, playwright (installed_plugins.json)
-# 여기서 ~/.claude.json에 중복 등록하면 도구가 2× 나열되고 서버 프로세스가 이중 실행됩니다.
-# 제거일: 2026-03-28, 사유: 플러그인-직접등록 이중 등록 해소
+# Context7, Serena, Playwright MCP servers are managed by Claude Code plugins
+# (installed_plugins.json). Registering them again in ~/.claude.json would
+# list the tools twice and spawn duplicate server processes.
+# Removed on 2026-03-28: plugin/manual double-registration resolution.
 
 # =============================================================================
-# Project-specific setup (파일 분리)
-# 프로젝트별 커스텀 설정은 setup-env.project.sh에 작성.
+# Project-specific setup (separate file)
+# Custom per-project setup goes in setup-env.project.sh.
 # =============================================================================
 PROJECT_SETUP="/usr/local/bin/setup-env.project.sh"
 if [ -f "$PROJECT_SETUP" ]; then
@@ -99,18 +99,18 @@ if [ -f "$PROJECT_SETUP" ]; then
 fi
 
 # =============================================================================
-# 완료
+# Done
 # =============================================================================
 echo ""
 echo "=============================================="
 echo "  Setup Complete!"
 echo "=============================================="
 echo ""
-echo "MCP: 플러그인 관리 (context7, serena, playwright)"
+echo "MCP: managed by plugins (context7, serena, playwright)"
 echo ""
-echo "시작:  claude"
+echo "Start:  claude"
 echo ""
-echo "프로젝트 언어/도구 추가 설치:"
+echo "Install additional project tools:"
 echo "  Go:      sudo apt install -y golang"
 echo "  Rust:    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 echo ""
