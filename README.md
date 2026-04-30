@@ -37,7 +37,7 @@ The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's 
 | AI agents | 2 | Claude Code · Codex CLI |
 | Sub-agents (Claude) | 2 | evaluator, wip-manager |
 | Hooks | 6 (Claude) / 4 (Codex) | session-start, pre-commit-gate, pre-push-gate, refinement-gate, +2 Claude-only |
-| Skills | 4 | /refine, /status, /verify, /wiki |
+| Skills | 5 | /refine, /status, /verify, /wiki, karpathy-guidelines |
 | Tools | 20+ | ripgrep, fd, fzf, jq, tmux, gh, docker CLI, uv |
 
 ## Ports
