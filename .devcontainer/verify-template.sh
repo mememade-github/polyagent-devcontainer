@@ -110,4 +110,4 @@ echo ""
 echo "=============================================="
 echo "  RESULT: $PASS PASS / $FAIL FAIL"
 echo "=============================================="
-[ "$FAIL" -eq 0 ] && echo "  ALL PASS" || echo "  FAILURES DETECTED"
+[ "$FAIL" -eq 0 ] && echo "  ALL PASS" || { echo "  FAILURES DETECTED"; exit 1; }
