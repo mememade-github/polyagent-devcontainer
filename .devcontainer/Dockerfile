@@ -163,7 +163,8 @@ RUN git config --global core.quotepath false \
 USER root
 COPY setup-env.sh /usr/local/bin/
 COPY entrypoint.sh /usr/local/bin/
-RUN chmod 755 /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh \
+    && chmod 755 /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh
 
 USER ${USERNAME}
 WORKDIR /workspaces
