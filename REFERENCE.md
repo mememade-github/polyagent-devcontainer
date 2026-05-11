@@ -126,7 +126,7 @@ release, set `npm install -g @openai/codex@<version>`, and export
 
 ### Hooks
 
-Claude (6): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh`, `meta-evolution-guard.sh` (Meta-Evolution wrapper enforcement; self-disabling when CLAUDE.md has no `§6`), `sub-project-edit-guard.sh` (Edit/Write block on registered sub-projects; self-disabling when no `§6`).
+Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh`.
 
 Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh` (Codex CLI does not expose Edit/Write matchers).
 

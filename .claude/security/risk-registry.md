@@ -29,31 +29,29 @@
 
 ---
 
-## Registry — 13 components × 7 axes
+## Registry — 11 components × 7 axes
 
 | # | Component | A1 code | A2 manip | A3 MCP | A4 net | A5 cred | A6 fs scope | A7 tools |
 |---|-----------|---------|----------|--------|--------|---------|-------------|----------|
 | 1 | agents/evaluator.md | clean | clean | clean | declared | clean | task-scoped | active (Bash, Edit, Write, Read, Grep, Glob) |
 | 2 | agents/wip-manager.md | clean | clean | clean | declared | clean | `wip/` + task-scoped | active (Bash, Edit, Write, Read, Grep, Glob) |
 | 3 | hooks/session-start.sh | enforced | clean | clean | clean | clean | read-only (`.git/`, `wip/`, MEMORY.md) | active (shell, jq, git) |
-| 4 | hooks/meta-evolution-guard.sh | enforced | clean | clean | clean | clean | hook-input-only | active (shell, jq) |
-| 5 | hooks/sub-project-edit-guard.sh | enforced | clean | clean | clean | clean | hook-input + CLAUDE.md read | active (shell, jq, grep) |
-| 6 | hooks/pre-commit-gate.sh | enforced | clean | clean | clean | clean | `.last-verification.<branch>` read | active (shell) |
-| 7 | hooks/pre-push-gate.sh | enforced | clean | clean | clean | enforced (Layer 1: PAT residue block) | git-remote read | active (shell, git, grep) |
-| 8 | hooks/refinement-gate.sh | enforced | clean | clean | clean | clean | `.refinement-active`, score files | active (shell, jq) |
-| 9 | skills/refine/SKILL.md | clean | clean | clean | clean | clean | task-scoped + `.refinement-active`, attempts/ | active (Bash, Edit, Write, Read, Grep, Glob, **Agent**) |
-| 10 | skills/wiki/SKILL.md | clean | clean | clean | doc-ref (Karpathy gist link) | clean | wiki source/output | active (Bash, Edit, Write, Read, Grep, Glob, **Agent**) |
-| 11 | skills/status/SKILL.md | clean | clean | clean | clean | clean | read-only (`.git/`, ports) | active (Bash, Read, Grep, Glob) |
-| 12 | skills/verify/SKILL.md | clean | clean | clean | clean | clean | read + `.last-verification` write | active (Bash, Read) |
-| 13 | skills/karpathy-guidelines/SKILL.md | clean | clean | clean | clean | clean | own dir (`SKILL.md` + `EXAMPLES.md`) read-only | clean (no `tools` field — reference handle) |
+| 4 | hooks/pre-commit-gate.sh | enforced | clean | clean | clean | clean | `.last-verification.<branch>` read | active (shell) |
+| 5 | hooks/pre-push-gate.sh | enforced | clean | clean | clean | enforced (Layer 1: PAT residue block) | git-remote read | active (shell, git, grep) |
+| 6 | hooks/refinement-gate.sh | enforced | clean | clean | clean | clean | `.refinement-active`, score files | active (shell, jq) |
+| 7 | skills/refine/SKILL.md | clean | clean | clean | clean | clean | task-scoped + `.refinement-active`, attempts/ | active (Bash, Edit, Write, Read, Grep, Glob, **Agent**) |
+| 8 | skills/wiki/SKILL.md | clean | clean | clean | doc-ref (Karpathy gist link) | clean | wiki source/output | active (Bash, Edit, Write, Read, Grep, Glob, **Agent**) |
+| 9 | skills/status/SKILL.md | clean | clean | clean | clean | clean | read-only (`.git/`, ports) | active (Bash, Read, Grep, Glob) |
+| 10 | skills/verify/SKILL.md | clean | clean | clean | clean | clean | read + `.last-verification` write | active (Bash, Read) |
+| 11 | skills/karpathy-guidelines/SKILL.md | clean | clean | clean | clean | clean | own dir (`SKILL.md` + `EXAMPLES.md`) read-only | clean (no `tools` field — reference handle) |
 
 ## Cell-by-cell justifications (non-`clean` only)
 
 ### A1 (code execution)
-- Hooks 3-8 carry `enforced` because they ARE `.sh` scripts — that is the component's purpose, not a violation. Karpathy R1.3 Surgical: leave functioning safety code untouched.
+- Hooks 3-6 carry `enforced` because they ARE `.sh` scripts — that is the component's purpose, not a violation. Karpathy R1.3 Surgical: leave functioning safety code untouched.
 
 ### A2 (command manipulation)
-- All `clean`. Manual read of all 13 component bodies revealed no instruction to override safety, hide actions, exfiltrate via response, or conditionally change behavior on input. Re-verify whenever a component is modified.
+- All `clean`. Manual read of all 11 component bodies revealed no instruction to override safety, hide actions, exfiltrate via response, or conditionally change behavior on input. Re-verify whenever a component is modified.
 
 ### A3 (MCP references)
 - All `clean`. Detection grep returns 0 across `.claude/agents/` and `.claude/skills/`.
@@ -113,13 +111,13 @@ check below.
 ## Verification — end-state for Phase 1
 
 ```bash
-# Cell coverage: 13 components × 7 axes = 91 cells
+# Cell coverage: 11 components × 7 axes = 77 cells
 rows=$(grep -cE '^\| [0-9]+ \|' /workspaces/.claude/security/risk-registry.md)
-[ "$rows" -eq 13 ] && echo "OK (rows=$rows)" || echo "FAIL (expected 13, got $rows)"
+[ "$rows" -eq 11 ] && echo "OK (rows=$rows)" || echo "FAIL (expected 11, got $rows)"
 ```
 
 Component-list parity with `trust-boundary.md` is implicit by manual review
-(both documents reference the same 13 entities).
+(both documents reference the same 11 entities).
 
 ---
 

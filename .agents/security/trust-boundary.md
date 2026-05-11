@@ -27,7 +27,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 
 ---
 
-## Components — 13 entities
+## Components — 11 entities
 
 ### Agents (2)
 
@@ -47,7 +47,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: ROOT invokes per CLAUDE.md §5.5. Does not invoke other agents.
 - **Karpathy-baseline delta**: identical scope to evaluator. Justification: WIP auto-resume needs branch/file inventory; documentation tasks may consult external references.
 
-### Hooks (6)
+### Hooks (4)
 
 #### 3. `hooks/session-start.sh`
 - **Role**: SessionStart hook. Injects project context + WIP auto-resume + env check.
@@ -57,49 +57,33 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: triggered automatically by Claude Code at session start.
 - **Karpathy-baseline delta**: code execution present. Justification: read-only context aggregation; no decision authority.
 
-#### 4. `hooks/meta-evolution-guard.sh`
-- **Role**: PreToolUse hook (Bash matcher). Blocks direct `docker exec ... claude ... -p` so all Meta-Evolution delegation goes through `scripts/meta/delegate-goal.sh`.
-- **Trust scope (read)**: hook input JSON.
-- **Trust scope (write)**: stderr only.
-- **Tool scope**: shell built-ins + `jq`. No network.
-- **Invocation**: triggered for every Bash tool use.
-- **Karpathy-baseline delta**: code execution present. Justification: enforcement-only, no productive side effects.
-
-#### 5. `hooks/sub-project-edit-guard.sh`
-- **Role**: PreToolUse hook (Edit/Write matcher). Blocks Edit/Write inside §6-bearing sub-projects per Role Relativity.
-- **Trust scope (read)**: hook input JSON, target CLAUDE.md.
-- **Trust scope (write)**: stderr only.
-- **Tool scope**: shell built-ins + `jq`, `grep`. No network.
-- **Invocation**: triggered for every Edit/Write tool use.
-- **Karpathy-baseline delta**: same as meta-evolution-guard. Same justification.
-
-#### 6. `hooks/pre-commit-gate.sh`
+#### 4. `hooks/pre-commit-gate.sh`
 - **Role**: PreToolUse hook (Bash matcher, `git commit*`). Blocks commits unless completion-checker recently ran on the branch.
 - **Trust scope (read)**: `.claude/.last-verification.<branch>`, hook input JSON.
 - **Trust scope (write)**: stderr only.
 - **Tool scope**: shell built-ins. No network.
 - **Invocation**: triggered for `git commit` Bash calls.
-- **Karpathy-baseline delta**: same as meta-evolution-guard. Same justification.
+- **Karpathy-baseline delta**: code execution present. Justification: enforcement-only, no productive side effects.
 
-#### 7. `hooks/pre-push-gate.sh`
+#### 5. `hooks/pre-push-gate.sh`
 - **Role**: PreToolUse hook (Bash matcher, `git push*`). 3-layer progressive hardening — Layer 1 blocks PAT residue in remote URL; Layer 2 warns on remote URL drift; Layer 3 (opt-in) blocks `.push-remote` declaration mismatch.
 - **Trust scope (read)**: `git remote -v` output, hook input JSON, optional `.push-remote` file.
 - **Trust scope (write)**: stderr + `.claude/.last-push-url.<remote>` baseline file (Layer 2 drift detection).
 - **Tool scope**: shell built-ins + `git`, `grep`. No network.
 - **Invocation**: triggered for `git push` Bash calls.
-- **Karpathy-baseline delta**: same as meta-evolution-guard. Same justification. Note: Layer 1 already covers credential-residue at push time — additional runtime credential-mask hook would duplicate this control (Karpathy R1.3 surgical avoidance).
+- **Karpathy-baseline delta**: same as pre-commit-gate. Same justification. Note: Layer 1 already covers credential-residue at push time — additional runtime credential-mask hook would duplicate this control (Karpathy R1.3 surgical avoidance).
 
-#### 8. `hooks/refinement-gate.sh`
+#### 6. `hooks/refinement-gate.sh`
 - **Role**: Stop hook. Prevents session stop during active `/refine` iteration when score < threshold.
 - **Trust scope (read)**: `.refinement-active` marker, score files.
 - **Trust scope (write)**: stdout JSON decision only.
 - **Tool scope**: shell built-ins + `jq`. No network.
 - **Invocation**: triggered at every Stop event.
-- **Karpathy-baseline delta**: same as meta-evolution-guard. Same justification.
+- **Karpathy-baseline delta**: same as pre-commit-gate. Same justification.
 
 ### Skills (5)
 
-#### 9. `skills/refine/SKILL.md`
+#### 7. `skills/refine/SKILL.md`
 - **Role**: Autonomous exploratory improvement loop — thin orchestrator with fresh-context agents.
 - **Trust scope (read)**: project source per task scope.
 - **Trust scope (write)**: project source per task scope; `.refinement-active`, `.refine-output`, `attempts/*.jsonl`.
@@ -107,7 +91,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: user-invocable via `/refine`.
 - **Karpathy-baseline delta**: code execution + Agent recursion (highest autonomy). Justification: by-design exploratory loop; recursion is the loop mechanism, not a side channel.
 
-#### 10. `skills/wiki/SKILL.md`
+#### 8. `skills/wiki/SKILL.md`
 - **Role**: LLM Wiki — build and maintain structured knowledge bases with cross-referencing, consolidation, contradiction detection.
 - **Trust scope (read)**: wiki source dirs.
 - **Trust scope (write)**: wiki output dirs.
@@ -115,7 +99,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: user-invocable via `/wiki`.
 - **Karpathy-baseline delta**: same as `/refine`. Justification: ingestion + contradiction detection requires multi-file traversal + sub-agent dispatch.
 
-#### 11. `skills/status/SKILL.md`
+#### 9. `skills/status/SKILL.md`
 - **Role**: Show workspace status — all git repos, services, WIP tasks, environment health.
 - **Trust scope (read)**: workspace, `.git/` dirs, service ports.
 - **Trust scope (write)**: stdout only.
@@ -123,7 +107,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: user-invocable via `/status`.
 - **Karpathy-baseline delta**: code execution present, **no Write/Edit/Agent**. Closest to baseline.
 
-#### 12. `skills/verify/SKILL.md`
+#### 10. `skills/verify/SKILL.md`
 - **Role**: Run pre-commit verification checks on a product.
 - **Trust scope (read)**: target product source.
 - **Trust scope (write)**: marker file `.last-verification.<branch>`.
@@ -131,7 +115,7 @@ records each component's deviation and its justification, per Karpathy R1.1.
 - **Invocation**: user-invocable via `/verify`.
 - **Karpathy-baseline delta**: narrowest of all skills. Code execution present (must run tests). Closest to baseline along with `/status`.
 
-#### 13. `skills/karpathy-guidelines/SKILL.md`
+#### 11. `skills/karpathy-guidelines/SKILL.md`
 - **Role**: Reference handle for the Karpathy 4 rules. Loaded on demand by evaluator agent or explicit invocation; not user-invocable as a `/command`.
 - **Trust scope (read)**: own `SKILL.md` + `EXAMPLES.md` body only.
 - **Trust scope (write)**: none.
@@ -148,8 +132,6 @@ records each component's deviation and its justification, per Karpathy R1.1.
 | SessionStart | — | session-start.sh |
 | PreToolUse | Bash + `git commit*` | pre-commit-gate.sh |
 | PreToolUse | Bash + `git push*` | pre-push-gate.sh |
-| PreToolUse | Bash | meta-evolution-guard.sh |
-| PreToolUse | Edit \| Write | sub-project-edit-guard.sh |
 | Stop | — | refinement-gate.sh |
 
 ---
@@ -165,7 +147,7 @@ This document is correct iff:
 Check command:
 
 ```bash
-# Component count match (expect: 2 + 6 + 5 = 13)
+# Component count match (expect: 2 + 4 + 5 = 11)
 expected=$(( $(ls /workspaces/.claude/agents/*.md 2>/dev/null | wc -l) \
           + $(ls /workspaces/.claude/hooks/*.sh 2>/dev/null | wc -l) \
           + $(ls -d /workspaces/.claude/skills/*/ 2>/dev/null | wc -l) ))

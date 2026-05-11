@@ -45,6 +45,8 @@ grep -q "behavioral-core" "$PROJECT_DIR/AGENTS.md" 2>/dev/null && record PASS "A
 # --- PHASE 3: Hooks syntax ---
 echo ""
 echo "=== Phase 3A: Hook Syntax (Claude side) ==="
+claude_hooks=$(ls "$PROJECT_DIR"/.claude/hooks/*.sh 2>/dev/null | wc -l)
+[ "$claude_hooks" -eq 4 ] && record PASS "Claude hooks: $claude_hooks/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Claude hooks: $claude_hooks (expected 4)"
 for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"

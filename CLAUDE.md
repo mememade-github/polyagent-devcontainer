@@ -20,7 +20,7 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 ├── .claude/                        # Claude Code agent system (ground truth)
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 2 agents (evaluator, wip-manager)
-│   ├── hooks/                      # 6 hook scripts
+│   ├── hooks/                      # 4 hook scripts
 │   ├── skills/                     # 4 /command skills (refine, status, verify, wiki) + karpathy-guidelines
 │   └── rules/                      # Standard rules + project/ subdirectory
 ├── .agents/                        # Codex agent assets (mirror of .claude/, generated)
