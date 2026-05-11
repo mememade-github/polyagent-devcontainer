@@ -88,7 +88,7 @@ else
     record FAIL "Rules: missing$missing"
 fi
 rules_total=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
-[ "$rules_total" -eq 5 ] && record PASS "Rules count: $rules_total/5" || record FAIL "Rules count: $rules_total (expected 5)"
+[ "$rules_total" -eq 6 ] && record PASS "Rules count: $rules_total/6" || record FAIL "Rules count: $rules_total (expected 6)"
 
 # --- PHASE 2e: Codex hooks (4) ---
 echo ""

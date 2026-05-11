@@ -101,6 +101,7 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 @.claude/rules/audit-discipline.md
 @.claude/rules/commit-discipline.md
 @.claude/rules/destructive-ops-discipline.md
+@.claude/rules/anchor-discipline.md
 @.claude/rules/devcontainer-patterns.md
 @PROJECT.md
 @REFERENCE.md
