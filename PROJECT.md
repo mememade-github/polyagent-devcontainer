@@ -40,7 +40,7 @@ Default port band: 31000. Mapping is HOST 3xxxx → CONTAINER standard (3000, 80
 ## Distribution
 
 - **GitHub** (origin): `mememade-github/polyagent-devcontainer` — development ground truth
-- **Internal GitLab mirror**: maintained out-of-tree by the consuming organization. See `.gitlab-ci.yml` for the mirror pipeline that the consumer can wire up.
+- **Internal GitLab mirror**: shipped as an in-tree template at `.gitlab-ci.yml`. The consumer wires it to their GitLab project (register a Runner, set `GITLAB_PUSH_TOKEN`, add a schedule).
 
 ---
 
