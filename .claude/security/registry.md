@@ -21,13 +21,13 @@ Skip protocol: an iteration on an already-`active` component (frontmatter or bod
 
 | Component | Purpose | Owner | Version | Dependencies | Last reviewed | Eval status | State |
 |-----------|---------|-------|---------|--------------|---------------|-------------|-------|
-| skills/refine | Autonomous exploratory improvement loop | MEMEMADE | 1.0.0 | evaluator agent; `Agent` tool; per-project `score.sh` | 2026-04-28 | suite written, manual run pending | `reviewed` |
-| skills/wiki | Cross-document knowledge base build / query / lint | MEMEMADE | 1.0.0 | `Agent` tool | 2026-04-28 | suite written, manual run pending | `reviewed` |
-| skills/status | Workspace-wide health snapshot | MEMEMADE | 1.0.0 | `scripts/git/git-status.sh`, Docker daemon | 2026-04-28 | suite written, manual run pending | `reviewed` |
-| skills/verify | Pre-commit verification dispatcher | MEMEMADE | 1.0.0 | `scripts/meta/completion-checker.sh`, `pre-commit-gate.sh` | 2026-04-28 | suite written, manual run pending | `reviewed` |
-| skills/karpathy-guidelines | Karpathy 4-rule reference handle (read-only prompt text) | forrestchang (upstream); MEMEMADE (mirror) | 1.0.0 | none — no tools, no callees | 2026-04-30 | upstream-aligned (verbatim); no eval suite required | `active` |
-| agents/evaluator | 1-pass review / `/refine` iteration scorer | MEMEMADE | 1.0.0 | invoked by ROOT or `/refine`; no callees | 2026-04-28 | suite written, manual run pending | `reviewed` |
-| agents/wip-manager | Multi-session task state author/resumer | MEMEMADE | 1.0.0 | `wip/` directory; invoked by ROOT | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| skills/refine | Autonomous exploratory improvement loop | Template maintainer | 1.0.0 | evaluator agent; `Agent` tool; per-project `score.sh` | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| skills/wiki | Cross-document knowledge base build / query / lint | Template maintainer | 1.0.0 | `Agent` tool | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| skills/status | Workspace-wide health snapshot | Template maintainer | 1.0.0 | `scripts/git/git-status.sh`, Docker daemon | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| skills/verify | Pre-commit verification dispatcher | Template maintainer | 1.0.0 | `scripts/meta/completion-checker.sh`, `pre-commit-gate.sh` | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| skills/karpathy-guidelines | Karpathy 4-rule reference handle (read-only prompt text) | forrestchang (upstream); Template maintainer (mirror) | 1.0.0 | none — no tools, no callees | 2026-04-30 | upstream-aligned (verbatim); no eval suite required | `active` |
+| agents/evaluator | 1-pass review / `/refine` iteration scorer | Template maintainer | 1.0.0 | invoked by ROOT or `/refine`; no callees | 2026-04-28 | suite written, manual run pending | `reviewed` |
+| agents/wip-manager | Multi-session task state author/resumer | Template maintainer | 1.0.0 | `wip/` directory; invoked by ROOT | 2026-04-28 | suite written, manual run pending | `reviewed` |
 
 Hooks are *enforcement* code, not skills/agents. They are governed by
 `trust-boundary.md` (rows 3–8) and tested via `tests/run.sh` patterns

@@ -1,10 +1,10 @@
 # Commit Discipline
 
 > Anti-pattern observed: commits bundling orthogonal changes (e.g.,
-> a symlink fix + setup-env logic + README marketing + filemode chmod
-> in a single commit) without justifying the coupling.
-> Source: Karpathy-4-rule re-audit, finding (b) — "Bundled commits
-> with unjustified coupling".
+> a runtime path fix + setup-script logic + README copy edit + a
+> filesystem-permission tweak in a single commit) without justifying
+> the coupling. Surfaced by a Karpathy-4-rule re-audit finding —
+> "Bundled commits with unjustified coupling".
 
 ## 1. Default: one concern per commit
 
@@ -32,17 +32,16 @@ deliberate or an oversight.
 
 ## 3. Forbidden bundle patterns (from observed failures)
 
-- **Multi-defect bundle**: bundling D2 (PATH symlink) + D3 (setup-env
-  logic) + D4 (README marketing) + D5 (filemode chmod) when each was
-  independently reversible. Revert of any one would have left the
-  other three in place — proof of independence.
+- **Multi-defect bundle**: combining several independently reversible
+  fixes (e.g., a runtime path symlink fix + a setup-env logic change
+  + a README copy edit + a filemode tweak) into one commit. Revert of
+  any one would have left the others in place — proof of independence.
 - **Drive-by docs**: editing README in a commit whose body is about a
   build-system change, without mentioning the README in the body.
-- **Mixed scope across layers**: changing ROOT and projects/{a,b}
-  Dockerfiles in one commit when each layer was an independent
-  decision (acceptable when coupled, with explicit "Symmetric across
-  layers" justification — see claude-meta-autoagent 3a21b65 as
-  positive example).
+- **Mixed scope across layers**: changing parent-workspace and
+  sub-project Dockerfiles in one commit when each layer was an
+  independent decision (acceptable when coupled, with explicit
+  "Symmetric across layers" justification in the commit body).
 
 ## 4. Counter-test for this rule
 
@@ -55,6 +54,6 @@ applies to new commits.
 
 ---
 
-*Source: 2026-04-30 polyagent-devcontainer audit cycle. Specifically:
-commits 0d90d76 (force-pushed since), 5dc9045, 041f5ea each bundled
-4 orthogonal changes — flagged by the Karpathy 4-rule self-audit.*
+*Source: a prior template audit cycle in which several recent
+commits each bundled multiple orthogonal changes; flagged by a
+Karpathy 4-rule self-audit.*

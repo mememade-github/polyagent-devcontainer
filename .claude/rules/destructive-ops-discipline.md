@@ -1,12 +1,12 @@
 # Destructive Operations Discipline
 
 > Anti-pattern: invoking the most powerful destructive tool by default
-> when narrower alternatives exist. Source: Karpathy-4-rule re-audit,
-> finding E1 — D1 (filter-repo full-history rewrite for a single leaked
-> token across 147 commits) failed R2 (Simplicity) and R3 (Surgical)
-> because narrower alternatives (BFG, single-commit revert + secret
-> rotation, .gitattributes-driven LFS strip) were never surfaced in
-> the plan.
+> when narrower alternatives exist. Surfaced by a Karpathy-4-rule
+> re-audit of a prior cycle in which a full git history rewrite was
+> chosen for a single-token leak; narrower alternatives (BFG,
+> single-commit revert + secret rotation, .gitattributes-driven LFS
+> strip) were never surfaced in the plan, failing R2 (Simplicity) and
+> R3 (Surgical).
 
 ## 1. Surface alternatives before any destructive operation
 
@@ -60,7 +60,8 @@ incomplete; do not proceed with execution.
 
 ---
 
-*Source: 2026-04-30 polyagent-devcontainer audit cycle, D1 (147-commit
-filter-repo for a single internal-name leak that could have been
-addressed by a single revert + token rotation, since no live secret
-was involved). Karpathy 4-rule re-audit assigned R2/R3 FAIL.*
+*Source: a prior template audit cycle in which a multi-commit
+history rewrite was performed for a single-name leak that could have
+been addressed by a single revert plus token rotation (no live
+secret was involved). A Karpathy 4-rule re-audit assigned R2/R3
+FAIL.*

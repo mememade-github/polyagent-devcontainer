@@ -1,9 +1,9 @@
 # Audit Discipline
 
-> Anti-patterns observed in the 2026-04-30 polyagent-devcontainer audit cycle.
-> Codified after an external (Codex CLI) re-audit found 5 issues that the
-> internal audit missed. The failures clustered in two structural areas:
-> success-criteria scope and entry-path coverage.
+> Anti-patterns observed in a prior template audit cycle, codified after
+> an external vendor re-audit found issues that the internal audit
+> missed. The failures clustered in two structural areas: success-criteria
+> scope and entry-path coverage.
 
 ## 1. Negative space declaration
 
@@ -11,14 +11,17 @@
 
 Audits silently exclude axes. If the exclusion is not declared, the
 audit reads as "all clear" when it actually means "all clear within the
-chosen lens". Missed axes from the 2026-04-30 cycle:
+chosen lens". Axes commonly missed in template audits:
 
-- cross-document numerical/textual consistency (port 4-way mismatch,
-  Skills count 4 vs 5);
-- multi-entry-point parity (VS Code DevContainer mounts vs plain
+- cross-document numerical/textual consistency (e.g. port number
+  drift across docs, component counts that disagree between README
+  and detailed reference);
+- multi-entry-point parity (e.g. VS Code DevContainer mounts vs plain
   `docker compose up`);
-- supply-chain time-axis stability (rolling tool versions);
-- marketing-vs-technical claim accuracy ("Isolated" framing).
+- supply-chain time-axis stability (rolling tool versions producing
+  different installed software on different days);
+- marketing-vs-technical claim accuracy (e.g. "isolated" or "sandbox"
+  framing that does not match the actual trust model).
 
 **Required at audit start:**
 - one sentence per excluded axis: what is excluded and why.
@@ -40,10 +43,11 @@ Counter-tests must verify two things, not one:
 - **Adjacent paths intact (regression)**: the fix does not break a
   path the audit did not exercise.
 
-The 2026-04-30 cycle had only positive counter-tests. Codex's L1
-(Skills 4 vs 5 caused by D4 README edit) is the textbook adjacent-path
-regression: the fix touched README, the audit verified the fix, but
-the fix introduced a new inconsistency in the same file.
+The triggering audit cycle had only positive counter-tests. The
+textbook adjacent-path regression observed there: a fix touched
+README to correct one number, the audit verified the fix, but the
+same edit introduced a new inconsistency between the README and a
+co-mounted reference doc (component-count drift).
 
 **Required:** for any fix that edits a file, the counter-test must
 include "what other claims in the same file or co-mounted files
@@ -75,8 +79,8 @@ high-value surfaces (public OSS templates, security-sensitive code,
 governance-bearing files), the audit should include at least one
 external cross-check before declaring done:
 
-- a different vendor agent (e.g., Codex when the work was done in
-  Claude, or vice versa);
+- a different vendor agent (e.g., a second AI coding assistant when
+  the work was done in the first);
 - an evaluator agent in a separate context window;
 - a static-analysis tool the primary agent did not pick.
 
@@ -86,6 +90,6 @@ is intended to certify a claim that other people will rely on.
 
 ---
 
-*Source: 2026-04-30 polyagent-devcontainer audit cycle, Karpathy 4-rule
-re-audit (R1/R4 weak), and Codex external re-audit findings (M1, M2,
-L1, L2, Info).*
+*Source: a prior template audit cycle plus its external vendor
+re-audit, the union of which surfaced these scoping and entry-path
+failures.*
