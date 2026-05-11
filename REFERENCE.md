@@ -136,7 +136,7 @@ Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refin
 
 Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh` (Codex CLI does not expose Edit/Write matchers).
 
-### Skills (4 + karpathy-guidelines)
+### Skills (5)
 
 | Skill | Description |
 |-------|-------------|

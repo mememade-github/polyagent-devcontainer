@@ -8,7 +8,7 @@
 
 Isolated environment for running Claude Code and Codex CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 4 hooks · 5 skills (4 /command + karpathy-guidelines reference handle).
+Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, wiki, karpathy-guidelines).
 
 ## Tech Stack
 

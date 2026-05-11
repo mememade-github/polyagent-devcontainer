@@ -21,7 +21,7 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 │   ├── settings.json               # Hooks & environment
 │   ├── agents/                     # 2 agents (evaluator, wip-manager)
 │   ├── hooks/                      # 4 hook scripts
-│   ├── skills/                     # 4 /command skills (refine, status, verify, wiki) + karpathy-guidelines
+│   ├── skills/                     # 5 skills (refine, status, verify, wiki, karpathy-guidelines)
 │   └── rules/                      # Standard rules + project/ subdirectory
 ├── .agents/                        # Codex agent assets (mirror of .claude/, generated)
 ├── .codex/                         # Codex CLI configuration
