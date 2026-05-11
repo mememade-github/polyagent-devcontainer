@@ -47,8 +47,8 @@ fi
 
 ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
-[ ! -d "$GIT_ROOT/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory missing\n"
-[ -d "$GIT_ROOT/.env" ] && [ -z "$(ls "$GIT_ROOT/.env/"*.env 2>/dev/null)" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory has no .env files\n"
+# Template-level .devcontainer/.env presence (single source of user-tunable values per PROJECT.md)
+[ ! -f "$GIT_ROOT/.devcontainer/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .devcontainer/.env missing (copy .devcontainer/.env.example)\n"
 if [ -n "$ENV_ISSUES" ]; then
   CONTEXT="${CONTEXT}Environment issues:\n${ENV_ISSUES}"
 fi

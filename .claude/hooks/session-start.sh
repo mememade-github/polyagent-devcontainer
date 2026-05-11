@@ -49,16 +49,14 @@ if [ -d "$ACTUAL_ROOT/wip" ]; then
   fi
 fi
 
-# 3. Environment quick check (use ACTUAL_ROOT for .env/)
+# 3. Environment quick check
 ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
-# Check for any SSH deploy key (project-agnostic)
+# Check for any SSH deploy key (optional — only warn if a key file appears expected)
 SSH_KEY_FOUND=$(find "${HOME}/.ssh/" -name "*_ed25519" -o -name "*_rsa" 2>/dev/null | head -1)
 [ -z "$SSH_KEY_FOUND" ] && [ -f "$ACTUAL_ROOT/.env/ssh-key" ] && SSH_KEY_FOUND="project"
-[ -z "$SSH_KEY_FOUND" ] && ENV_ISSUES="${ENV_ISSUES}  - No SSH deploy key found\n"
-# Check for env directory (use ACTUAL_ROOT — .env/ lives at project root, not worktree)
-[ -d "$ACTUAL_ROOT/.env" ] && [ -z "$(ls "$ACTUAL_ROOT/.env/"*.env 2>/dev/null)" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory has no .env files\n"
-[ ! -d "$ACTUAL_ROOT/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .env/ directory missing\n"
+# Template-level .devcontainer/.env presence (single source of user-tunable values per PROJECT.md)
+[ ! -f "$ACTUAL_ROOT/.devcontainer/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .devcontainer/.env missing (copy .devcontainer/.env.example)\n"
 
 if [ -n "$ENV_ISSUES" ]; then
   CONTEXT="${CONTEXT}Environment issues:\n${ENV_ISSUES}"
