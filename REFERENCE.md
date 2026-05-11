@@ -70,14 +70,20 @@ Aliases:
 ## DevContainer lifecycle
 
 ```
-postCreateCommand (setup-env.sh — once)
-  [1/3] permissions (Docker socket, git filemode, command history)
-  [2/3] SSH (when host keys are bound)
-  [3/3] Claude CLI version sync
+Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
+  └── setup-env.sh (idempotent; postCreateCommand runs it once on first build)
+        [1/4] Permissions   — Docker socket ownership, git core.filemode,
+                              git safe.directory, command-history setup
+        [2/4] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
+        [3/4] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
+        [4/4] Codex config   — symlink /workspaces/.codex/config.toml into ~/.codex/
 
-postStartCommand (every start)
+postStartCommand (every start, devcontainer.json)
   git config core.filemode false
 ```
+
+Both `docker compose up` and VS Code "Reopen in Container" route through
+`entrypoint.sh`, so the 4 steps run regardless of how the container was started.
 
 ## Persistent volumes
 
