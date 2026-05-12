@@ -24,5 +24,9 @@
   "files.watcherExclude": {
     "**/.git/objects/**": true,
     "**/node_modules/**": true
+  },
+
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingModuleSource": "none"
   }
 }
