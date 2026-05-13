@@ -74,9 +74,13 @@ the cadence is a manual operations guideline. Carries AUD-2026-025.
 ## Verification — end-state for Phase 4
 
 ```bash
-# Seven rows expected — 5 skills + 2 agents
-rows=$(awk '/^\| skills\/|^\| agents\//{c++} END{print c}' /workspaces/.claude/security/registry.md)
-[ "$rows" -eq 7 ] && echo "PASS (rows=$rows)" || echo "FAIL (expected 7, got $rows)"
+# Auto-detects the current project root; override with PROJECT_ROOT=<path>
+# when running from outside the receiver's tree. Row count baseline = 7
+# (5 skills + 2 agents); receivers with own architecture (e.g. CAESAR
+# learning agents) may declare higher counts in their own registry.
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+rows=$(awk '/^\| skills\/|^\| agents\//{c++} END{print c}' "$PROJECT_ROOT/.claude/security/registry.md")
+[ "$rows" -ge 7 ] && echo "PASS (rows=$rows)" || echo "FAIL (expected >=7, got $rows)"
 ```
 
 ---

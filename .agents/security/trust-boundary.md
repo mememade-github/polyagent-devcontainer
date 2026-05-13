@@ -147,11 +147,13 @@ This document is correct iff:
 Check command:
 
 ```bash
-# Component count match (expect: 2 + 4 + 5 = 11)
-expected=$(( $(ls /workspaces/.claude/agents/*.md 2>/dev/null | wc -l) \
-          + $(ls /workspaces/.claude/hooks/*.sh 2>/dev/null | wc -l) \
-          + $(ls -d /workspaces/.claude/skills/*/ 2>/dev/null | wc -l) ))
-documented=$(grep -cE '^#### [0-9]+\.' /workspaces/.claude/security/trust-boundary.md)
+# Component count match — auto-detects current project root.
+# Override with PROJECT_ROOT=<path> when running from outside the receiver's tree.
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+expected=$(( $(ls "$PROJECT_ROOT/.claude/agents/"*.md 2>/dev/null | wc -l) \
+          + $(ls "$PROJECT_ROOT/.claude/hooks/"*.sh 2>/dev/null | wc -l) \
+          + $(ls -d "$PROJECT_ROOT/.claude/skills/"*/ 2>/dev/null | wc -l) ))
+documented=$(grep -cE '^#### [0-9]+\.' "$PROJECT_ROOT/.claude/security/trust-boundary.md")
 [ "$expected" -eq "$documented" ] && echo "OK ($documented)" || echo "MISMATCH (expected=$expected, documented=$documented)"
 ```
 

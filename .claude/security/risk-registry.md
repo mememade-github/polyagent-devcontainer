@@ -111,9 +111,14 @@ check below.
 ## Verification — end-state for Phase 1
 
 ```bash
-# Cell coverage: 11 components × 7 axes = 77 cells
-rows=$(grep -cE '^\| [0-9]+ \|' /workspaces/.claude/security/risk-registry.md)
-[ "$rows" -eq 11 ] && echo "OK (rows=$rows)" || echo "FAIL (expected 11, got $rows)"
+# Cell coverage: declared count × 7 axes = total cells.
+# Auto-detects current project root; override with PROJECT_ROOT=<path>.
+# expected_rows extracted dynamically from the receiver's own header so
+# receivers with own architecture (e.g., proof-auditor) self-declare.
+PROJECT_ROOT="${PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+rows=$(grep -cE '^\| [0-9]+ \|' "$PROJECT_ROOT/.claude/security/risk-registry.md")
+expected_rows=$(grep -m1 -oE 'Registry — [0-9]+ components' "$PROJECT_ROOT/.claude/security/risk-registry.md" | grep -oE '[0-9]+')
+[ "$rows" -eq "$expected_rows" ] && echo "OK (rows=$rows)" || echo "FAIL (expected $expected_rows, got $rows)"
 ```
 
 Component-list parity with `trust-boundary.md` is implicit by manual review
