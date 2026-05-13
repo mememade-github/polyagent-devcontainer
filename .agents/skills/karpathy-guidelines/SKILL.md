@@ -6,6 +6,8 @@ license: MIT
 
 # Karpathy Guidelines
 
+> **Skill handle / OSS attribution mirror.** Source of truth is `.claude/rules/behavioral-core.md` (auto-imported in CLAUDE.md `@` chain). This file exists separately so (a) the skill is discoverable via skill listings with proper frontmatter and (b) upstream MIT attribution + Karpathy source link are preserved inside the OSS-distributed template. When editing, also update behavioral-core.md and `diff` the two — only frontmatter / attribution / source-link should differ. Body content (the 4 rules) stays synchronized. Carries AUD-2026-018.
+
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

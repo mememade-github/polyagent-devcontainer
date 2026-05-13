@@ -85,8 +85,16 @@ external cross-check before declaring done:
 - a static-analysis tool the primary agent did not pick.
 
 Single-agent self-audits remain valid for trivial, narrowly-scoped
-work. The signal that an external cross-check is needed: the audit
-is intended to certify a claim that other people will rely on.
+work. The decision test (AUD-2026-008):
+
+- **REQUIRED** — if the audit output will be cited by another party
+  (PR review, public docs, governance commit body, third-party report,
+  reachable Codex/Cursor cross-check handoff).
+- **Recommended** — for internal audits whose conclusions stay within
+  the auditor's own scope of action.
+
+Treat the test as binary, not a slider. If the output is reachable by
+a non-auditor reader, external cross-check is required.
 
 ---
 

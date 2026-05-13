@@ -1,5 +1,7 @@
 # Behavioral Core
 
+> **Source of truth.** A near-identical copy exists at `.claude/skills/karpathy-guidelines/SKILL.md` (skill-discovery handle that preserves upstream MIT attribution and source link). When editing this file, also update the skill — `diff` the two after editing to confirm only frontmatter / attribution / source-link differ. Carries AUD-2026-018: a future CI check should automate this comparison.
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

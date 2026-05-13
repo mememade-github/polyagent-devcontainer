@@ -19,6 +19,14 @@ if ! echo "$COMMAND" | grep -qE '\bgit\s+commit\b'; then
   exit 0
 fi
 
+# AUD-2026-029: --no-verify bypass detection. CLAUDE.md §4.2 "No --no-verify".
+# Block before any other check — bypass attempt should never reach the gate.
+if echo "$COMMAND" | grep -qE '(^|[[:space:]])--no-verify\b'; then
+  echo "Blocked: --no-verify bypass is not permitted (CLAUDE.md §4.2)." >&2
+  echo "Fix verification issues before committing — do not skip the gate." >&2
+  exit 2
+fi
+
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
 # Resolve actual project root (worktree -> original repo root)
@@ -31,6 +39,16 @@ if command -v git &>/dev/null; then
   fi
 else
   ACTUAL_ROOT="$PROJECT_DIR"
+fi
+
+# AUD-2026-030: secret-pattern scan on staged content. CLAUDE.md §7 "Protect secrets".
+# Extends pre-push-gate.sh Layer 1 (which only scans remote URL) to scan staged file content.
+SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
+if git -C "$PROJECT_DIR" diff --cached -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS"; then
+  echo "Blocked: secret pattern detected in staged content." >&2
+  echo "Inspect: git diff --cached" >&2
+  echo "If false positive (e.g. regex literal in documentation), inspect manually and decide whether to amend or document the exception." >&2
+  exit 2
 fi
 
 # resolve branch name for per-worktree marker isolation
@@ -86,6 +104,21 @@ if [ -f "$SCORER" ] && [ ! -f "$REFINE_MARKER" ]; then
     echo "CLAUDE.md §2 requires /refine for changes affecting 2+ files when scorer exists." >&2
     echo "Consider running /refine instead of direct commit." >&2
     # WARNING only, not blocking — agent can proceed with justification
+  fi
+fi
+
+# --- Layer 3: Coupling: reminder for multi-file commits (AUD-2026-031, non-blocking) ---
+# commit-discipline §2 requires explicit "Coupling:" line when bundling orthogonal concerns.
+# Tooling cannot mechanically determine orthogonality, so this is a reminder gate, not enforcement.
+STAGED_COUNT_L3=$(git -C "$PROJECT_DIR" diff --cached --name-only 2>/dev/null | wc -l)
+if [ "$STAGED_COUNT_L3" -ge 2 ]; then
+  # Extract -m message if present in the command. Limitation: only the first -m argument is inspected;
+  # commit via editor (no -m) bypasses this reminder. Acceptable trade-off — reminder, not enforcement.
+  COMMIT_MSG=$(echo "$COMMAND" | grep -oE -- '-m[[:space:]]+"[^"]*"' | head -1 | sed -E 's/^-m[[:space:]]+"//; s/"$//')
+  if [ -n "$COMMIT_MSG" ] && ! echo "$COMMIT_MSG" | grep -qE '^[[:space:]]*Coupling:'; then
+    echo "REMINDER: $STAGED_COUNT_L3 files staged but commit message lacks 'Coupling:' line." >&2
+    echo "commit-discipline §2: bundled commits must state coupling reason. Add 'Coupling: <reason>' line if files are intentionally bundled." >&2
+    echo "(reminder only, not blocking — single-concern multi-file commits are legitimate)" >&2
   fi
 fi
 

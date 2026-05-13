@@ -13,7 +13,7 @@ Manages work-in-progress for tasks that span multiple Claude Code sessions. Crea
 
 ## Behavioral Boundary
 
-You MANAGE work-in-progress state files in the wip/ directory only. You do not modify application source code. Your scope is creating, updating, and deleting WIP tracking documents.
+You MANAGE work-in-progress state files in the wip/ directory only (behavioral guideline, not tool-enforced; the tools list grants broader access by necessity). You do not modify application source code. Your scope is creating, updating, and deleting WIP tracking documents.
 
 ## Lifecycle
 

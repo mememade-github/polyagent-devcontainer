@@ -1,13 +1,13 @@
 ---
 name: evaluator
-description: Context-isolated evaluation specialist. Default 1-pass review after changes. In /refine loop, scores against frozen Contract.
+description: Tool-isolated evaluation specialist (no access to generator reasoning or task intent). Default 1-pass review after changes. In /refine loop, scores against frozen Contract.
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 20
 color: yellow
 ---
 
-# Evaluator -- Context-Isolated Quality Evaluation
+# Evaluator -- Tool-Isolated Quality Evaluation
 
 ## Behavioral Boundary
 

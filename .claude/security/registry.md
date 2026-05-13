@@ -56,6 +56,21 @@ The `Last reviewed` field is the date of the most recent state-changing edit
 to the component itself OR to its eval-suite OR to its `risk-registry.md`
 row — whichever is latest.
 
+## Re-eval cadence (documentation only — no automation)
+
+Component-code changes are already handled by the skip protocol (`active → reviewed`
+on frontmatter/body edit). The following triggers cover the remaining cases where
+an `active` component should be re-evaluated despite no local change:
+
+- the upstream Anthropic enterprise checklist is updated → re-run all eval suites;
+- a component's eval suite is modified → re-run that suite;
+- `Last reviewed` is older than 12 months → re-run (fallback; the 12-month figure
+  is heuristic, chosen to prevent indefinite staleness without prescribing tight
+  cadence on rarely-changing components).
+
+Automation (cron, CI scheduler) is intentionally out of scope for this registry;
+the cadence is a manual operations guideline. Carries AUD-2026-025.
+
 ## Verification — end-state for Phase 4
 
 ```bash

@@ -98,13 +98,19 @@ application*:
 
 ## 7. Counter-test (Karpathy 4-rule alignment)
 
-Working conditions of this rule:
-- output anchor hit ratio ≥ 80% (default).
-- user-essence attestation gate passed.
-- prior-turn protocol-application self-check section present.
-- self-reference / forbidden pattern grep = 0.
+Termination conditions (primary — all four required to terminate the task):
+- output anchor hit ratio ≥ 80% (P1)
+- user-essence attestation gate passed (P4)
+- prior-turn protocol-application self-check section present (P6)
+- self-reference / forbidden pattern grep = 0 (per §1 frozen-file forbidden patterns)
 
-All four satisfied → task termination. Any one violated → P3 (Stop) applies.
+Process conditions (apply during iteration, not at termination — AUD-2026-010):
+- P2 essence check (primary thesis position > subordinate clauses) — applied per iteration deliverable
+- P3 Quick-Answer Stop on missing cause-analysis — applied at every response opening
+- P5 frame-of-reference externalization (gap matrix in every iteration deliverable)
+
+All four primary satisfied AND process conditions applied each iteration → task termination.
+Any primary violated → P3 (Stop) applies.
 
 ---
 

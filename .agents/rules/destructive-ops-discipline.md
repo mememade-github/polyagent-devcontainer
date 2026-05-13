@@ -38,6 +38,8 @@ Without this list, the agent has not satisfied Karpathy R1
 | `rm -rf <dir>` | `rm <files>` enumerated; move to a `.trash/` for review window; verify nothing references the path first |
 | repository-wide regex replace | path-scoped replace; one-by-one Edit with context |
 | `docker volume rm` | inspect volume contents first; rename the volume to `<name>-archived-YYYYMMDD` instead |
+| `docker rm -f <container>` | `docker stop <container>` first to allow graceful shutdown (in-flight transactions complete); use `-f` only after stop fails or for stateless containers |
+| `mv` / `cp` (overwrite of existing destination) | rename existing destination to `<dst>.bak.YYYYMMDD` first; `diff <src> <dst>` to confirm intent; use `mv --no-clobber` to make accidental overwrite fail loudly |
 | `DROP TABLE` / `DELETE` (bulk) | soft-delete column; archive table to `<name>_archived_YYYYMMDD`; verify backups exist and are restorable |
 
 The list is illustrative, not exhaustive. The principle is: ask

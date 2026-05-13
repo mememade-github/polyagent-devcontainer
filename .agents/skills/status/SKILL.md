@@ -1,6 +1,6 @@
 ---
 name: status
-description: Show workspace status - all git repos, services, WIP tasks, and environment health
+description: Show workspace status - all git repos, WIP tasks, and environment health
 user-invocable: true
 allowed-tools: Bash, Read, Glob, Grep
 ---
