@@ -6,7 +6,7 @@ license: MIT
 
 # Karpathy Guidelines
 
-> **Skill handle / OSS attribution mirror.** Source of truth is `.claude/rules/behavioral-core.md` (auto-imported in CLAUDE.md `@` chain). This file exists separately so (a) the skill is discoverable via skill listings with proper frontmatter and (b) upstream MIT attribution + Karpathy source link are preserved inside the OSS-distributed template. When editing, also update behavioral-core.md and `diff` the two — only frontmatter / attribution / source-link should differ. Body content (the 4 rules) stays synchronized. Carries AUD-2026-018.
+> **Skill handle / OSS attribution mirror.** Source of truth is `.claude/rules/behavioral-core.md` (auto-imported in CLAUDE.md `@` chain). This file exists separately so (a) the skill is discoverable via skill listings with proper frontmatter and (b) upstream MIT attribution + Karpathy source link are preserved inside the OSS-distributed template. When editing, also update behavioral-core.md. Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ. AUD-2026-018: this comparison is automated by `scripts/meta/karpathy-consistency-check.sh`.
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
@@ -67,3 +67,7 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

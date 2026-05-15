@@ -1,6 +1,6 @@
 # Behavioral Core
 
-> **Source of truth.** A near-identical copy exists at `.claude/skills/karpathy-guidelines/SKILL.md` (skill-discovery handle that preserves upstream MIT attribution and source link). When editing this file, also update the skill — `diff` the two after editing to confirm only frontmatter / attribution / source-link differ. Carries AUD-2026-018: a future CI check should automate this comparison.
+> **Source of truth.** A near-identical copy exists at `.claude/skills/karpathy-guidelines/SKILL.md` (skill-discovery handle that preserves upstream MIT attribution and source link). When editing this file, also update the skill. Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ. AUD-2026-018: this comparison is automated by `scripts/meta/karpathy-consistency-check.sh`.
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
