@@ -40,28 +40,15 @@ The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's 
 | Skills | 5 | /refine, /status, /verify, /wiki, karpathy-guidelines |
 | Tools | 20+ | ripgrep, fd, fzf, jq, tmux, gh, docker CLI, uv |
 
-## Ports
-
-Configured in `.devcontainer/.env`. Defaults:
-
-| Variable | Default | Use |
-|----------|--------:|-----|
-| PORT_APP   | 31000 | App / dev server |
-| PORT_API   | 31080 | API |
-| PORT_DB    | 31432 | Database |
-| PORT_EXTRA | 31379 | Redis, queue, etc. |
-
-To change: edit `.devcontainer/.env` and the matching `forwardPorts` in `.devcontainer/devcontainer.json`, then rebuild.
-
 ## Customizing for your project
 
 After the first container start, ask either agent:
 
 ```
 Initialize this project. Ask me about: project name, languages/frameworks,
-required services, port mapping, server info, test framework, CI/CD,
+required services, server info, test framework, CI/CD,
 commit message language. Then update CLAUDE.md/AGENTS.md/PROJECT.md/
-REFERENCE.md, .devcontainer/.env, devcontainer.json forwardPorts, and
+REFERENCE.md, .devcontainer/.env, and
 .claude/rules/project/. Verify with .devcontainer/verify-template.sh.
 ```
 
@@ -89,7 +76,6 @@ Always use **Reopen in Container** (`Ctrl+Shift+P`). Attach connects to a runnin
 | Reopen menu missing | Install the Dev Containers extension |
 | Claude re-auth needed | `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | `docker volume ls \| grep codex-config` |
-| Port collision | Edit `.env` PORT_* + `devcontainer.json` forwardPorts, rebuild |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
 
 ## License & history

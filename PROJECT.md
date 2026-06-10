@@ -28,10 +28,6 @@ Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, wi
 
 Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way overlay (preserve-extras).
 
-## Ports
-
-Default port band: 31000. Mapping is HOST 3xxxx → CONTAINER standard (3000, 8080, 5432, 6379). All values are configured in `.devcontainer/.env`. Full table in [REFERENCE.md](REFERENCE.md#ports).
-
 ## Environment
 
 - **Configuration**: `.devcontainer/.env` (single source for all user-tunable values)

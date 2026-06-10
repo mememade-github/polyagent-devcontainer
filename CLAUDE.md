@@ -88,7 +88,6 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 
 ## Environment
 
-- **Ports**: `.devcontainer/.env` (`PORT_APP`, `PORT_API`, `PORT_DB`, `PORT_EXTRA`).
 - **Claude Code**: native binary (`~/.local/bin/claude`, auto-updated).
 - **Codex CLI**: npm global (`~/.npm-global/bin/codex`).
 - **Node.js**: Node 22 LTS installed for Codex CLI. Additional version installed if `PROJECT_NODE_VERSION` is set.

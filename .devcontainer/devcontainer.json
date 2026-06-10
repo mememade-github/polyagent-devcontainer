@@ -59,30 +59,6 @@
   },
 
   // ==========================================================================
-  // Ports — .env PORT_* 변수와 일치시키세요
-  // .env 포트 변경 시 여기도 함께 수정 필요
-  // ==========================================================================
-  "forwardPorts": [31000, 31080, 31432, 31379],
-  "portsAttributes": {
-    "31000": {
-      "label": "App (.env PORT_APP)",
-      "onAutoForward": "notify"
-    },
-    "31080": {
-      "label": "API (.env PORT_API)",
-      "onAutoForward": "notify"
-    },
-    "31432": {
-      "label": "Database (.env PORT_DB)",
-      "onAutoForward": "silent"
-    },
-    "31379": {
-      "label": "Extra (.env PORT_EXTRA)",
-      "onAutoForward": "silent"
-    }
-  },
-
-  // ==========================================================================
   // Lifecycle
   // ==========================================================================
   "postCreateCommand": "/usr/local/bin/setup-env.sh",

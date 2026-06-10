@@ -101,7 +101,6 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 
 ## Environment
 
-- **Ports**: `.devcontainer/.env` (`PORT_APP`, `PORT_API`, `PORT_DB`, `PORT_EXTRA`).
 - **Claude Code**: native binary (`~/.local/bin/claude`, auto-updated).
 - **Codex CLI**: npm global (`~/.npm-global/bin/codex`).
 - **Node.js**: Node 22 LTS installed for Codex CLI. Additional version installed if `PROJECT_NODE_VERSION` is set.
@@ -150,7 +149,7 @@ Codex CLI does not auto-follow file references, so explicitly `Read` these:
 ## Domain context
 
 - [PROJECT.md](PROJECT.md) — domain context (services, infrastructure)
-- [REFERENCE.md](REFERENCE.md) — commands, environment variables, ports, troubleshooting
+- [REFERENCE.md](REFERENCE.md) — commands, environment variables, troubleshooting
 
 ---
 

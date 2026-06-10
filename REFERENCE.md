@@ -31,22 +31,7 @@ All user-tunable values live in `.devcontainer/.env`.
 | `IMAGE_TAG` | `latest` | docker-compose.yml | Image tag |
 | `TZ` | `UTC` | docker-compose.yml | Timezone |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
-| `PORT_APP` | `31000` | docker-compose.yml ports | App / dev server |
-| `PORT_API` | `31080` | docker-compose.yml ports | API |
-| `PORT_DB` | `31432` | docker-compose.yml ports | Database |
-| `PORT_EXTRA` | `31379` | docker-compose.yml ports | Redis / queue / etc. |
 | `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | HOST path for cross-namespace bind mounts (see `.claude/rules/devcontainer-patterns.md`) |
-
-## Ports
-
-| Variable | Default | `devcontainer.json` | Use |
-|----------|--------:|---------------------|-----|
-| `PORT_APP`   | 31000 | `forwardPorts[0]` | App, dev server |
-| `PORT_API`   | 31080 | `forwardPorts[1]` | API |
-| `PORT_DB`    | 31432 | `forwardPorts[2]` | Database |
-| `PORT_EXTRA` | 31379 | `forwardPorts[3]` | Redis, queue |
-
-When changing ports, update both `.env` and `forwardPorts` and rebuild.
 
 ## Runtime isolation
 
@@ -184,7 +169,6 @@ codex --version
 | Claude re-auth needed | check named volume: `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | check named volume: `docker volume ls \| grep codex-config` |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
-| Port collision | edit `.env` `PORT_*` + `devcontainer.json` `forwardPorts`, rebuild |
 | Hook test fails | `export CLAUDE_PROJECT_DIR=/workspaces` (Codex: `CODEX_PROJECT_DIR`) |
 | Git permission errors | `git config core.filemode false` |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
