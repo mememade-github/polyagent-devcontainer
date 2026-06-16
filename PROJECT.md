@@ -36,7 +36,7 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way
 ## Distribution
 
 - **GitHub** (origin): `mememade-github/polyagent-devcontainer` — development ground truth
-- **Internal GitLab mirror**: shipped as an in-tree template at `.gitlab-ci.yml`. The consumer wires it to their GitLab project (register a Runner, set `GITLAB_PUSH_TOKEN`, add a schedule).
+- **Internal GitLab mirror**: the `.gitlab-ci.yml` pull-mirror template is kept **local-only** (gitignored), not shipped in-tree. Its scheduled pipeline force-resets the repo to an upstream and force-pushes, which would overwrite any consumer that registers a Runner — so it is not distributed by default. Wire it manually from the local file if you need a Runner-based mirror (register a Runner, set `GITLAB_PUSH_TOKEN`, add a schedule).
 
 ---
 

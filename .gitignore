@@ -64,3 +64,11 @@ Thumbs.db
 
 # Serena MCP — per-project state (auto-generated, do not track)
 .serena/
+
+# -----------------------------------------------------------------------------
+# GitLab CI pull-mirror template — local-only (not shipped tracked)
+# -----------------------------------------------------------------------------
+# Its scheduled pipeline force-resets to an upstream and force-pushes, which
+# would overwrite any consumer repo that registers a Runner + schedule. Kept
+# locally for manual mirror wiring; never tracked/pushed. See PROJECT.md.
+/.gitlab-ci.yml
