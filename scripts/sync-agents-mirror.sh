@@ -60,8 +60,11 @@ for SUB in rules skills security; do
         fi
     else
         # Preserve-extras: overlay source onto dest. dest-only files retained.
+        # 9p/WSL2 bind mount rejects utime()/permission preservation (Operation not
+        # permitted) — so plain -R (no attribute preserve). Mirror parity needs CONTENT
+        # only; git tracks mode separately (AUD-2026: 9p sync fix). Overlay keeps extras.
         mkdir -p "$DST_SUB"
-        cp -a "$SRC_SUB"/. "$DST_SUB"/
+        cp -R "$SRC_SUB"/. "$DST_SUB"/
         echo "[SYNC] $SUB/ (preserve-extras)"
         CHANGED=$((CHANGED + 1))
     fi
