@@ -24,6 +24,15 @@ node --version > /dev/null 2>&1 && record PASS "node ($(node --version))" || rec
 /home/vscode/.local/bin/uv --version > /dev/null 2>&1 && record PASS "uv" || record FAIL "uv"
 python3 --version > /dev/null 2>&1 && record PASS "python3 ($(python3 --version 2>&1))" || record FAIL "python3"
 
+# --- PHASE 1b: setup-env.sh lifecycle integrity ---
+echo ""
+echo "=== Phase 1b: setup-env.sh lifecycle ==="
+SETUP="$PROJECT_DIR/.devcontainer/setup-env.sh"
+grep -q 'STEP_TOTAL=5' "$SETUP" 2>/dev/null && record PASS "setup-env: STEP_TOTAL=5" || record FAIL "setup-env: STEP_TOTAL (expected 5)"
+grep -q 'SKIP_CLAUDE_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Claude update step" || record FAIL "setup-env: Claude update step"
+grep -q 'SKIP_CODEX_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update step (SKIP_CODEX_UPDATE)" || record FAIL "setup-env: Codex update step"
+grep -q '@openai/codex@latest' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update via prefix npm (not codex update)" || record FAIL "setup-env: Codex update mechanism"
+
 # --- PHASE 2: Config files ---
 echo ""
 echo "=== Phase 2: Config Files ==="

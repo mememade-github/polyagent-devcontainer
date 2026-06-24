@@ -7,7 +7,7 @@ set -e
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-STEP_TOTAL=4
+STEP_TOTAL=5
 STEP=0
 step() { STEP=$((STEP + 1)); echo "[${STEP}/${STEP_TOTAL}] $1"; }
 
@@ -80,7 +80,36 @@ else
 fi
 
 # =============================================================================
-# 4. Codex CLI — project-local config symlink
+# 4. Codex CLI — idempotent latest-version sync
+# =============================================================================
+# Parity with Claude (step 3): keep the Codex CLI current on each container
+# start instead of frozen at the image-build snapshot. Failure is soft (does
+# not block startup). Skip with SKIP_CODEX_UPDATE=1.
+#
+# Do NOT use `codex update`: its built-in updater runs `npm install -g
+# @openai/codex` against the DEFAULT global prefix (/usr/lib/node_modules),
+# which the unprivileged `vscode` user cannot write (EACCES, exit 243). The
+# Dockerfile installs Codex to --prefix ~/.npm-global precisely so it stays
+# updatable without root, so mirror that exact install command here.
+step "Codex CLI version..."
+CODEX_NPM_PREFIX="${HOME}/.npm-global"
+if ! command -v codex &>/dev/null && [ ! -x "${CODEX_NPM_PREFIX}/bin/codex" ]; then
+    echo "      WARN: codex CLI not installed — skipping update"
+elif [ "${SKIP_CODEX_UPDATE:-}" = "1" ]; then
+    echo "      Skipped (SKIP_CODEX_UPDATE=1), current: $(codex --version 2>/dev/null)"
+else
+    BEFORE=$(codex --version 2>/dev/null | awk '{print $2}')
+    npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest >/dev/null 2>&1 || true
+    AFTER=$(codex --version 2>/dev/null | awk '{print $2}')
+    if [ "$BEFORE" = "$AFTER" ]; then
+        echo "      $AFTER (already latest)"
+    else
+        echo "      $BEFORE -> $AFTER"
+    fi
+fi
+
+# =============================================================================
+# 5. Codex CLI — project-local config symlink
 # =============================================================================
 # Codex auto-loads ~/.codex/config.toml only. If the project ships its own
 # .codex/config.toml at the workspace root, link it so the project's sandbox/

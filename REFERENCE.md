@@ -57,18 +57,20 @@ Aliases:
 ```
 Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
   └── setup-env.sh (idempotent; postCreateCommand runs it once on first build)
-        [1/4] Permissions   — Docker socket ownership, git core.filemode,
+        [1/5] Permissions   — Docker socket ownership, git core.filemode,
                               git safe.directory, command-history setup
-        [2/4] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
-        [3/4] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
-        [4/4] Codex config   — symlink /workspaces/.codex/config.toml into ~/.codex/
+        [2/5] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
+        [3/5] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
+        [4/5] Codex CLI      — `npm i -g --prefix ~/.npm-global @openai/codex@latest`
+                              (skip with SKIP_CODEX_UPDATE=1)
+        [5/5] Codex config   — symlink /workspaces/.codex/config.toml into ~/.codex/
 
 postStartCommand (every start, devcontainer.json)
   git config core.filemode false
 ```
 
 Both `docker compose up` and VS Code "Reopen in Container" route through
-`entrypoint.sh`, so the 4 steps run regardless of how the container was started.
+`entrypoint.sh`, so the 5 steps run regardless of how the container was started.
 
 ## Persistent volumes
 
@@ -100,11 +102,16 @@ The template intentionally pulls latest releases at build/run time:
 - **Codex CLI**: `npm install -g @openai/codex` (latest published, unpinned).
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
   unless `SKIP_CLAUDE_UPDATE=1` is set.
+- **Codex update**: every container start re-runs `npm install -g --prefix
+  ~/.npm-global @openai/codex@latest` (`setup-env.sh` step 4), unless
+  `SKIP_CODEX_UPDATE=1` is set. Codex's built-in `codex update` is **not** used:
+  it targets the root-owned default npm prefix (`/usr/lib/node_modules`) and
+  fails as the unprivileged `vscode` user.
 
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin: replace the Claude installer URL with a tagged
 release, set `npm install -g @openai/codex@<version>`, and export
-`SKIP_CLAUDE_UPDATE=1` in `devcontainer.json`.
+`SKIP_CLAUDE_UPDATE=1` and `SKIP_CODEX_UPDATE=1` in `devcontainer.json`.
 
 ## Agent system
 
