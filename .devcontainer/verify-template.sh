@@ -74,6 +74,19 @@ else
 fi
 grep -Fq '.vscode/' "$PROJECT_DIR/PROJECT.md" 2>/dev/null && record PASS "scope-membership: .vscode documented as editor settings" || record FAIL "scope-membership: .vscode documentation"
 
+# --- PHASE 1e: secret-pattern false-positive regression (audit-discipline §2) ---
+# Phase 1d asserts the sk- pattern STRING is present (positive axis only). This
+# guard exercises BOTH axes against the live hook pattern: a real sk- key is still
+# detected, AND the repo's own `task-YYYYMMDD-description` convention is NOT flagged
+# (the bare sk- run over-matched any "...sk-<20+ word/hyphen chars>"). Fixtures are
+# fragment-built / boundary-safe so this file never trips the gate it tests.
+echo ""
+echo "=== Phase 1e: Secret-pattern false-positive regression ==="
+eval "$(grep -m1 '^SECRET_PATTERNS=' "$CLAUDE_PRECOMMIT" 2>/dev/null)"
+_sk_key="sk-proj-$(printf '%s' 'T3BlbkFJabcdefghij0123456789')"
+printf '%s' "$_sk_key" | grep -qE "$SECRET_PATTERNS" && record PASS "secret-pattern: detects real sk- key (positive)" || record FAIL "secret-pattern: missed real sk- key"
+printf 'wip/task-YYYYMMDD-description/README.md' | grep -qE "$SECRET_PATTERNS" && record FAIL "secret-pattern: FALSE POSITIVE on task-YYYYMMDD-description" || record PASS "secret-pattern: no FP on hyphenated identifier (regression)"
+
 # --- PHASE 2: Config files ---
 echo ""
 echo "=== Phase 2: Config Files ==="
