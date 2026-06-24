@@ -76,16 +76,31 @@ grep -Fq '.vscode/' "$PROJECT_DIR/PROJECT.md" 2>/dev/null && record PASS "scope-
 
 # --- PHASE 1e: secret-pattern false-positive regression (audit-discipline §2) ---
 # Phase 1d asserts the sk- pattern STRING is present (positive axis only). This
-# guard exercises BOTH axes against the live hook pattern: a real sk- key is still
-# detected, AND the repo's own `task-YYYYMMDD-description` convention is NOT flagged
-# (the bare sk- run over-matched any "...sk-<20+ word/hyphen chars>"). Fixtures are
-# fragment-built / boundary-safe so this file never trips the gate it tests.
+# guard exercises BOTH axes against BOTH live hook patterns: a real sk- key is
+# still detected, AND the repo's own `task-YYYYMMDD-description` convention is
+# NOT flagged (the bare sk- run over-matched any "...sk-<20+ word/hyphen chars>").
+# Fixtures are fragment-built / boundary-safe so this file never trips the gate it
+# tests.
 echo ""
 echo "=== Phase 1e: Secret-pattern false-positive regression ==="
-eval "$(grep -m1 '^SECRET_PATTERNS=' "$CLAUDE_PRECOMMIT" 2>/dev/null)"
 _sk_key="sk-proj-$(printf '%s' 'T3BlbkFJabcdefghij0123456789')"
-printf '%s' "$_sk_key" | grep -qE "$SECRET_PATTERNS" && record PASS "secret-pattern: detects real sk- key (positive)" || record FAIL "secret-pattern: missed real sk- key"
-printf 'wip/task-YYYYMMDD-description/README.md' | grep -qE "$SECRET_PATTERNS" && record FAIL "secret-pattern: FALSE POSITIVE on task-YYYYMMDD-description" || record PASS "secret-pattern: no FP on hyphenated identifier (regression)"
+_task_path="wip/task-YYYYMMDD-description/README.md"
+_claude_secret_line=$(grep -m1 '^SECRET_PATTERNS=' "$CLAUDE_PRECOMMIT" 2>/dev/null)
+_codex_secret_line=$(grep -m1 '^SECRET_PATTERNS=' "$CODEX_PRECOMMIT" 2>/dev/null)
+[ -n "$_claude_secret_line" ] && [ "$_claude_secret_line" = "$_codex_secret_line" ] && record PASS "secret-pattern: Claude/Codex pattern parity" || record FAIL "secret-pattern: Claude/Codex pattern parity"
+for _hook_spec in "Claude:$_claude_secret_line" "Codex:$_codex_secret_line"; do
+    _hook_name=${_hook_spec%%:*}
+    _secret_line=${_hook_spec#*:}
+    _secret_pattern=${_secret_line#SECRET_PATTERNS=}
+    _secret_pattern=${_secret_pattern#\'}
+    _secret_pattern=${_secret_pattern%\'}
+    if [ -z "$_secret_line" ] || [ "$_secret_pattern" = "$_secret_line" ]; then
+        record FAIL "$_hook_name secret-pattern: live pattern parse"
+        continue
+    fi
+    printf '%s' "$_sk_key" | grep -qE "$_secret_pattern" && record PASS "$_hook_name secret-pattern: detects real sk- key (positive)" || record FAIL "$_hook_name secret-pattern: missed real sk- key"
+    printf '%s' "$_task_path" | grep -qE "$_secret_pattern" && record FAIL "$_hook_name secret-pattern: FALSE POSITIVE on task-YYYYMMDD-description" || record PASS "$_hook_name secret-pattern: no FP on hyphenated identifier (regression)"
+done
 
 # --- PHASE 2: Config files ---
 echo ""
