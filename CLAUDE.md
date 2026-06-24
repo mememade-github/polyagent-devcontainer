@@ -2,7 +2,7 @@
 
 Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below).
 
-The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`) so the evaluator agent and explicit invocations can reference them as a handle. Cursor mirror: [`.cursor/rules/karpathy-guidelines.mdc`](.cursor/rules/karpathy-guidelines.mdc). Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
+The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`) so the evaluator agent and explicit invocations can reference them as a handle. Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 ## Identity
 
@@ -29,7 +29,6 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 │   ├── hooks.json                  # Event hooks
 │   ├── hooks/                      # 4 hook scripts
 │   └── state/                      # Runtime markers (gitignored)
-├── .cursor/                        # Cursor mirror (rules/karpathy-guidelines.mdc)
 ├── scripts/
 │   └── sync-agents-mirror.sh       # .claude/ → .agents/ one-way sync (preserve-extras)
 └── .devcontainer/                  # Container configuration

@@ -1,10 +1,10 @@
 # Polyagent DevContainer
 
-DevContainer template for running multiple AI coding agents (Claude Code · Codex CLI) in parity on the same project, with Cursor as a config-only mirror. The container is workspace-scoped, not a security sandbox — see [REFERENCE.md § Privilege boundary](REFERENCE.md#privilege-boundary) for the docker.sock / docker-group implications.
+DevContainer template for running multiple AI coding agents (Claude Code · Codex CLI) in parity on the same project. The container is workspace-scoped, not a security sandbox — see [REFERENCE.md § Privilege boundary](REFERENCE.md#privilege-boundary) for the docker.sock / docker-group implications.
 
-Single ground truth (`.claude/`) + per-vendor mirror (`.agents/`, `.codex/`, `.cursor/rules/`). Adding a new vendor reuses the mirror pattern instead of rewriting governance.
+Single ground truth (`.claude/`) + per-vendor mirror (`.agents/`, `.codex/`). Adding a new vendor reuses the mirror pattern instead of rewriting governance.
 
-Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution) auto-loaded for Claude (`@import` in `CLAUDE.md`), inlined for Codex (`AGENTS.md`), and registered as an always-on rule for Cursor (`.cursor/rules/karpathy-guidelines.mdc`).
+Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution) auto-loaded for Claude (`@import` in `CLAUDE.md`) and inlined for Codex (`AGENTS.md`).
 
 ## Requirements
 

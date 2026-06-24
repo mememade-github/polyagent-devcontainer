@@ -16,7 +16,7 @@
 #
 # Mode:
 #   GLOBAL (ROOT contains products/) — workspace origin. Asserts the full
-#           distribution matrix: 16 behavioral-core + 16 SKILL + 8 .cursor.
+#           distribution matrix: 16 behavioral-core + 16 SKILL.
 #   LEAF   (no products/)           — a standalone receiver clone. Asserts the
 #           local repo's pair is self-consistent (count-agnostic).
 #
@@ -65,18 +65,16 @@ note_fail() { echo "[FAIL] $1"; FAIL=$((FAIL + 1)); }
 # --- Enumerate (find, path-predicate, verbatim) ---
 mapfile -t BC_FILES < <(find "$ROOT" -type f \( -path '*/.claude/rules/behavioral-core.md' -o -path '*/.agents/rules/behavioral-core.md' \) | sort)
 mapfile -t SK_FILES < <(find "$ROOT" -type f \( -path '*/.claude/skills/karpathy-guidelines/SKILL.md' -o -path '*/.agents/skills/karpathy-guidelines/SKILL.md' \) | sort)
-mapfile -t CU_FILES < <(find "$ROOT" -type f -path '*/.cursor/rules/karpathy-guidelines.mdc' | sort)
 
 MODE="LEAF"
 [ -d "$ROOT/products" ] && MODE="GLOBAL"
 echo "=== karpathy-consistency-check  mode=$MODE  root=$ROOT ==="
-echo "behavioral-core=${#BC_FILES[@]}  SKILL=${#SK_FILES[@]}  cursor=${#CU_FILES[@]}"
+echo "behavioral-core=${#BC_FILES[@]}  SKILL=${#SK_FILES[@]}"
 
 # --- 1-3. Count assertions (GLOBAL only; LEAF is count-agnostic but >=1) ---
 if [ "$MODE" = "GLOBAL" ]; then
     [ "${#BC_FILES[@]}" -eq 16 ] && note_pass "behavioral-core count = 16" || note_fail "behavioral-core count = ${#BC_FILES[@]} (expected 16)"
     [ "${#SK_FILES[@]}" -eq 16 ] && note_pass "SKILL count = 16"           || note_fail "SKILL count = ${#SK_FILES[@]} (expected 16)"
-    [ "${#CU_FILES[@]}" -eq 8 ]  && note_pass "cursor mdc count = 8"        || note_fail "cursor mdc count = ${#CU_FILES[@]} (expected 8)"
 else
     [ "${#BC_FILES[@]}" -ge 1 ] && [ "${#SK_FILES[@]}" -ge 1 ] && note_pass "leaf: pair present (bc=${#BC_FILES[@]} skill=${#SK_FILES[@]})" || note_fail "leaf: behavioral-core/SKILL pair missing"
 fi
@@ -105,9 +103,9 @@ for f in "${BC_FILES[@]}" "${SK_FILES[@]}"; do
 done
 [ "$INV_OK" -eq 1 ] && note_pass "invariant sentence present in all bc+skill"
 
-# --- 6. Narrow phrase global count == 0 (bc + skill + cursor) ---
+# --- 6. Narrow phrase global count == 0 (bc + skill) ---
 NARROW_HITS=0
-for f in "${BC_FILES[@]}" "${SK_FILES[@]}" "${CU_FILES[@]}"; do
+for f in "${BC_FILES[@]}" "${SK_FILES[@]}"; do
     grep -qF "$NARROW" "$f" && NARROW_HITS=$((NARROW_HITS + 1))
 done
 [ "$NARROW_HITS" -eq 0 ] && note_pass "narrow phrase global count = 0" || note_fail "narrow phrase still present in $NARROW_HITS file(s)"
@@ -118,15 +116,6 @@ for f in "${BC_FILES[@]}" "${SK_FILES[@]}"; do
     grep -qF "$CODA" "$f" || { note_fail "coda missing: $f"; CODA_OK=0; }
 done
 [ "$CODA_OK" -eq 1 ] && note_pass "closing coda present in all bc+skill"
-
-# --- 8. Every .cursor mdc retains the coda (content scope-out; presence check) ---
-if [ "${#CU_FILES[@]}" -gt 0 ]; then
-    CU_OK=1
-    for f in "${CU_FILES[@]}"; do
-        grep -qF "$CODA" "$f" || { note_fail "cursor coda missing: $f"; CU_OK=0; }
-    done
-    [ "$CU_OK" -eq 1 ] && note_pass "all ${#CU_FILES[@]} cursor mdc retain coda"
-fi
 
 echo "=== RESULT: $([ "$FAIL" -eq 0 ] && echo PASS || echo "FAIL ($FAIL)") ==="
 [ "$FAIL" -eq 0 ]

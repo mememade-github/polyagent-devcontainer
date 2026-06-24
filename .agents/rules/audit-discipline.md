@@ -89,7 +89,7 @@ work. The decision test (AUD-2026-008):
 
 - **REQUIRED** — if the audit output will be cited by another party
   (PR review, public docs, governance commit body, third-party report,
-  reachable Codex/Cursor cross-check handoff).
+  reachable Codex cross-check handoff).
 - **Recommended** — for internal audits whose conclusions stay within
   the auditor's own scope of action.
 
