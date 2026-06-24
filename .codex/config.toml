@@ -19,6 +19,11 @@
 # NOTE: TOML 규약상 최상위 키는 반드시 [section] 헤더보다 앞에 와야 함.
 sandbox_mode = "workspace-write"
 ask_for_approval = "on-request"
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
 
 [features]
 codex_hooks = true
+
+[projects."/workspaces"]
+trust_level = "trusted"

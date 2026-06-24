@@ -109,21 +109,28 @@ else
 fi
 
 # =============================================================================
-# 5. Codex CLI — project-local config symlink
+# 5. Codex CLI — project-local config
 # =============================================================================
 # Codex auto-loads ~/.codex/config.toml only. If the project ships its own
-# .codex/config.toml at the workspace root, link it so the project's sandbox/
+# .codex/config.toml at the workspace root, copy it so the project's sandbox/
 # approval policy applies. Auth (auth.json) stays in ~/.codex/ unchanged.
+#
+# Copy, NOT symlink: Codex writes runtime state (model-availability notices,
+# migration markers) back into ~/.codex/config.toml. A symlink pushes those
+# writes into the version-tracked project file and pollutes git. Copying keeps
+# the tracked file clean; the project file stays the source of intent.
 step "Codex project config..."
 WORKSPACE_CODEX_CONFIG="/workspaces/.codex/config.toml"
 USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
 if [ -f "$WORKSPACE_CODEX_CONFIG" ]; then
     mkdir -p "${HOME}/.codex"
-    if [ ! -e "$USER_CODEX_CONFIG" ]; then
-        ln -sf "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
-        echo "      Linked: ~/.codex/config.toml -> $WORKSPACE_CODEX_CONFIG"
-    elif [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$WORKSPACE_CODEX_CONFIG" ]; then
-        echo "      Already linked"
+    if [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$WORKSPACE_CODEX_CONFIG" ]; then
+        rm -f "$USER_CODEX_CONFIG"   # retire legacy symlink that leaked runtime writes into git
+        cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
+        echo "      Migrated symlink -> copy (prevents runtime-state leak)"
+    elif [ ! -e "$USER_CODEX_CONFIG" ]; then
+        cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
+        echo "      Copied: $WORKSPACE_CODEX_CONFIG -> ~/.codex/config.toml"
     else
         echo "      User config exists — preserved (not overwritten)"
     fi
