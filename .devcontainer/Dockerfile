@@ -96,6 +96,7 @@ RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
 # root 권한 없이 업데이트/관리 가능. PATH는 .bashrc에 추가.
 # =============================================================================
 RUN mkdir -p ${HOME}/.npm-global \
+    && npm config set prefix "${HOME}/.npm-global" \
     && npm install -g --prefix "${HOME}/.npm-global" @openai/codex \
     && echo 'export PATH="${HOME}/.npm-global/bin:${PATH}"' >> ${HOME}/.bashrc \
     && sudo ln -sf ${HOME}/.npm-global/bin/codex /usr/local/bin/codex \

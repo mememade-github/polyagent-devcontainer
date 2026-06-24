@@ -99,7 +99,9 @@ Both `docker compose up` and VS Code "Reopen in Container" route through
 
 The template intentionally pulls latest releases at build/run time:
 - **Claude Code**: `curl https://claude.ai/install.sh | bash` (latest at build).
-- **Codex CLI**: `npm install -g @openai/codex` (latest published, unpinned).
+- **Codex CLI**: `npm install -g @openai/codex` into `~/.npm-global`
+  (latest published, unpinned). The image and startup script set npm's global
+  prefix to the same directory so `codex doctor` and runtime updates agree.
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
   unless `SKIP_CLAUDE_UPDATE=1` is set.
 - **Codex update**: every container start re-runs `npm install -g --prefix

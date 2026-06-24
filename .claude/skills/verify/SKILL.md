@@ -23,7 +23,7 @@ Target: $ARGUMENTS (default: all)
 
 Run the project's completion-checker script if available:
 ```bash
-$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh
+bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"
 ```
 
 Or run verification for each detected project directory.

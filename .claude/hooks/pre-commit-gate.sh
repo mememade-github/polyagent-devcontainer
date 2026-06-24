@@ -43,7 +43,7 @@ fi
 
 # AUD-2026-030: secret-pattern scan on staged content. CLAUDE.md §7 "Protect secrets".
 # Extends pre-push-gate.sh Layer 1 (which only scans remote URL) to scan staged file content.
-SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
+SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|sk-[A-Za-z0-9_-]{20,}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
 if git -C "$PROJECT_DIR" diff --cached -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS"; then
   echo "Blocked: secret pattern detected in staged content." >&2
   echo "Inspect: git diff --cached" >&2

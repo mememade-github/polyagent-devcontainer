@@ -21,7 +21,7 @@ Use `$WORKSPACE_ROOT` for ALL subsequent paths.
 ## 1. Git Repos
 Delegate to the canonical git-status script (single source of truth for repo enumeration):
 ```bash
-"$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief
+bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief
 ```
 This covers root, products/root/*, products/derived/*, and nested repos within derived projects.
 

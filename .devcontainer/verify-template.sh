@@ -32,6 +32,47 @@ grep -q 'STEP_TOTAL=5' "$SETUP" 2>/dev/null && record PASS "setup-env: STEP_TOTA
 grep -q 'SKIP_CLAUDE_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Claude update step" || record FAIL "setup-env: Claude update step"
 grep -q 'SKIP_CODEX_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update step (SKIP_CODEX_UPDATE)" || record FAIL "setup-env: Codex update step"
 grep -q '@openai/codex@latest' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update via prefix npm (not codex update)" || record FAIL "setup-env: Codex update mechanism"
+grep -Fq 'npm config set prefix "${HOME}/.npm-global"' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: npm prefix matches Codex install" || record FAIL "Dockerfile: npm prefix"
+grep -Fq 'npm config set prefix "$CODEX_NPM_PREFIX"' "$SETUP" 2>/dev/null && record PASS "setup-env: npm prefix reconciled" || record FAIL "setup-env: npm prefix reconciled"
+grep -q 'CODEX_UPDATE_LOG' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update failures are visible" || record FAIL "setup-env: Codex update failure visibility"
+
+# --- PHASE 1c: Codex config hygiene ---
+echo ""
+echo "=== Phase 1c: Codex config hygiene ==="
+CODEX_CONFIG="$PROJECT_DIR/.codex/config.toml"
+grep -q '^hooks = true$' "$CODEX_CONFIG" 2>/dev/null && ! grep -q 'codex_hooks' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: modern hooks feature flag" || record FAIL "Codex config: hooks feature flag"
+! grep -Eq 'model_availability_nux|model_migrations|^\[tui\.|^\[notice\.' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: no runtime-state blocks" || record FAIL "Codex config: runtime-state block leaked"
+USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
+if [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$CODEX_CONFIG" ]; then
+    record FAIL "Codex user config: legacy symlink still points at tracked config"
+else
+    record PASS "Codex user config: no tracked-config symlink"
+fi
+
+# --- PHASE 1d: Governance regression guards ---
+echo ""
+echo "=== Phase 1d: Governance regression guards ==="
+CODEX_PRECOMMIT="$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"
+CLAUDE_PRECOMMIT="$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh"
+grep -Fq '[ -f "$CHECKER" ]' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: checker may be 0644" || record FAIL "Codex pre-commit: checker exec contract"
+grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: writes Codex marker" || record FAIL "Codex pre-commit: marker write"
+grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: sk-* secret pattern" || record FAIL "Codex pre-commit: sk-* secret pattern"
+grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CLAUDE_PRECOMMIT" 2>/dev/null && record PASS "Claude pre-commit: sk-* secret pattern" || record FAIL "Claude pre-commit: sk-* secret pattern"
+grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill: bash invocation contract" || record FAIL "status skill: bash invocation contract"
+grep -Fq 'bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.claude/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill: bash invocation contract" || record FAIL "verify skill: bash invocation contract"
+grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.agents/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill mirror: bash invocation contract" || record FAIL "status skill mirror: bash invocation contract"
+grep -Fq 'bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.agents/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill mirror: bash invocation contract" || record FAIL "verify skill mirror: bash invocation contract"
+if [ -e "$PROJECT_DIR/.cursor" ]; then
+    record FAIL "scope-membership: .cursor removed"
+else
+    record PASS "scope-membership: .cursor removed"
+fi
+if [ -d "$PROJECT_DIR/variants" ]; then
+    record FAIL "scope-membership: stale variants/ removed"
+else
+    record PASS "scope-membership: stale variants/ removed"
+fi
+grep -Fq '.vscode/' "$PROJECT_DIR/PROJECT.md" 2>/dev/null && record PASS "scope-membership: .vscode documented as editor settings" || record FAIL "scope-membership: .vscode documentation"
 
 # --- PHASE 2: Config files ---
 echo ""
@@ -102,8 +143,8 @@ rules_total=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
 # --- PHASE 2e: Codex hooks (4) ---
 echo ""
 echo "=== Phase 2e: Codex Hooks ==="
-codex_hooks=$(ls "$PROJECT_DIR"/.codex/hooks/*.sh 2>/dev/null | wc -l)
-[ "$codex_hooks" -eq 4 ] && record PASS "Codex hooks: $codex_hooks/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Codex hooks: $codex_hooks (expected 4)"
+codex_hook_count=$(ls "$PROJECT_DIR"/.codex/hooks/*.sh 2>/dev/null | wc -l)
+[ "$codex_hook_count" -eq 4 ] && record PASS "Codex hooks: $codex_hook_count/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Codex hooks: $codex_hook_count (expected 4)"
 for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"

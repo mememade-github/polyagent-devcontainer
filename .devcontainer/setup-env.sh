@@ -93,19 +93,32 @@ fi
 # updatable without root, so mirror that exact install command here.
 step "Codex CLI version..."
 CODEX_NPM_PREFIX="${HOME}/.npm-global"
-if ! command -v codex &>/dev/null && [ ! -x "${CODEX_NPM_PREFIX}/bin/codex" ]; then
+CODEX_BIN="$(command -v codex 2>/dev/null || true)"
+[ -z "$CODEX_BIN" ] && [ -x "${CODEX_NPM_PREFIX}/bin/codex" ] && CODEX_BIN="${CODEX_NPM_PREFIX}/bin/codex"
+
+if ! npm config set prefix "$CODEX_NPM_PREFIX" >/dev/null 2>&1; then
+    echo "      WARN: failed to set npm prefix to $CODEX_NPM_PREFIX"
+fi
+
+if [ -z "$CODEX_BIN" ]; then
     echo "      WARN: codex CLI not installed — skipping update"
 elif [ "${SKIP_CODEX_UPDATE:-}" = "1" ]; then
-    echo "      Skipped (SKIP_CODEX_UPDATE=1), current: $(codex --version 2>/dev/null)"
+    echo "      Skipped (SKIP_CODEX_UPDATE=1), current: $("${CODEX_BIN}" --version 2>/dev/null)"
 else
-    BEFORE=$(codex --version 2>/dev/null | awk '{print $2}')
-    npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest >/dev/null 2>&1 || true
-    AFTER=$(codex --version 2>/dev/null | awk '{print $2}')
-    if [ "$BEFORE" = "$AFTER" ]; then
-        echo "      $AFTER (already latest)"
+    BEFORE=$("${CODEX_BIN}" --version 2>/dev/null | awk '{print $2}')
+    CODEX_UPDATE_LOG=$(mktemp)
+    if npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest >"$CODEX_UPDATE_LOG" 2>&1; then
+        AFTER=$("${CODEX_BIN}" --version 2>/dev/null | awk '{print $2}')
+        if [ "$BEFORE" = "$AFTER" ]; then
+            echo "      $AFTER (already latest)"
+        else
+            echo "      $BEFORE -> $AFTER"
+        fi
     else
-        echo "      $BEFORE -> $AFTER"
+        echo "      WARN: Codex update failed; continuing with ${BEFORE:-unknown}"
+        tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
     fi
+    rm -f "$CODEX_UPDATE_LOG"
 fi
 
 # =============================================================================

@@ -22,7 +22,7 @@ PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
 ACTUAL_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_DIR")
 
 # AUD-2026-030: secret-pattern scan on staged content (mirror of Claude variant).
-SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
+SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|sk-[A-Za-z0-9_-]{20,}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
 if git -C "$ACTUAL_ROOT" diff --cached -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS"; then
   echo "Blocked: secret pattern detected in staged content (AGENTS.md Coding Rules item 1)." >&2
   echo "Inspect: git diff --cached" >&2
@@ -49,10 +49,11 @@ else
 fi
 
 if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
-  if [ -x "$CHECKER" ]; then
+  if [ -f "$CHECKER" ]; then
     bash "$CHECKER" >&2
     VERIFY_EXIT=$?
     if [ "$VERIFY_EXIT" -eq 0 ]; then
+      touch "$MARKER"
       exit 0
     fi
     echo "Auto-verification failed (exit $VERIFY_EXIT). Fix issues before committing." >&2

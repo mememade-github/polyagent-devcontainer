@@ -32,6 +32,7 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way
 
 - **Configuration**: `.devcontainer/.env` (single source for all user-tunable values)
 - **Persistent volumes**: `~/.claude` (Claude auth), `~/.codex` (Codex auth), `/commandhistory` (shell history)
+- **Editor workspace settings**: `.vscode/` is tracked for VS Code convenience settings; it is not an agent vendor.
 
 ## Distribution
 
