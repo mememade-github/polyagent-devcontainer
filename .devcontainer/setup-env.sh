@@ -87,32 +87,37 @@ fi
 # not block startup). Skip with SKIP_CODEX_UPDATE=1.
 #
 # Do NOT use `codex update`: its built-in updater runs `npm install -g
-# @openai/codex` against the DEFAULT global prefix (/usr/lib/node_modules),
-# which the unprivileged `vscode` user cannot write (EACCES, exit 243). The
-# Dockerfile installs Codex to --prefix ~/.npm-global precisely so it stays
-# updatable without root, so mirror that exact install command here.
+# @openai/codex` against the default global prefix, which the unprivileged
+# vscode user cannot write. The Dockerfile installs Codex to ~/.npm-global, so
+# mirror that install command here.
 step "Codex CLI version..."
 CODEX_NPM_PREFIX="${HOME}/.npm-global"
-CODEX_BIN="$(command -v codex 2>/dev/null || true)"
-[ -z "$CODEX_BIN" ] && [ -x "${CODEX_NPM_PREFIX}/bin/codex" ] && CODEX_BIN="${CODEX_NPM_PREFIX}/bin/codex"
-
-if ! npm config set prefix "$CODEX_NPM_PREFIX" >/dev/null 2>&1; then
-    echo "      WARN: failed to set npm prefix to $CODEX_NPM_PREFIX"
+CODEX_BIN=""
+if [ -x "${CODEX_NPM_PREFIX}/bin/codex" ]; then
+    CODEX_BIN="${CODEX_NPM_PREFIX}/bin/codex"
+else
+    CODEX_BIN="$(command -v codex 2>/dev/null || true)"
 fi
+
+codex_version() {
+    [ -n "$CODEX_BIN" ] || return 0
+    "$CODEX_BIN" --version 2>/dev/null | awk '{print $2}' || true
+}
 
 if [ -z "$CODEX_BIN" ]; then
     echo "      WARN: codex CLI not installed — skipping update"
 elif [ "${SKIP_CODEX_UPDATE:-}" = "1" ]; then
-    echo "      Skipped (SKIP_CODEX_UPDATE=1), current: $("${CODEX_BIN}" --version 2>/dev/null)"
+    echo "      Skipped (SKIP_CODEX_UPDATE=1), current: $(codex_version)"
 else
-    BEFORE=$("${CODEX_BIN}" --version 2>/dev/null | awk '{print $2}')
+    BEFORE=$(codex_version)
     CODEX_UPDATE_LOG=$(mktemp)
     if npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest >"$CODEX_UPDATE_LOG" 2>&1; then
-        AFTER=$("${CODEX_BIN}" --version 2>/dev/null | awk '{print $2}')
+        [ -x "${CODEX_NPM_PREFIX}/bin/codex" ] && CODEX_BIN="${CODEX_NPM_PREFIX}/bin/codex"
+        AFTER=$(codex_version)
         if [ "$BEFORE" = "$AFTER" ]; then
             echo "      $AFTER (already latest)"
         else
-            echo "      $BEFORE -> $AFTER"
+            echo "      $BEFORE → $AFTER"
         fi
     else
         echo "      WARN: Codex update failed; continuing with ${BEFORE:-unknown}"
@@ -142,7 +147,12 @@ else
 fi
 
 if [ -L "$USER_CODEX_CONFIG" ]; then
-    echo "      WARN: ~/.codex/config.toml is a symlink; replace it with explicit user config"
+    if [ "$(readlink "$USER_CODEX_CONFIG")" = "$WORKSPACE_CODEX_CONFIG" ]; then
+        rm -f "$USER_CODEX_CONFIG"
+        echo "      Removed legacy ~/.codex/config.toml symlink to project config"
+    else
+        echo "      WARN: ~/.codex/config.toml is a symlink; replace it with explicit user config"
+    fi
 elif [ -f "$USER_CODEX_CONFIG" ] && grep -q '^ask_for_approval[[:space:]]*=' "$USER_CODEX_CONFIG"; then
     echo "      WARN: existing user config uses obsolete ask_for_approval; use approval_policy"
 fi
