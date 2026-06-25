@@ -62,7 +62,18 @@ CPU ~0.8s user per run (rest is network). Cheap enough for a refine loop.
 
 Remove the non-functioning / meaningless evaluation path; **compose the
 evaluation as a prompt that admits only `{contract, diff}`** — this is the
-self-eval-drift reducer. Prompt-composition, not script/subprocess
-infrastructure, is the minimum that achieves evaluator independence
-(Karpathy R2). The earlier 8-commit DAG / subprocess-harness framing was
-over-engineered and is dropped.
+self-eval-drift reducer. The judgment stays the LLM's: **no scoring logic is
+scripted**, honoring the "evaluator = LLM judgment, not a script" direction.
+
+**Reconciliation (2026-06-25, post-implementation — corrects the line below to
+match what shipped).** The minimal-mechanism claim was *sharpened, not dropped*.
+Prompt-composition is the isolation *contract*; on Codex it cannot be delivered
+in-session, because Codex has no in-process sub-agent isolation, so an in-session
+prompt still carries the generator's full reasoning chain (Finding 3 above). The
+minimum that actually achieves evaluator independence on Codex is therefore a
+single fresh, **judgment-free** `codex exec --ephemeral` process
+(`scripts/meta/run-isolated-role.sh`) fed only `{contract, diff}` — isolation
+plumbing, not scripted judgment, and the shipped, fixture-verified path (commits
+`eb78d0e`, `6c61814`; verify-template role fixtures). What was genuinely
+over-engineered and dropped is the earlier **8-commit DAG / scorer-evolution**
+framing — *not* the ~65-line isolation helper, which is the minimum, not gold-plating.
