@@ -63,7 +63,7 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
         [3/5] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
         [4/5] Codex CLI      — `npm i -g --prefix ~/.npm-global @openai/codex@latest`
                               (skip with SKIP_CODEX_UPDATE=1)
-        [5/5] Codex config   — copy /workspaces/.codex/config.toml into ~/.codex/
+        [5/5] Codex config   — seed ~/.codex/config.toml when absent; preserve existing user config
 
 postStartCommand (every start, devcontainer.json)
   git config core.filemode false

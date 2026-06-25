@@ -131,7 +131,9 @@ fi
 # Copy, NOT symlink: Codex writes runtime state (model-availability notices,
 # migration markers) back into ~/.codex/config.toml. A symlink pushes those
 # writes into the version-tracked project file and pollutes git. Copying keeps
-# the tracked file clean; the project file stays the source of intent.
+# the tracked file clean. The project file seeds new user configs; an existing
+# user config is preserved so runtime additions and explicit user overrides are
+# not silently destroyed.
 step "Codex project config..."
 WORKSPACE_CODEX_CONFIG="/workspaces/.codex/config.toml"
 USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
