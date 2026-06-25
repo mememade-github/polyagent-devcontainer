@@ -56,14 +56,18 @@ Claude and Codex `refinement-gate.sh` markers exactly.
 - **Claude**: use a fresh `Agent` subagent for Audit, Modify, and Evaluate.
 - **Codex**: invoke `scripts/meta/run-isolated-role.sh` separately for `audit`,
   `modify`, and `evaluate`. The helper starts a new `codex exec --ephemeral`
-  process every time; Evaluate starts outside the repository to prevent
-  recursive AGENTS.md loading. Audit and Evaluate receive only read-only
-  evidence; Modify receives the Gap Report and task scope. Never use the parent
-  Codex context as its own evaluator.
+  process every time with `--ignore-user-config --disable hooks`; authentication
+  still comes from `CODEX_HOME`, while user config and project hooks cannot
+  pollute or recursively trigger child automation. Evaluate starts outside the
+  repository to prevent recursive AGENTS.md loading. Audit and Evaluate receive
+  only read-only evidence; Modify receives the Gap Report and task scope. Never
+  use the parent Codex context as its own evaluator.
 - In a DevContainer where bubblewrap is unavailable, the child may use
-  `--dangerously-bypass-approvals-and-sandbox`; capture
-  `git status --porcelain` before and after Audit/Evaluate and reject the result
-  if either read-only role changes the worktree.
+  `--dangerously-bypass-approvals-and-sandbox`. This is a compatibility fallback,
+  not a security boundary: the helper rejects Audit/Evaluate if HEAD, the index,
+  or any tracked, untracked, or ignored project-tree entry changes, including
+  file mode and symlink state. The single authorized output file is excluded
+  from that comparison.
 
 ## Step 0c: Pre-flight
 
@@ -143,7 +147,9 @@ SCORE=<parse .score>; GAPS=<failing IDs>; SUGGESTION=<parse .feedback>
 Contract JSON, `git diff --cached`, calibration anchors (calibrated only), and
 "read `$ATTEMPTS` for previous scores", plus the `$EVAL_JSON` output path. It
 writes its full report to `$EVAL_JSON` and returns ONLY
-`{"score":N,"suggestion":"one line"}`.
+`{"score":N,"suggestion":"one line"}`. The helper reserves `$EVAL_JSON` for that
+authored report, captures Codex's final message in a separate temporary file,
+prints the final message to stdout, and fails if the report is absent or empty.
 
 **Context isolation (load-bearing):** the evaluator MUST NOT receive the task
 description, the modifier's reasoning, or *why* changes were made. On Codex,

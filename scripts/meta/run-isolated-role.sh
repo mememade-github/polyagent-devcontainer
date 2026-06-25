@@ -13,10 +13,14 @@ case "$ROLE" in
     *) echo "Usage: $0 <audit|modify|evaluate> <project-root> <prompt-file> [output-file]" >&2; exit 2 ;;
 esac
 
-[ -d "$PROJECT_ROOT/.git" ] || { echo "ERROR: not a git repository: $PROJECT_ROOT" >&2; exit 2; }
+git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    { echo "ERROR: not a git repository: $PROJECT_ROOT" >&2; exit 2; }
+PROJECT_ROOT=$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)
 [ -f "$PROMPT_FILE" ] || { echo "ERROR: prompt file missing: $PROMPT_FILE" >&2; exit 2; }
 
+OUTPUT_REL=""
 if [ -n "$OUTPUT_FILE" ]; then
+    OUTPUT_FILE=$(realpath -m -- "$OUTPUT_FILE")
     case "$OUTPUT_FILE" in
         "$PROJECT_ROOT"/*)
             OUTPUT_REL=${OUTPUT_FILE#"$PROJECT_ROOT/"}
@@ -28,16 +32,55 @@ if [ -n "$OUTPUT_FILE" ]; then
     esac
 fi
 
-BEFORE=$(git -C "$PROJECT_ROOT" status --porcelain=v1)
+tree_fingerprint() {
+    local root=$1 excluded=$2
+    (
+        cd "$root"
+        find -P . -mindepth 1 -path './.git' -prune -o -print0 |
+            LC_ALL=C sort -z |
+            while IFS= read -r -d '' path; do
+                local rel=${path#./}
+                [ -n "$excluded" ] && [ "$rel" = "$excluded" ] && continue
+                printf '%s\0%s\0' "$rel" "$(stat -c '%F:%f:%u:%g:%s:%t:%T' -- "$path")"
+                if [ -L "$path" ]; then
+                    readlink -z -- "$path"
+                elif [ -f "$path" ]; then
+                    sha256sum < "$path" | cut -d ' ' -f 1 | tr '\n' '\0'
+                fi
+            done
+    ) | sha256sum | cut -d ' ' -f 1
+}
+
+repository_fingerprint() {
+    local head_ref head_oid index tree
+    head_ref=$(git -C "$PROJECT_ROOT" symbolic-ref -q HEAD || printf '%s' DETACHED)
+    head_oid=$(git -C "$PROJECT_ROOT" rev-parse --verify HEAD 2>/dev/null || printf '%s' UNBORN)
+    index=$(git -C "$PROJECT_ROOT" ls-files --stage -z | sha256sum | cut -d ' ' -f 1)
+    tree=$(tree_fingerprint "$PROJECT_ROOT" "$OUTPUT_REL")
+    printf '%s\n%s\n%s\n%s\n' "$head_ref" "$head_oid" "$index" "$tree"
+}
+
+if [ -n "$OUTPUT_FILE" ]; then
+    mkdir -p "$(dirname "$OUTPUT_FILE")"
+    [ "$ROLE" != "evaluate" ] || : > "$OUTPUT_FILE"
+fi
+
+BEFORE=$(repository_fingerprint)
 RUN_ROOT="$PROJECT_ROOT"
 ISOLATED_ROOT=""
+FINAL_OUTPUT=""
+cleanup() {
+    [ -z "$ISOLATED_ROOT" ] || rm -r "$ISOLATED_ROOT"
+    [ -z "$FINAL_OUTPUT" ] || rm -f "$FINAL_OUTPUT"
+}
+trap cleanup EXIT
+
 if [ "$ROLE" = "evaluate" ]; then
     ISOLATED_ROOT=$(mktemp -d)
-    trap 'rm -r "$ISOLATED_ROOT"' EXIT
     RUN_ROOT="$ISOLATED_ROOT"
 fi
 
-ARGS=(exec --ephemeral -C "$RUN_ROOT")
+ARGS=(exec --ephemeral --ignore-user-config --disable hooks -C "$RUN_ROOT")
 [ "$ROLE" = "evaluate" ] && ARGS+=(--skip-git-repo-check)
 
 if [ -f /.dockerenv ]; then
@@ -49,16 +92,39 @@ else
 fi
 
 if [ -n "$OUTPUT_FILE" ]; then
-    mkdir -p "$(dirname "$OUTPUT_FILE")"
-    ARGS+=(-o "$OUTPUT_FILE")
+    if [ "$ROLE" = "evaluate" ]; then
+        FINAL_OUTPUT=$(mktemp)
+        ARGS+=(-o "$FINAL_OUTPUT")
+    else
+        ARGS+=(-o "$OUTPUT_FILE")
+    fi
 fi
 
-"$CODEX_BIN" "${ARGS[@]}" - < "$PROMPT_FILE"
+CHILD_STATUS=0
+if [ "$ROLE" = "evaluate" ] && [ -n "$OUTPUT_FILE" ]; then
+    "$CODEX_BIN" "${ARGS[@]}" - < "$PROMPT_FILE" >/dev/null || CHILD_STATUS=$?
+else
+    "$CODEX_BIN" "${ARGS[@]}" - < "$PROMPT_FILE" || CHILD_STATUS=$?
+fi
 
 if [ "$ROLE" != "modify" ]; then
-    AFTER=$(git -C "$PROJECT_ROOT" status --porcelain=v1)
+    AFTER=$(repository_fingerprint)
     if [ "$BEFORE" != "$AFTER" ]; then
-        echo "ERROR: read-only role '$ROLE' changed the worktree." >&2
+        echo "ERROR: read-only role '$ROLE' changed HEAD, the index, or the project tree." >&2
         exit 1
     fi
+fi
+
+[ "$CHILD_STATUS" -eq 0 ] || exit "$CHILD_STATUS"
+
+if [ "$ROLE" = "evaluate" ] && [ -n "$OUTPUT_FILE" ]; then
+    [ -s "$OUTPUT_FILE" ] || {
+        echo "ERROR: evaluator did not write a full report: $OUTPUT_FILE" >&2
+        exit 1
+    }
+    [ -s "$FINAL_OUTPUT" ] || {
+        echo "ERROR: evaluator did not return a final score." >&2
+        exit 1
+    }
+    cat "$FINAL_OUTPUT"
 fi

@@ -26,12 +26,16 @@ honor-system — and the structure differs by host:
   `scripts/meta/run-isolated-role.sh evaluate`. Pass only the Contract, diff,
   prior-score path, `$EVAL_JSON` output path, and already-executed verification
   evidence on stdin. The helper starts Evaluate outside the repository so the
-  child cannot auto-load `AGENTS.md` and recursively invoke another evaluator.
-  Do not resume the parent session or pass the task description.
+  child cannot auto-load `AGENTS.md` and recursively invoke another evaluator,
+  and uses `--ignore-user-config --disable hooks` so authentication still comes
+  from `CODEX_HOME` without loading user config or project hooks. Do not resume
+  the parent session or pass the task description.
   DevContainers that cannot run the Codex sandbox may use
   `--dangerously-bypass-approvals-and-sandbox` only for this ephemeral child;
-  record `git status --porcelain` before and after and invalidate the evaluation
-  if the child changes the worktree.
+  this compatibility fallback is not a security boundary. The helper invalidates
+  the evaluation if HEAD, the index, or any tracked, untracked, or ignored
+  project-tree entry changes, including file mode and symlink state; only the
+  authorized evaluator report path is excluded.
 
 If neither isolation path is available, say so in the report; never self-evaluate
 in-context while claiming isolation.
@@ -72,8 +76,10 @@ Protocol:
 3. **Write** -- full report to the caller-supplied `$EVAL_JSON`
 4. **Return** -- ONLY `{"score": <number>, "suggestion": "<one line>"}` to caller
 
-The full report goes to the file; the caller (thin orchestrator) sees only score + suggestion.
-This keeps the orchestrator's context minimal across iterations.
+The full report goes to the file; Codex's final score is captured separately and
+emitted to stdout. The helper fails if the full report is absent or empty. This
+keeps the orchestrator's context minimal across iterations without overwriting
+the evaluator-authored report.
 
 ## What You Do NOT Receive (both modes)
 

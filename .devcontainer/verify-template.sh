@@ -304,52 +304,145 @@ fi
 rm -r "$ROOT_TYPE_FIXTURE"
 
 ROLE_FIXTURE=$(mktemp -d)
+ROLE_BIN_DIR=$(mktemp -d)
 ROLE_LOG_FILE=$(mktemp)
 mkdir -p "$ROLE_FIXTURE/.codex/state" "$ROLE_FIXTURE/scripts/meta"
 cp "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" "$ROLE_FIXTURE/scripts/meta/"
 cat > "$ROLE_FIXTURE/fake-codex" <<'EOF'
 #!/bin/bash
 printf '%s\n' "$*" >> "$ROLE_LOG"
+FINAL_OUTPUT=""
 while [ "$#" -gt 0 ]; do
     if [ "$1" = "-o" ]; then
         shift
-        printf '{"score":1,"suggestion":"ok"}\n' > "$1"
+        FINAL_OUTPUT=$1
     fi
     shift
 done
+[ -z "${ROLE_REPORT:-}" ] || printf '{"contract_score":1,"findings":["full report survives"]}\n' > "$ROLE_REPORT"
+[ -z "$FINAL_OUTPUT" ] || printf '{"score":1,"suggestion":"ok"}\n' > "$FINAL_OUTPUT"
 cat >/dev/null
 EOF
 chmod +x "$ROLE_FIXTURE/fake-codex"
-printf '.codex/state/\n' > "$ROLE_FIXTURE/.gitignore"
+printf '.codex/state/\nignored-mutation\n' > "$ROLE_FIXTURE/.gitignore"
 printf 'contract and diff only\n' > "$ROLE_FIXTURE/prompt"
+printf 'tracked\n' > "$ROLE_FIXTURE/tracked.txt"
+printf 'target a\n' > "$ROLE_FIXTURE/target-a"
+printf 'target b\n' > "$ROLE_FIXTURE/target-b"
+ln -s target-a "$ROLE_FIXTURE/tracked-link"
 git -C "$ROLE_FIXTURE" init -q
 git -C "$ROLE_FIXTURE" add -A
 git -C "$ROLE_FIXTURE" -c user.name=audit -c user.email=audit@example.invalid commit -qm fixture
-ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null
+if ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null; then
+    record PASS "Codex audit role: no-mutation path accepted"
+else
+    record FAIL "Codex audit role: no-mutation path rejected"
+fi
 ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" modify "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null
-ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null
+eval_score=$(ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json")
 role_count=$(grep -c 'exec --ephemeral' "$ROLE_LOG_FILE" 2>/dev/null || true)
 [ "$role_count" -eq 3 ] && record PASS "Codex roles: three ephemeral process invocations" || record FAIL "Codex roles: isolation invocation count $role_count/3"
-evaluate_line=$(tail -1 "$ROLE_LOG_FILE")
+if grep -Fq -- '--ignore-user-config --disable hooks' "$ROLE_LOG_FILE"; then
+    record PASS "Codex roles: user config ignored and hooks disabled"
+else
+    record FAIL "Codex roles: child automation config isolation"
+fi
+evaluate_line=$(grep -F -- '--skip-git-repo-check' "$ROLE_LOG_FILE" | tail -1)
 if printf '%s' "$evaluate_line" | grep -Fq -- '--skip-git-repo-check' && ! printf '%s' "$evaluate_line" | grep -Fq -- "-C $ROLE_FIXTURE"; then
     record PASS "Codex evaluator: repository rules not auto-loaded"
 else
     record FAIL "Codex evaluator: recursive rules-loading risk"
 fi
 git -C "$ROLE_FIXTURE" check-ignore -q .codex/state/.refine-eval.json && record PASS "Codex evaluator output: gitignored" || record FAIL "Codex evaluator output: tracked risk"
-cat > "$ROLE_FIXTURE/fake-mutator" <<'EOF'
+if grep -Fq '"full report survives"' "$ROLE_FIXTURE/.codex/state/.refine-eval.json" && [ "$eval_score" = '{"score":1,"suggestion":"ok"}' ]; then
+    record PASS "Codex evaluator: full report preserved and final score emitted separately"
+else
+    record FAIL "Codex evaluator: report/final-score separation"
+fi
+if ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1; then
+    record FAIL "Codex evaluator: missing full report accepted"
+else
+    record PASS "Codex evaluator: missing full report rejected"
+fi
+
+ROLE_WORKTREE=$(mktemp -d)
+rmdir "$ROLE_WORKTREE"
+if git -C "$ROLE_FIXTURE" worktree add -q --detach "$ROLE_WORKTREE" HEAD &&
+    ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_WORKTREE" "$ROLE_FIXTURE/prompt" >/dev/null; then
+    record PASS "Codex audit role: linked worktree accepted"
+else
+    record FAIL "Codex audit role: linked worktree rejected"
+fi
+git -C "$ROLE_FIXTURE" worktree remove "$ROLE_WORKTREE" >/dev/null 2>&1
+
+cat > "$ROLE_BIN_DIR/fake-visible-mutator" <<'EOF'
 #!/bin/bash
-touch "$ROLE_PROJECT/mutated-by-readonly-role"
+touch "$ROLE_PROJECT/visible-mutation"
 cat >/dev/null
 EOF
-chmod +x "$ROLE_FIXTURE/fake-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_FIXTURE/fake-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: mutation not detected"
+chmod +x "$ROLE_BIN_DIR/fake-visible-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-visible-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: visible mutation not detected"
 else
-    record PASS "Codex audit role: mutation detected"
+    record PASS "Codex audit role: visible mutation detected"
 fi
-rm -f "$ROLE_FIXTURE/mutated-by-readonly-role"
+rm -f "$ROLE_FIXTURE/visible-mutation"
+
+cat > "$ROLE_BIN_DIR/fake-commit-mutator" <<'EOF'
+#!/bin/bash
+printf 'committed mutation\n' >> "$ROLE_PROJECT/tracked.txt"
+git -C "$ROLE_PROJECT" add tracked.txt
+git -C "$ROLE_PROJECT" -c user.name=audit -c user.email=audit@example.invalid commit -qm mutation
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-commit-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-commit-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: clean-status commit not detected"
+else
+    record PASS "Codex audit role: clean-status commit detected"
+fi
+
+cat > "$ROLE_BIN_DIR/fake-ignored-mutator" <<'EOF'
+#!/bin/bash
+printf 'ignored mutation\n' > "$ROLE_PROJECT/ignored-mutation"
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-ignored-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-ignored-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: ignored mutation not detected"
+else
+    record PASS "Codex audit role: ignored mutation detected"
+fi
+rm -f "$ROLE_FIXTURE/ignored-mutation"
+
+cat > "$ROLE_BIN_DIR/fake-mode-mutator" <<'EOF'
+#!/bin/bash
+chmod 755 "$ROLE_PROJECT/tracked.txt"
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-mode-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-mode-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: file-mode mutation not detected"
+else
+    record PASS "Codex audit role: file-mode mutation detected"
+fi
+chmod 644 "$ROLE_FIXTURE/tracked.txt"
+
+cat > "$ROLE_BIN_DIR/fake-symlink-mutator" <<'EOF'
+#!/bin/bash
+ln -sfn target-b "$ROLE_PROJECT/tracked-link"
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-symlink-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-symlink-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: symlink mutation not detected"
+else
+    record PASS "Codex audit role: symlink mutation detected"
+fi
+ln -sfn target-a "$ROLE_FIXTURE/tracked-link"
+
 rm -r "$ROLE_FIXTURE"
+rm -r "$ROLE_BIN_DIR"
 rm -f "$ROLE_LOG_FILE"
 
 grep -Fq 'pushed only if explicitly requested' "$PROJECT_DIR/.claude/agents/wip-manager.md" 2>/dev/null && record PASS "wip-manager: local-only completion supported" || record FAIL "wip-manager: push incorrectly required"
