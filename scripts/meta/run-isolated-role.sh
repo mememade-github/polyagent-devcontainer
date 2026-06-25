@@ -52,12 +52,18 @@ tree_fingerprint() {
 }
 
 repository_fingerprint() {
-    local head_ref head_oid index tree
+    local head_ref head_oid index_entries index_flags tree
     head_ref=$(git -C "$PROJECT_ROOT" symbolic-ref -q HEAD || printf '%s' DETACHED)
     head_oid=$(git -C "$PROJECT_ROOT" rev-parse --verify HEAD 2>/dev/null || printf '%s' UNBORN)
-    index=$(git -C "$PROJECT_ROOT" ls-files --stage -z | sha256sum | cut -d ' ' -f 1)
+    index_entries=$(git -C "$PROJECT_ROOT" ls-files --stage -z | sha256sum | cut -d ' ' -f 1)
+    index_flags=$(
+        {
+            git -C "$PROJECT_ROOT" ls-files -v -z
+            git -C "$PROJECT_ROOT" ls-files -f -z
+        } | sha256sum | cut -d ' ' -f 1
+    )
     tree=$(tree_fingerprint "$PROJECT_ROOT" "$OUTPUT_REL")
-    printf '%s\n%s\n%s\n%s\n' "$head_ref" "$head_oid" "$index" "$tree"
+    printf '%s\n%s\n%s\n%s\n%s\n' "$head_ref" "$head_oid" "$index_entries" "$index_flags" "$tree"
 }
 
 if [ -n "$OUTPUT_FILE" ]; then

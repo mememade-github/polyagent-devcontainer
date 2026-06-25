@@ -415,6 +415,32 @@ else
 fi
 rm -f "$ROLE_FIXTURE/ignored-mutation"
 
+cat > "$ROLE_BIN_DIR/fake-skip-worktree-mutator" <<'EOF'
+#!/bin/bash
+git -C "$ROLE_PROJECT" update-index --skip-worktree tracked.txt
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-skip-worktree-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-skip-worktree-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: skip-worktree mutation not detected"
+else
+    record PASS "Codex audit role: skip-worktree mutation detected"
+fi
+git -C "$ROLE_FIXTURE" update-index --no-skip-worktree tracked.txt
+
+cat > "$ROLE_BIN_DIR/fake-assume-unchanged-mutator" <<'EOF'
+#!/bin/bash
+git -C "$ROLE_PROJECT" update-index --assume-unchanged tracked.txt
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-assume-unchanged-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-assume-unchanged-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: assume-unchanged mutation not detected"
+else
+    record PASS "Codex audit role: assume-unchanged mutation detected"
+fi
+git -C "$ROLE_FIXTURE" update-index --no-assume-unchanged tracked.txt
+
 cat > "$ROLE_BIN_DIR/fake-mode-mutator" <<'EOF'
 #!/bin/bash
 chmod 755 "$ROLE_PROJECT/tracked.txt"
