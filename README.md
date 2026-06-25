@@ -40,7 +40,7 @@ hooks require review again. See [REFERENCE.md](REFERENCE.md) for details.
 | Component | Count | Notes |
 |-----------|------:|-------|
 | AI agents | 2 | Claude Code · Codex CLI |
-| Sub-agents (Claude) | 2 | evaluator, wip-manager |
+| Governance roles | 2 | evaluator, wip-manager (Claude agents; Codex skill/subprocess mirrors) |
 | Hooks | 4 / 4 | session-start, pre-commit-gate, pre-push-gate, refinement-gate |
 | Skills | 4 | /refine, /status, /verify, karpathy-guidelines |
 | Tools | 20+ | ripgrep, fd, fzf, jq, tmux, gh, docker CLI, uv |
@@ -66,7 +66,8 @@ bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ generated mir
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 
-`.claude/` is the ground truth. `.agents/` is generated; do not edit by hand.
+`.claude/` is the ground truth. `.agents/` is generated with matching content
+and file modes; do not edit it by hand.
 
 ## VS Code: Reopen in Container vs. Attach
 

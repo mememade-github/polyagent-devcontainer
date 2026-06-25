@@ -61,7 +61,10 @@ Claude and Codex `refinement-gate.sh` markers exactly.
   pollute or recursively trigger child automation. Evaluate starts outside the
   repository to prevent recursive AGENTS.md loading. Audit and Evaluate receive
   only read-only evidence; Modify receives the Gap Report and task scope. Never
-  use the parent Codex context as its own evaluator.
+  use the parent Codex context as its own evaluator. Codex subagents are
+  supported, but the subprocess remains intentional here because the evaluator
+  must receive an exact, minimal evidence channel in interactive and
+  non-interactive runs.
 - In a DevContainer where bubblewrap is unavailable, the child may use
   `--dangerously-bypass-approvals-and-sandbox`. This is a compatibility fallback,
   not a security boundary: the helper rejects Audit/Evaluate if HEAD, the index,

@@ -21,15 +21,17 @@ honor-system — and the structure differs by host:
 - **Claude Code**: you run as a separate subagent in a fresh context window. The
   orchestrator passes you only the diff (and optionally the Contract); the
   generator's reasoning is physically absent from your context.
-- **Codex CLI**: Codex has no in-process subagent isolation, so use a fresh
-  `codex exec --ephemeral` subprocess for every evaluation through
-  `scripts/meta/run-isolated-role.sh evaluate`. Pass only the Contract, diff,
-  prior-score path, `$EVAL_JSON` output path, and already-executed verification
-  evidence on stdin. The helper starts Evaluate outside the repository so the
-  child cannot auto-load `AGENTS.md` and recursively invoke another evaluator,
-  and uses `--ignore-user-config --disable hooks` so authentication still comes
-  from `CODEX_HOME` without loading user config or project hooks. Do not resume
-  the parent session or pass the task description.
+- **Codex CLI**: current releases support subagents and custom
+  `.codex/agents/*.toml`, but this evaluator contract deliberately uses a fresh
+  `codex exec --ephemeral` subprocess through
+  `scripts/meta/run-isolated-role.sh evaluate`. That path admits only the
+  Contract, diff, prior-score path, `$EVAL_JSON` output path, and
+  already-executed verification evidence on stdin, including in non-interactive
+  refine runs. The helper starts Evaluate outside the repository so the child
+  cannot auto-load `AGENTS.md` and recursively invoke another evaluator, and
+  uses `--ignore-user-config --disable hooks` so authentication still comes from
+  `CODEX_HOME` without loading user config or project hooks. Do not fork/resume
+  the parent context or pass the task description.
   DevContainers that cannot run the Codex sandbox may use
   `--dangerously-bypass-approvals-and-sandbox` only for this ephemeral child;
   this compatibility fallback is not a security boundary. The helper invalidates

@@ -75,9 +75,13 @@ Before any `git commit`:
 - Auto-resumed on next session start.
 - Delete the WIP directory when complete.
 
-### Skill delegation
+### Role delegation
 
-Codex CLI does not yet support file-based custom sub-agent declarations, so the responsibilities of Claude's sub-agents are absorbed as skills:
+Current Codex releases support in-process subagents and project
+`.codex/agents/*.toml`. This template still mirrors Claude role bodies as skills
+for portable discovery. The refine evaluator intentionally uses a fresh
+`codex exec --ephemeral` process because its contract requires an exact
+Contract/diff-only evidence channel in interactive and non-interactive runs.
 
 | Skill | When to invoke |
 |-------|----------------|
@@ -125,8 +129,8 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 
 | Constraint | Workaround |
 |------------|------------|
-| `Edit`/`Write` not available as PreToolUse matcher | Use `Bash(...)` patterns only |
-| No in-process sub-agent isolation | Use fresh `codex exec --ephemeral` subprocesses for isolated Audit/Modify/Evaluate roles |
+| Claude and Codex tool matcher names differ | Codex accepts `Bash`, `apply_patch`, `Edit`, and `Write`; current commit/push gates inspect `Bash` commands |
+| Evaluator must not inherit parent intent | Use fresh `codex exec --ephemeral` subprocesses with a minimal evidence prompt |
 | `frontmatter.tools` / `model` / `color` ignored | Body is preserved; vendor ignores extras |
 | No `@import` in AGENTS.md | This file must be self-contained; cross-file refs require explicit `Read` |
 

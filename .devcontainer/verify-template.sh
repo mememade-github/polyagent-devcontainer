@@ -372,6 +372,27 @@ else
 fi
 rm -r "$ROOT_TYPE_FIXTURE"
 
+MODE_FIXTURE=$(mktemp -d)
+mkdir -p "$MODE_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$MODE_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$MODE_FIXTURE/scripts/"
+chmod 755 "$MODE_FIXTURE/.claude/skills/refine/SKILL.md"
+chmod 644 "$MODE_FIXTURE/.agents/skills/refine/SKILL.md"
+MODE_DRY=$(bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
+if printf '%s' "$MODE_DRY" | grep -Fq 'Mode differs:'; then
+    record PASS "sync dry-run: file-mode drift detected"
+else
+    record FAIL "sync dry-run: file-mode drift missed"
+fi
+if bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 &&
+    [ "$(stat -c '%a' "$MODE_FIXTURE/.agents/skills/refine/SKILL.md")" = "755" ] &&
+    bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
+    record PASS "sync: file-mode parity restored"
+else
+    record FAIL "sync: file-mode parity not restored"
+fi
+rm -r "$MODE_FIXTURE"
+
 ROLE_FIXTURE=$(mktemp -d)
 ROLE_BIN_DIR=$(mktemp -d)
 ROLE_LOG_FILE=$(mktemp)

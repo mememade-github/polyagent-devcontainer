@@ -117,18 +117,26 @@ release, set `npm install -g @openai/codex@<version>`, and export
 
 ## Agent system
 
-### Sub-agents (Claude side, 2)
+### Governance roles (2)
 
 | Agent | Purpose | Invocation |
 |-------|---------|------------|
 | evaluator | Context-isolated quality evaluation | After changes; within `/refine` |
 | wip-manager | Multi-session task tracker | When task spans sessions |
 
+Current Codex supports in-process subagents and project
+`.codex/agents/*.toml`. The template mirrors these Claude role bodies as Codex
+skills for portable discovery; evaluator runs still use a fresh
+`codex exec --ephemeral` process to enforce the exact Contract/diff-only input
+boundary in interactive and non-interactive flows.
+
 ### Hooks
 
 Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh`.
 
-Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh` (Codex CLI does not expose Edit/Write matchers).
+Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`,
+`refinement-gate.sh`. Codex matchers support `Bash`, `apply_patch`, `Edit`, and
+`Write`; these commit/push gates intentionally inspect `Bash` commands.
 
 Codex loads `.codex/config.toml` directly after the project is trusted. Project
 command hooks also require review in `/hooks`, and changed definitions are
@@ -151,7 +159,9 @@ bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ generated mir
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 
-`.claude/` is ground truth; `.agents/` is generated. The sync copies content (`cp -R`) and **prunes** `.agents/` entries whose `.claude/` source was deleted (deletion propagation), so the mirror tracks deletions, not just additions.
+`.claude/` is ground truth; `.agents/` is generated. The sync copies content
+and file modes, and **prunes** `.agents/` entries whose `.claude/` source was
+deleted, so the mirror tracks metadata and deletions, not just additions.
 
 ### Codex sandbox bypass (DevContainer only)
 

@@ -49,7 +49,10 @@ fi
 
 # --- 1. Build the complete expected mirror in a temporary tree. ---
 for SUB in rules skills; do
-    [ -d "$SRC/$SUB" ] && cp -R "$SRC/$SUB"/. "$EXPECTED/$SUB"/
+    if [ -d "$SRC/$SUB" ]; then
+        chmod --reference="$SRC/$SUB" "$EXPECTED/$SUB"
+        cp -a "$SRC/$SUB"/. "$EXPECTED/$SUB"/
+    fi
 done
 
 if [ -d "$SRC/agents" ]; then
@@ -58,7 +61,7 @@ if [ -d "$SRC/agents" ]; then
         NAME=$(basename "$AGENT" .md)
         case "$NAME" in _*) continue ;; esac
         mkdir -p "$EXPECTED/skills/$NAME"
-        cp "$AGENT" "$EXPECTED/skills/$NAME/SKILL.md"
+        cp -p "$AGENT" "$EXPECTED/skills/$NAME/SKILL.md"
     done
 fi
 
@@ -73,6 +76,18 @@ fi
 # --- 3. Compare or reconcile the complete tree, including nested orphans. ---
 if [ -d "$DST" ]; then
     DIFF_OUTPUT=$(diff -rq "$EXPECTED" "$DST" 2>/dev/null || true)
+    MODE_DIFF=""
+    while IFS=$'\t' read -r rel expected_mode; do
+        [ -e "$DST/$rel" ] || continue
+        actual_mode=$(stat -c '%a' "$DST/$rel" 2>/dev/null || echo missing)
+        if [ "$expected_mode" != "$actual_mode" ]; then
+            MODE_DIFF="${MODE_DIFF}Mode differs: $DST/$rel ($actual_mode != $expected_mode)\n"
+        fi
+    done < <(find "$EXPECTED" -mindepth 1 -printf '%P\t%m\n' | LC_ALL=C sort)
+    if [ -n "$MODE_DIFF" ]; then
+        [ -z "$DIFF_OUTPUT" ] || DIFF_OUTPUT="${DIFF_OUTPUT}"$'\n'
+        DIFF_OUTPUT="${DIFF_OUTPUT}$(printf '%b' "$MODE_DIFF" | sed '/^$/d')"
+    fi
 else
     DIFF_OUTPUT="Destination missing: $DST"
 fi
@@ -104,7 +119,7 @@ else
         fi
     done < <(find "$DST" -depth -mindepth 1 -print0)
 
-    cp -R "$EXPECTED"/. "$DST"/
+    cp -a "$EXPECTED"/. "$DST"/
     echo "[SYNC] exact .agents/"
 fi
 
