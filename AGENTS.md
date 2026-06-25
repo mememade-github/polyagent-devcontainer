@@ -43,7 +43,11 @@ Never execute without explicit user approval: `rm -rf`, `mv`/`cp` overwriting ex
 
 ## Automated workflow (mandatory)
 
-Enforced by hooks (`.codex/hooks.json`); no user commands required.
+The workflow rules are mandatory. Codex command hooks enforce them after the
+project is trusted and the exact hook definitions are reviewed in `/hooks`.
+Changed hooks are skipped until re-reviewed. Vetted non-interactive automation
+may use `--dangerously-bypass-hook-trust`; otherwise, run the same gates
+manually until hook trust is established.
 
 ### Session start (SessionStart hook)
 
@@ -157,4 +161,4 @@ CLAUDE.md):
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-06-25*

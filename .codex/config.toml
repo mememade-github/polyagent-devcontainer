@@ -12,18 +12,15 @@
 #   Use the README/REFERENCE.md flag for headless invocations from inside the
 #   container:
 #     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
-#   The DevContainer is itself the isolation boundary; outside containers,
-#   keep this workspace-write default. See REFERENCE.md §"Codex sandbox
-#   bypass (DevContainer only)" for the rationale.
+#   This is a compatibility workaround, not a security boundary: docker.sock
+#   grants host-level power. Outside containers, keep this workspace-write
+#   default. See REFERENCE.md §"Codex sandbox bypass (DevContainer only)".
 #
 # NOTE: TOML 규약상 최상위 키는 반드시 [section] 헤더보다 앞에 와야 함.
 sandbox_mode = "workspace-write"
-ask_for_approval = "on-request"
+approval_policy = "on-request"
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
 
 [features]
 hooks = true
-
-[projects."/workspaces"]
-trust_level = "trusted"

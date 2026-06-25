@@ -63,7 +63,7 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
         [3/5] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
         [4/5] Codex CLI      — `npm i -g --prefix ~/.npm-global @openai/codex@latest`
                               (skip with SKIP_CODEX_UPDATE=1)
-        [5/5] Codex config   — seed ~/.codex/config.toml when absent; preserve existing user config
+        [5/5] Codex config   — validate project config; preserve user config without copying
 
 postStartCommand (every start, devcontainer.json)
   git config core.filemode false
@@ -130,6 +130,11 @@ Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refin
 
 Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh` (Codex CLI does not expose Edit/Write matchers).
 
+Codex loads `.codex/config.toml` directly after the project is trusted. Project
+command hooks also require review in `/hooks`, and changed definitions are
+skipped until reviewed again. Use `--dangerously-bypass-hook-trust` only in
+automation that independently vets the hook source.
+
 ### Skills (4)
 
 | Skill | Description |
@@ -157,7 +162,9 @@ Codex CLI sandboxes commands with [bubblewrap](https://github.com/containers/bub
 | Host Linux directly | ✓ | (default) `--sandbox workspace-write` |
 | **DevContainer** | ✗ (kernel) | `--dangerously-bypass-approvals-and-sandbox` |
 
-The DevContainer is itself the isolation boundary. Outside containers, keep the default sandbox.
+The bypass makes the DevContainer the command-execution compatibility boundary,
+not a security or trust boundary. The mounted Docker socket grants host-level
+power; outside containers, keep the default sandbox.
 
 ### Codex commands
 
@@ -166,6 +173,7 @@ codex login --device-auth                                                # auth 
 codex login status                                                       # auth status
 codex                                                                    # interactive (loads AGENTS.md)
 codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
+codex exec --dangerously-bypass-hook-trust "<vetted-automation-prompt>"    # vetted hooks only
 codex --version
 ```
 
@@ -176,6 +184,7 @@ codex --version
 | Build fails | `docker compose build --no-cache` |
 | Claude re-auth needed | check named volume: `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | check named volume: `docker volume ls \| grep codex-config` |
+| Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
 | Hook test fails | `export CLAUDE_PROJECT_DIR=/workspaces` (Codex: `CODEX_PROJECT_DIR`) |
 | Git permission errors | `git config core.filemode false` |
@@ -183,4 +192,4 @@ codex --version
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-06-25*

@@ -54,13 +54,29 @@ grep -q '@openai/codex@latest' "$SETUP" 2>/dev/null && record PASS "setup-env: C
 grep -Fq 'npm config set prefix "${HOME}/.npm-global"' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: npm prefix matches Codex install" || record FAIL "Dockerfile: npm prefix"
 grep -Fq 'npm config set prefix "$CODEX_NPM_PREFIX"' "$SETUP" 2>/dev/null && record PASS "setup-env: npm prefix reconciled" || record FAIL "setup-env: npm prefix reconciled"
 grep -q 'CODEX_UPDATE_LOG' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update failures are visible" || record FAIL "setup-env: Codex update failure visibility"
+if grep -Fq 'cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"' "$SETUP" 2>/dev/null; then
+    record FAIL "setup-env: project config copied into persistent user config"
+else
+    record PASS "setup-env: project config loaded directly, not copied"
+fi
 
 # --- PHASE 1c: Codex config hygiene ---
 echo ""
 echo "=== Phase 1c: Codex config hygiene ==="
 CODEX_CONFIG="$PROJECT_DIR/.codex/config.toml"
 grep -q '^hooks = true$' "$CODEX_CONFIG" 2>/dev/null && ! grep -q 'codex_hooks' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: modern hooks feature flag" || record FAIL "Codex config: hooks feature flag"
+grep -q '^approval_policy = "on-request"$' "$CODEX_CONFIG" 2>/dev/null && ! grep -q '^ask_for_approval[[:space:]]*=' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: current approval_policy key" || record FAIL "Codex config: obsolete approval key"
 ! grep -Eq 'model_availability_nux|model_migrations|^\[tui\.|^\[notice\.' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: no runtime-state blocks" || record FAIL "Codex config: runtime-state block leaked"
+STRICT_HOME=$(mktemp -d)
+cp "$CODEX_CONFIG" "$STRICT_HOME/config.toml"
+CODEX_CMD=$(command -v codex 2>/dev/null || echo /home/vscode/.npm-global/bin/codex)
+STRICT_OUTPUT=$(CODEX_HOME="$STRICT_HOME" "$CODEX_CMD" exec --strict-config --ephemeral -c model_provider='"__config_probe__"' "configuration probe" 2>&1 || true)
+if printf '%s' "$STRICT_OUTPUT" | grep -Fq 'Model provider `__config_probe__` not found' && ! printf '%s' "$STRICT_OUTPUT" | grep -Fq 'unknown configuration field'; then
+    record PASS "Codex config: strict parser accepts tracked schema"
+else
+    record FAIL "Codex config: strict parser rejected tracked schema"
+fi
+rm -r "$STRICT_HOME"
 USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
 if [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$CODEX_CONFIG" ]; then
     record FAIL "Codex user config: legacy symlink still points at tracked config"
@@ -135,6 +151,33 @@ grep -q '"Stop"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS
 [ -f "$PROJECT_DIR/.codex/config.toml" ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
 [ -f "$PROJECT_DIR/.codex/hooks.json" ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
 jq -e . "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1 && record PASS "hooks.json valid JSON" || record FAIL "hooks.json invalid JSON"
+CODEX_HOOK_SCHEMA='
+  (.hooks | type == "object") and
+  ((.hooks | keys | sort) == ["PreToolUse", "SessionStart", "Stop"]) and
+  ([.hooks | to_entries[] | .value[]] | all(
+    (.hooks | type == "array") and
+    (.hooks | length > 0) and
+    (.hooks | all(
+      (. | type == "object") and
+      .type == "command" and
+      (.command | type == "string") and
+      (.command | length > 0) and
+      ((.timeout // 600) | type == "number")
+    ))
+  )) and
+  (.hooks.PreToolUse | all(.matcher == "Bash"))
+'
+if jq -e "$CODEX_HOOK_SCHEMA" "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1; then
+    record PASS "hooks.json current Codex nested schema"
+else
+    record FAIL "hooks.json unsupported Codex schema"
+fi
+LEGACY_HOOKS='{"hooks":{"Stop":[{"command":"true","timeout":10}]}}'
+if printf '%s' "$LEGACY_HOOKS" | jq -e "$CODEX_HOOK_SCHEMA" >/dev/null 2>&1; then
+    record FAIL "hooks.json schema guard accepted legacy direct command"
+else
+    record PASS "hooks.json schema guard rejects legacy direct command"
+fi
 [ -f "$PROJECT_DIR/AGENTS.md" ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
 
 # --- PHASE 2a: Karpathy alignment ---
@@ -236,6 +279,32 @@ for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
 done
+CODEX_SESSION_OUTPUT=$(cd "$PROJECT_DIR/.codex" && printf '{"source":"startup"}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/session-start.sh")
+if printf '%s' "$CODEX_SESSION_OUTPUT" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | contains("Git branch:"))' >/dev/null 2>&1; then
+    record PASS "Codex SessionStart: emits project context from subdirectory"
+else
+    record FAIL "Codex SessionStart: runtime context output"
+fi
+if printf '{"tool_input":{"command":"git commit --no-verify -m probe"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: --no-verify bypass accepted"
+else
+    record PASS "Codex PreToolUse: --no-verify bypass blocked"
+fi
+if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: unrelated Bash command allowed"
+else
+    record FAIL "Codex PreToolUse: unrelated Bash command blocked"
+fi
+if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex pre-push: unrelated Bash command allowed"
+else
+    record FAIL "Codex pre-push: unrelated Bash command blocked"
+fi
+if CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/refinement-gate.sh" </dev/null >/dev/null 2>&1; then
+    record PASS "Codex Stop: no active refinement exits cleanly"
+else
+    record FAIL "Codex Stop: no-marker regression"
+fi
 
 # --- PHASE 2f: Mirror integrity ---
 echo ""

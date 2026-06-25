@@ -122,35 +122,29 @@ else
 fi
 
 # =============================================================================
-# 5. Codex CLI — project-local config
+# 5. Codex CLI — project-local config validation
 # =============================================================================
-# Codex auto-loads ~/.codex/config.toml only. If the project ships its own
-# .codex/config.toml at the workspace root, copy it so the project's sandbox/
-# approval policy applies. Auth (auth.json) stays in ~/.codex/ unchanged.
-#
-# Copy, NOT symlink: Codex writes runtime state (model-availability notices,
-# migration markers) back into ~/.codex/config.toml. A symlink pushes those
-# writes into the version-tracked project file and pollutes git. Copying keeps
-# the tracked file clean. The project file seeds new user configs; an existing
-# user config is preserved so runtime additions and explicit user overrides are
-# not silently destroyed.
+# Current Codex loads a trusted project's .codex/config.toml directly. Never
+# copy project policy into ~/.codex/config.toml: that user file is persistent,
+# higher-scope state and would become stale when the project template changes.
+# Authentication and explicit personal overrides remain in ~/.codex/.
 step "Codex project config..."
 WORKSPACE_CODEX_CONFIG="/workspaces/.codex/config.toml"
 USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
 if [ -f "$WORKSPACE_CODEX_CONFIG" ]; then
-    mkdir -p "${HOME}/.codex"
-    if [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$WORKSPACE_CODEX_CONFIG" ]; then
-        rm -f "$USER_CODEX_CONFIG"   # retire legacy symlink that leaked runtime writes into git
-        cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
-        echo "      Migrated symlink -> copy (prevents runtime-state leak)"
-    elif [ ! -e "$USER_CODEX_CONFIG" ]; then
-        cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"
-        echo "      Copied: $WORKSPACE_CODEX_CONFIG -> ~/.codex/config.toml"
+    if grep -q '^ask_for_approval[[:space:]]*=' "$WORKSPACE_CODEX_CONFIG"; then
+        echo "      WARN: project config uses obsolete ask_for_approval; use approval_policy"
     else
-        echo "      User config exists — preserved (not overwritten)"
+        echo "      Project config detected — Codex loads it after project trust"
     fi
 else
-    echo "      No project-local .codex/config.toml — using user defaults"
+    echo "      WARN: no project-local .codex/config.toml"
+fi
+
+if [ -L "$USER_CODEX_CONFIG" ]; then
+    echo "      WARN: ~/.codex/config.toml is a symlink; replace it with explicit user config"
+elif [ -f "$USER_CODEX_CONFIG" ] && grep -q '^ask_for_approval[[:space:]]*=' "$USER_CODEX_CONFIG"; then
+    echo "      WARN: existing user config uses obsolete ask_for_approval; use approval_policy"
 fi
 
 # =============================================================================

@@ -28,7 +28,12 @@ claude --dangerously-skip-permissions
 codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
 ```
 
-The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's bubblewrap sandbox cannot create user namespaces inside Docker. The DevContainer is itself the isolation boundary. See [REFERENCE.md](REFERENCE.md) for details.
+The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's
+bubblewrap sandbox cannot create user namespaces inside Docker. It is only a
+compatibility workaround: because `docker.sock` is mounted,
+the DevContainer is not a security or trust boundary. On first interactive
+Codex use, trust the project and review project hooks with `/hooks`; changed
+hooks require review again. See [REFERENCE.md](REFERENCE.md) for details.
 
 ## What's included
 
