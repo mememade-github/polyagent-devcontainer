@@ -1,7 +1,7 @@
 ---
 name: wip-manager
 description: Manage work-in-progress for multi-session tasks. Auto-invoked when tasks span sessions.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: opus
 maxTurns: 8
 color: blue
@@ -36,7 +36,9 @@ When a task will span multiple sessions:
 2. Create `README.md` using the template below
 3. Return confirmation with completion criteria summary
 
-**Triggers**: Explicit request, or when task involves 3+ files across 2+ directories.
+**Triggers**: Explicit request, or evidence that the task will span sessions.
+File count alone is not evidence; do not create WIP for a large change that can
+be completed and verified in the current session.
 
 ### Resume WIP
 
@@ -72,7 +74,8 @@ When task is done:
 
 1. Verify ALL items in Completion Criteria are checked
 2. Verify Remaining table is empty (or all items moved to Done)
-3. Verify no Unpushed Commits remain
+3. Verify the requested delivery state is met (local commit is sufficient unless
+   the user explicitly requested a push)
 4. Delete the WIP directory
 5. Confirm deletion with summary of what was accomplished
 
@@ -87,7 +90,7 @@ When task is done:
 
 ## Completion Criteria
 - [ ] [Specific, measurable condition — e.g., "curl localhost:8080 returns 200"]
-- [ ] [All files committed and pushed]
+- [ ] [All files committed locally; pushed only if explicitly requested]
 - [ ] [Tests pass: pytest/pnpm build]
 
 ## Context
@@ -141,7 +144,8 @@ When checking next actionable item: find first task where Blocked By is empty or
 ## Rules
 
 - Always include **Completion Criteria** — without it, task cannot be verified as done
-- Always track **Unpushed Commits** — prevents work loss across sessions
+- Always track **Unpushed Commits** as risk information; they do not block
+  completion when the user requested local-only work
 - Update **Remaining** table after each step — not just at creation time
 - Record **Decisions** with rationale — future sessions need to understand why
 - Track **Files Modified** with repo info — enables targeted code review
