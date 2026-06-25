@@ -77,9 +77,13 @@ Both `docker compose up` and VS Code "Reopen in Container" route through
 
 | Volume | Mount | Purpose |
 |--------|-------|---------|
-| `claude-config-${devcontainerId}` | `~/.claude` | Claude Code auth (survives rebuild) |
-| `codex-config-${devcontainerId}` | `~/.codex`  | Codex CLI auth (survives rebuild) |
-| `command-history-${devcontainerId}` | `/commandhistory` | Shell history |
+| `claude-config` | `~/.claude` | Claude Code auth (survives rebuild) |
+| `codex-config` | `~/.codex`  | Codex CLI auth (survives rebuild) |
+| `command-history` | `/commandhistory` | Shell history |
+
+> Named volumes are prefixed by `COMPOSE_PROJECT_NAME` and shared identically by
+> both entry paths (`docker compose up` and VS Code "Reopen in Container").
+> Change `COMPOSE_PROJECT_NAME` in `.devcontainer/.env` to isolate volumes per instance.
 
 ## Pre-installed tools
 
