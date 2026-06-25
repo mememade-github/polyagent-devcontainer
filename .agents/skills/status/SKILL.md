@@ -1,6 +1,6 @@
 ---
 name: status
-description: Show workspace status - all git repos, WIP tasks, and environment health
+description: Show current-repository status, WIP tasks, and environment health
 user-invocable: true
 allowed-tools: Bash, Read, Glob, Grep
 ---
@@ -8,34 +8,40 @@ allowed-tools: Bash, Read, Glob, Grep
 Show the current workspace status by running these steps:
 
 ## 0. Workspace Root Resolution
-Resolve the actual workspace root (handles both direct and worktree execution):
+Resolve the project root and vendor state directory:
 ```bash
-WORKSPACE_ROOT=$(git rev-parse --git-common-dir 2>/dev/null | xargs dirname)
-if [ -z "$WORKSPACE_ROOT" ] || [ "$WORKSPACE_ROOT" = "." ]; then
-  WORKSPACE_ROOT="${CLAUDE_PROJECT_DIR:-.}"
+WORKSPACE_ROOT="${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  STATE_DIR="$WORKSPACE_ROOT/.claude"
+  MARKER_PREFIX=".last-verification."
+elif [ -n "${CODEX_PROJECT_DIR:-}" ] || [ "${CODEX_CI:-}" = "1" ] || [ -n "${CODEX_THREAD_ID:-}" ]; then
+  STATE_DIR="$WORKSPACE_ROOT/.codex/state"
+  MARKER_PREFIX="last-verification."
+else
+  case "${AGENT_VENDOR:-}" in
+    claude) STATE_DIR="$WORKSPACE_ROOT/.claude"; MARKER_PREFIX=".last-verification." ;;
+    codex) STATE_DIR="$WORKSPACE_ROOT/.codex/state"; MARKER_PREFIX="last-verification." ;;
+    *) echo "ERROR: cannot identify Claude or Codex host; set AGENT_VENDOR=claude|codex" >&2; exit 2 ;;
+  esac
 fi
-echo "Workspace root: $WORKSPACE_ROOT"
+echo "Workspace root: $WORKSPACE_ROOT ($STATE_DIR)"
 ```
 Use `$WORKSPACE_ROOT` for ALL subsequent paths.
 
 ## 1. Git Repos
-Delegate to the canonical git-status script (single source of truth for repo enumeration):
+Delegate to the canonical single-repository status script:
 ```bash
 bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief
 ```
-This covers root, products/root/*, products/derived/*, and nested repos within derived projects.
+Derived multi-repository workspaces may replace that script with their own
+enumerator; this base template reports the current repository only.
 
 ## 2. Unpushed Commits
-For each repo with a remote, check:
+The canonical script already reports commits ahead of the configured upstream.
+If no upstream exists, report that explicitly rather than treating it as zero.
 ```bash
-find "$WORKSPACE_ROOT/products" -name ".git" -type d -maxdepth 5 2>/dev/null | while read gitdir; do
-  REPO=$(dirname "$gitdir")
-  UNPUSHED=$(git -C "$REPO" log --oneline @{u}..HEAD 2>/dev/null)
-  if [ -n "$UNPUSHED" ]; then
-    echo "=== $REPO ==="
-    echo "$UNPUSHED"
-  fi
-done
+git -C "$WORKSPACE_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null \
+  || echo "No upstream configured"
 ```
 Flag any repo with unpushed commits.
 
@@ -56,7 +62,7 @@ If WIP directories exist, read each README.md to show current task status.
 ## 5. Stale Markers
 Check for branch-scoped verification markers:
 ```bash
-for marker in "$WORKSPACE_ROOT"/.claude/.last-verification.*; do
+for marker in "$STATE_DIR"/"$MARKER_PREFIX"*; do
   [ -f "$marker" ] || continue
   AGE=$(( $(date +%s) - $(stat -c '%Y' "$marker" 2>/dev/null || echo 0) ))
   echo "  $(basename "$marker") — ${AGE}s ago"

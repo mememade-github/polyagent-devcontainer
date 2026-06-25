@@ -47,6 +47,8 @@ yarn-error.log*
 .codex/state/last-push-url*
 .codex/state/stop-blocked*
 .codex/state/refinement-active
+.codex/state/.refine-output
+.codex/state/.refine-eval.json
 .codex/state/refinement/
 .codex/push-remote
 

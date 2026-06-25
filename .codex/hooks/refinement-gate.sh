@@ -8,8 +8,6 @@ STATE_DIR="$PROJECT_DIR/.codex/state"
 BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 
-mkdir -p "$STATE_DIR/refinement/attempts"
-
 BLOCK_MARKER="$STATE_DIR/stop-blocked-refinement.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
   BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null || echo 0)
@@ -23,6 +21,7 @@ fi
 REFINE_MARKER="$STATE_DIR/refinement-active"
 [ -f "$REFINE_MARKER" ] || exit 0
 [ -L "$REFINE_MARKER" ] && rm -f "$REFINE_MARKER" && exit 0
+mkdir -p "$STATE_DIR/refinement/attempts"
 
 TASK_ID=$(jq -r '.task_id // ""' "$REFINE_MARKER" 2>/dev/null || echo "")
 THRESHOLD=$(jq -r '.threshold // "0.85"' "$REFINE_MARKER" 2>/dev/null || echo "0.85")

@@ -21,14 +21,23 @@ improves it; the loop converges as gaps resolve, not by retrying one fix.
   `--project PATH` (default: resolved root) · `--agent TYPE` (default
   general-purpose, used for the Modify step).
 
-## Step 0a: Vendor-neutral paths
+## Step 0a: Vendor and path resolution
 
 Marker/attempts/output paths resolve to match whichever host's Stop-hook gate is
 watching, so the mirrored Codex copy works without `$CLAUDE_PROJECT_DIR`:
 
 ```bash
-PROJECT="${PROJECT:-${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}}"
-if [ -n "${CODEX_PROJECT_DIR:-}" ] && [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
+PROJECT="${PROJECT:-${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  AGENT_VENDOR=claude
+elif [ -n "${CODEX_PROJECT_DIR:-}" ] || [ "${CODEX_CI:-}" = "1" ] || [ -n "${CODEX_THREAD_ID:-}" ]; then
+  AGENT_VENDOR=codex
+elif [ "${AGENT_VENDOR:-}" != "claude" ] && [ "${AGENT_VENDOR:-}" != "codex" ]; then
+  echo "ERROR: cannot identify Claude or Codex host; set AGENT_VENDOR=claude|codex" >&2
+  exit 2
+fi
+
+if [ "$AGENT_VENDOR" = "codex" ]; then
   STATE_DIR="$PROJECT/.codex/state"; MARKER="$STATE_DIR/refinement-active"
   ATTEMPTS_DIR="$STATE_DIR/refinement/attempts"
 else
@@ -38,12 +47,28 @@ fi
 OUTPUT="$STATE_DIR/.refine-output"; EVAL_JSON="$STATE_DIR/.refine-eval.json"
 ```
 
-These match the Claude and Codex `refinement-gate.sh` markers exactly.
+`CODEX_PROJECT_DIR` is optional in real Codex sessions, so `CODEX_CI` and
+`CODEX_THREAD_ID` are also authoritative host signals. These paths match the
+Claude and Codex `refinement-gate.sh` markers exactly.
 
-## Step 0b: Pre-flight
+## Step 0b: Fresh-role isolation
 
-- **Git must be clean** — DISCARD uses `git checkout`, which destroys unsaved
-  work. `git diff --quiet && git diff --cached --quiet` or abort.
+- **Claude**: use a fresh `Agent` subagent for Audit, Modify, and Evaluate.
+- **Codex**: invoke `scripts/meta/run-isolated-role.sh` separately for `audit`,
+  `modify`, and `evaluate`. The helper starts a new `codex exec --ephemeral`
+  process every time. Audit and Evaluate receive only read-only evidence;
+  Modify receives the Gap Report and task scope. Never use the parent Codex
+  context as its own evaluator.
+- In a DevContainer where bubblewrap is unavailable, the child may use
+  `--dangerously-bypass-approvals-and-sandbox`; capture
+  `git status --porcelain` before and after Audit/Evaluate and reject the result
+  if either read-only role changes the worktree.
+
+## Step 0c: Pre-flight
+
+- **Git must be completely clean**, including untracked files, because DISCARD
+  removes files created by the current iteration. `git status --porcelain` must
+  be empty or the run aborts.
 - **Stale marker** — if `$MARKER` exists, abort (previous crash); remove it
   manually after confirming no other refine session is running.
 
@@ -86,7 +111,8 @@ echo "{\"score\":$SCORE,\"gaps\":$GAPS,\"result\":\"Baseline\",\"feedback\":\"in
 
 ## Step 3: Audit (fresh Explore subagent — read-only)
 
-Spawn an Explore subagent (Read/Grep/Glob/Bash) given: project, task context,
+Spawn a fresh Explore role (Claude Agent or Codex ephemeral subprocess) given:
+project, task context,
 `$OUTPUT`, `$ATTEMPTS`, current GAPS. It must: identify which checks fail; read
 `$ATTEMPTS` to skip already-resolved gaps; gather evidence across code/config/
 infra to find the TRUE root cause (code adapting to an infra limit is a
@@ -98,7 +124,7 @@ This separation forces evidence-before-modification and prevents 0→1.0 bulk ju
 
 ## Step 4: Modify (fresh subagent — focused)
 
-Spawn `--agent TYPE` (default general-purpose) with: task, Contract summary, the
+Spawn a fresh Modify role with: task, Contract summary, the
 Gap Report, `$ATTEMPTS` path. Rules: address **only** the `PRIORITY_GAP`; use the
 evidence (don't assume); `git add` changed files; return ONE line (what changed +
 which gap). The main agent never reads code or edits directly.
@@ -112,15 +138,17 @@ SCORE=<parse .score>; GAPS=<failing IDs>; SUGGESTION=<parse .feedback>
 # parse failure or timeout → SCORE=0
 ```
 
-**tool-augmented / calibrated** — spawn the `evaluator` agent with **ONLY**:
+**tool-augmented / calibrated** — spawn a fresh evaluator role with **ONLY**:
 Contract JSON, `git diff --cached`, calibration anchors (calibrated only), and
-"read `$ATTEMPTS` for previous scores". It writes its full report to `$EVAL_JSON`
-and returns ONLY `{"score":N,"suggestion":"one line"}`.
+"read `$ATTEMPTS` for previous scores", plus the `$EVAL_JSON` output path. It
+writes its full report to `$EVAL_JSON` and returns ONLY
+`{"score":N,"suggestion":"one line"}`.
 
 **Context isolation (load-bearing):** the evaluator MUST NOT receive the task
 description, the modifier's reasoning, or *why* changes were made. On Codex,
-run the evaluator as a `codex exec` subprocess (see the evaluator skill's
-isolation mechanism) — never in-session.
+  run the evaluator with
+  `bash "$PROJECT/scripts/meta/run-isolated-role.sh" evaluate "$PROJECT" <prompt-file> "$EVAL_JSON"`
+  — never in-session.
 
 ## Step 6: Keep or Discard
 
@@ -128,7 +156,10 @@ isolation mechanism) — never in-session.
 PREV_BEST=$(jq -s 'sort_by(.score)|last|.score//0' "$ATTEMPTS" 2>/dev/null || echo 0)
 ```
 - `SCORE > PREV_BEST` → **KEEP**: `git commit -m "refine: $TASK_ID iter $N — score $SCORE"`
-- else → **DISCARD**: `git checkout -- . && git clean -fd`
+- else → **DISCARD**: list iteration-created untracked paths with
+  `git clean -nd`, restore tracked files with
+  `git restore --staged --worktree -- .`, then remove only those listed paths
+  with path-scoped `git clean -fd -- <paths>`.
 - `SCORE >= THRESHOLD` → also **ACCEPT** (exit after recording).
 
 ## Step 7: Record + Terminate

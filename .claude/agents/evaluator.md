@@ -1,13 +1,13 @@
 ---
 name: evaluator
-description: Tool-isolated evaluation specialist (no access to generator reasoning or task intent). Default 1-pass review after changes. In /refine loop, scores against frozen Contract.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
+description: Context-isolated evaluation specialist. Default 1-pass review after changes; in /refine, scores against a frozen Contract.
+tools: ["Read", "Write", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 maxTurns: 20
 color: yellow
 ---
 
-# Evaluator -- Tool-Isolated Quality Evaluation
+# Evaluator -- Context-Isolated Quality Evaluation
 
 ## Behavioral Boundary
 
@@ -21,11 +21,16 @@ honor-system — and the structure differs by host:
 - **Claude Code**: you run as a separate subagent in a fresh context window. The
   orchestrator passes you only the diff (and optionally the Contract); the
   generator's reasoning is physically absent from your context.
-- **Codex CLI**: Codex has no subagent isolation, so the equivalent is a
-  **subprocess**: run this evaluation via `codex exec --skip-git-repo-check
-  --dangerously-bypass-approvals-and-sandbox` with **only** `{contract, diff}` in
-  the argv prompt. Do not evaluate inside the parent session, where task intent is
-  visible — that re-pollutes the very context this boundary exists to remove.
+- **Codex CLI**: Codex has no in-process subagent isolation, so use a fresh
+  `codex exec --ephemeral` subprocess for every evaluation through
+  `scripts/meta/run-isolated-role.sh evaluate`. Pass only the Contract, diff,
+  prior-score path, `$EVAL_JSON` output path, and already-executed verification
+  evidence on stdin. Do not resume the parent session or pass the task
+  description.
+  DevContainers that cannot run the Codex sandbox may use
+  `--dangerously-bypass-approvals-and-sandbox` only for this ephemeral child;
+  record `git status --porcelain` before and after and invalidate the evaluation
+  if the child changes the worktree.
 
 If neither isolation path is available, say so in the report; never self-evaluate
 in-context while claiming isolation.
@@ -63,7 +68,7 @@ You receive:
 Protocol:
 1. **Execute** -- run Contract.checks[] or verify_cmd
 2. **Explore** -- generate additional checks from the diff
-3. **Write** -- full report to `.claude/.refine-eval.json`
+3. **Write** -- full report to the caller-supplied `$EVAL_JSON`
 4. **Return** -- ONLY `{"score": <number>, "suggestion": "<one line>"}` to caller
 
 The full report goes to the file; the caller (thin orchestrator) sees only score + suggestion.

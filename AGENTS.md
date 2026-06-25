@@ -56,7 +56,8 @@ Enforced by hooks (`.codex/hooks.json`); no user commands required.
 
 - *Meaningful changes* → use the `refine` skill (`.agents/skills/refine/`) — modify → evaluate → keep/discard loop, not optional.
 - *Trivial changes* (typo, single config line) → direct edit, no evaluation needed.
-- Never self-evaluate. Delegate to the `evaluator` skill (`.agents/skills/evaluator/`).
+- Never self-evaluate. On Codex, run the `evaluator` skill in a fresh
+  `codex exec --ephemeral` subprocess; do not evaluate in the parent context.
 
 ### Pre-commit gate (PreToolUse hook)
 
@@ -79,7 +80,7 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 | refine | Meaningful changes requiring iterative refinement |
 | evaluator | After changes (1-pass review); within the `refine` loop |
 | wip-manager | When a task spans sessions |
-| status | Workspace status snapshot |
+| status | Current-repository status, WIP, and environment snapshot |
 | verify | Pre-commit verification |
 | karpathy-guidelines | Karpathy 4-rule reference handle (direct invocation or via evaluator) |
 
@@ -121,7 +122,7 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 | Constraint | Workaround |
 |------------|------------|
 | `Edit`/`Write` not available as PreToolUse matcher | Use `Bash(...)` patterns only |
-| No sub-agent isolation | Absorb agents as skills (`.agents/skills/`) |
+| No in-process sub-agent isolation | Use fresh `codex exec --ephemeral` subprocesses for isolated Audit/Modify/Evaluate roles |
 | `frontmatter.tools` / `model` / `color` ignored | Body is preserved; vendor ignores extras |
 | No `@import` in AGENTS.md | This file must be self-contained; cross-file refs require explicit `Read` |
 
