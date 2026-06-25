@@ -21,9 +21,10 @@ Target: $ARGUMENTS (default: all)
 
 ## For "all"
 
-Run the project's completion-checker script if available:
+Run the project's completion-checker script if available (vendor-neutral root
+resolution so the mirrored Codex skill works without `$CLAUDE_PROJECT_DIR`):
 ```bash
-bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"
+bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}/scripts/meta/completion-checker.sh"
 ```
 
 Or run verification for each detected project directory.

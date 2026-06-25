@@ -8,7 +8,7 @@
 
 Isolated environment for running Claude Code and Codex CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, wiki, karpathy-guidelines).
+Default loadout: 2 sub-agents · 4 hooks · 4 skills (refine, status, verify, karpathy-guidelines).
 
 ## Tech Stack
 
@@ -23,10 +23,10 @@ Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, wi
 
 | Vendor | Source of truth | Mirror |
 |--------|----------------|--------|
-| Claude Code | `CLAUDE.md`, `.claude/{rules,skills,hooks,agents,security}/`, `.claude/settings.json` | — |
-| Codex CLI | (mirror) | `AGENTS.md`, `.agents/{rules,skills,security}/`, `.codex/{config.toml,hooks.json,hooks/}` |
+| Claude Code | `CLAUDE.md`, `.claude/{rules,skills,hooks,agents}/`, `.claude/settings.json` | — |
+| Codex CLI | (mirror) | `AGENTS.md`, `.agents/{rules,skills}/`, `.codex/{config.toml,hooks.json,hooks/}` |
 
-Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way overlay (preserve-extras).
+Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way generated mirror (copies edits; prunes orphans whose `.claude/` source was deleted).
 
 ## Environment
 

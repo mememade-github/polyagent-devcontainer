@@ -130,24 +130,23 @@ Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refin
 
 Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh` (Codex CLI does not expose Edit/Write matchers).
 
-### Skills (5)
+### Skills (4)
 
 | Skill | Description |
 |-------|-------------|
 | /refine | Autonomous iterative refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |
-| /wiki | Structured knowledge wiki (init, ingest, query, lint) |
 | karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md` + `EXAMPLES.md`) |
 
 ## Polyagent parity
 
 ```bash
-bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ overlay
+bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ generated mirror
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 
-`.claude/` is ground truth; `.agents/` is generated. `cp -a` overlay preserves dest-only files (project-local extensions are not clobbered).
+`.claude/` is ground truth; `.agents/` is generated. The sync copies content (`cp -R`) and **prunes** `.agents/` entries whose `.claude/` source was deleted (deletion propagation), so the mirror tracks deletions, not just additions.
 
 ### Codex sandbox bypass (DevContainer only)
 

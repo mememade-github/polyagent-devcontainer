@@ -37,7 +37,7 @@ The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's 
 | AI agents | 2 | Claude Code · Codex CLI |
 | Sub-agents (Claude) | 2 | evaluator, wip-manager |
 | Hooks | 4 / 4 | session-start, pre-commit-gate, pre-push-gate, refinement-gate |
-| Skills | 5 | /refine, /status, /verify, /wiki, karpathy-guidelines |
+| Skills | 4 | /refine, /status, /verify, karpathy-guidelines |
 | Tools | 20+ | ripgrep, fd, fzf, jq, tmux, gh, docker CLI, uv |
 
 ## Customizing for your project
@@ -57,7 +57,7 @@ Files **not** to edit by hand: `.claude/settings.json`, `.codex/hooks.json`, `.d
 ## Vendor parity sync
 
 ```bash
-bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ overlay (preserve-extras)
+bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ generated mirror (prunes deleted-source orphans)
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 

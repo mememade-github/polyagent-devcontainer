@@ -1,6 +1,6 @@
 # AGENTS.md — Codex CLI governance
 
-> Codex CLI mirror of [CLAUDE.md](CLAUDE.md). Codex CLI auto-loads this file on session start, so all behavioral rules must live inline here — Codex does not follow `@import` or cross-file references automatically. The same rules in Claude form are at [CLAUDE.md](CLAUDE.md).
+> Codex CLI mirror of [CLAUDE.md](CLAUDE.md). Codex CLI auto-loads this file on session start, but does not follow `@import` or cross-file references — so the behavioral rules are **not** auto-loaded from disk. Explicitly `Read` the rule files listed in *Behavioral rules to load on session start* (below) at the start of each session. The same rules in Claude form are at [CLAUDE.md](CLAUDE.md).
 
 ## Behavioral foundation
 
@@ -28,7 +28,6 @@ Skill mirror: [`.agents/skills/karpathy-guidelines/`](.agents/skills/karpathy-gu
 │   └── state/                      # Runtime markers (gitignored)
 ├── .agents/                        # Codex agent assets (mirror of .claude/)
 │   ├── rules/                      # Behavioral rules
-│   ├── security/                   # Trust boundary, registry mirror
 │   └── skills/                     # Skill mirror + agent-as-skill conversions
 ├── .claude/                        # Claude Code agent system (ground truth)
 └── .devcontainer/                  # Container configuration
@@ -82,7 +81,6 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 | wip-manager | When a task spans sessions |
 | status | Workspace status snapshot |
 | verify | Pre-commit verification |
-| wiki | LLM wiki / knowledge base build and maintain |
 | karpathy-guidelines | Karpathy 4-rule reference handle (direct invocation or via evaluator) |
 
 ## Coding rules
@@ -117,7 +115,6 @@ Codex CLI does not yet support file-based custom sub-agent declarations, so the 
 | `.codex/state/` | Runtime markers (gitignored) |
 | `.agents/rules/` | Behavioral-rule mirror of `.claude/rules/` |
 | `.agents/skills/` | Skill mirror of `.claude/skills/` plus Codex-side conversions of `.claude/agents/*` |
-| `.agents/security/` | Trust boundary, registry mirror |
 
 ## Vendor constraints
 
@@ -141,9 +138,15 @@ Do not edit `.agents/` by hand.
 
 ## Behavioral rules to load on session start
 
-Codex CLI does not auto-follow file references, so explicitly `Read` these:
+Codex CLI does not auto-follow file references, so explicitly `Read` **all** of
+these at session start (the Claude side auto-imports them via `@import` in
+CLAUDE.md):
 
-- [.agents/rules/behavioral-core.md](.agents/rules/behavioral-core.md) — Karpathy 4-rule.
+- [.agents/rules/behavioral-core.md](.agents/rules/behavioral-core.md) — Karpathy 4-rule (Think / Simplicity / Surgical / Goal).
+- [.agents/rules/audit-discipline.md](.agents/rules/audit-discipline.md) — negative-space declaration, two-axis counter-tests, external cross-check.
+- [.agents/rules/commit-discipline.md](.agents/rules/commit-discipline.md) — one concern per commit; `Coupling:` line for bundles.
+- [.agents/rules/destructive-ops-discipline.md](.agents/rules/destructive-ops-discipline.md) — surface narrower alternatives before any destructive op.
+- [.agents/rules/anchor-discipline.md](.agents/rules/anchor-discipline.md) — preserve the user's verbatim thesis across multi-stage work.
 - [.agents/rules/devcontainer-patterns.md](.agents/rules/devcontainer-patterns.md) — DevContainer DinD avoidance and volume-mount path translation.
 
 ## Domain context

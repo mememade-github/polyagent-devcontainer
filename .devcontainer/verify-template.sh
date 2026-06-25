@@ -59,9 +59,9 @@ grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex 
 grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: sk-* secret pattern" || record FAIL "Codex pre-commit: sk-* secret pattern"
 grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CLAUDE_PRECOMMIT" 2>/dev/null && record PASS "Claude pre-commit: sk-* secret pattern" || record FAIL "Claude pre-commit: sk-* secret pattern"
 grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill: bash invocation contract" || record FAIL "status skill: bash invocation contract"
-grep -Fq 'bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.claude/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill: bash invocation contract" || record FAIL "verify skill: bash invocation contract"
+grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.claude/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill: bash invocation contract" || record FAIL "verify skill: bash invocation contract"
 grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.agents/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill mirror: bash invocation contract" || record FAIL "status skill mirror: bash invocation contract"
-grep -Fq 'bash "$CLAUDE_PROJECT_DIR/scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.agents/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill mirror: bash invocation contract" || record FAIL "verify skill mirror: bash invocation contract"
+grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.agents/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill mirror: bash invocation contract" || record FAIL "verify skill mirror: bash invocation contract"
 if [ -e "$PROJECT_DIR/.cursor" ]; then
     record FAIL "scope-membership: .cursor removed"
 else
@@ -150,7 +150,7 @@ record PASS "Agent frontmatter ($count/$total)"
 echo ""
 echo "=== Phase 2c: Skills ==="
 skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
-[ "$skills" -eq 5 ] && record PASS "Skills: $skills/5 (refine, status, verify, wiki, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 5)"
+[ "$skills" -eq 4 ] && record PASS "Skills: $skills/4 (refine, status, verify, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 4)"
 
 # --- PHASE 2d: Rules (5 portable) ---
 echo ""
