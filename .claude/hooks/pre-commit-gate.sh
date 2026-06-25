@@ -19,10 +19,10 @@ if ! echo "$COMMAND" | grep -qE '\bgit\s+commit\b'; then
   exit 0
 fi
 
-# AUD-2026-029: --no-verify bypass detection. CLAUDE.md §4.2 "No --no-verify".
+# AUD-2026-029: --no-verify bypass detection. project pre-commit gate "No --no-verify".
 # Block before any other check — bypass attempt should never reach the gate.
 if echo "$COMMAND" | grep -qE '(^|[[:space:]])--no-verify\b'; then
-  echo "Blocked: --no-verify bypass is not permitted (CLAUDE.md §4.2)." >&2
+  echo "Blocked: --no-verify bypass is not permitted (project pre-commit gate)." >&2
   echo "Fix verification issues before committing — do not skip the gate." >&2
   exit 2
 fi
@@ -41,7 +41,7 @@ else
   ACTUAL_ROOT="$PROJECT_DIR"
 fi
 
-# AUD-2026-030: secret-pattern scan on staged content. CLAUDE.md §7 "Protect secrets".
+# AUD-2026-030: secret-pattern scan on staged content. project coding rules "Protect secrets".
 # Extends pre-push-gate.sh Layer 1 (which only scans remote URL) to scan staged file content.
 SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|(^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
 if git -C "$PROJECT_DIR" diff --cached -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS"; then
@@ -101,7 +101,7 @@ if [ -f "$SCORER" ] && [ ! -f "$REFINE_MARKER" ]; then
   STAGED_COUNT=$(git -C "$PROJECT_DIR" diff --cached --name-only | wc -l)
   if [ "$STAGED_COUNT" -ge 2 ]; then
     echo "WARNING: $STAGED_COUNT files staged but /refine is not active." >&2
-    echo "CLAUDE.md §2 requires /refine for changes affecting 2+ files when scorer exists." >&2
+    echo "Project automated workflow requires /refine for changes affecting 2+ files when scorer exists." >&2
     echo "Consider running /refine instead of direct commit." >&2
     # WARNING only, not blocking — agent can proceed with justification
   fi
