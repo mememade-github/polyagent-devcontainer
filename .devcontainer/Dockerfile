@@ -96,10 +96,8 @@ RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
 # root 권한 없이 업데이트/관리 가능. PATH는 .bashrc에 추가.
 # =============================================================================
 RUN mkdir -p ${HOME}/.npm-global \
-    && npm config set prefix "${HOME}/.npm-global" \
     && npm install -g --prefix "${HOME}/.npm-global" @openai/codex \
     && echo 'export PATH="${HOME}/.npm-global/bin:${PATH}"' >> ${HOME}/.bashrc \
-    && sudo ln -sf ${HOME}/.npm-global/bin/codex /usr/local/bin/codex \
     && ${HOME}/.npm-global/bin/codex --version
 
 # =============================================================================
@@ -161,10 +159,15 @@ RUN git config --global core.quotepath false \
 # Setup scripts + Entrypoint
 # =============================================================================
 USER root
+COPY codex-launcher.sh /usr/local/bin/codex-launcher
 COPY setup-env.sh /usr/local/bin/
 COPY entrypoint.sh /usr/local/bin/
-RUN sed -i 's/\r$//' /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh \
-    && chmod 755 /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/codex-launcher /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh \
+    && chmod 755 /usr/local/bin/codex-launcher /usr/local/bin/setup-env.sh /usr/local/bin/entrypoint.sh \
+    && mkdir -p /home/${USERNAME}/.local/bin \
+    && ln -sf /usr/local/bin/codex-launcher /home/${USERNAME}/.local/bin/codex \
+    && ln -sf /usr/local/bin/codex-launcher /usr/local/bin/codex \
+    && chown -h ${USERNAME}:${USERNAME} /home/${USERNAME}/.local/bin/codex
 
 USER ${USERNAME}
 WORKDIR /workspaces
