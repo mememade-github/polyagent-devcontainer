@@ -330,6 +330,12 @@ ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTU
 ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null
 role_count=$(grep -c 'exec --ephemeral' "$ROLE_LOG_FILE" 2>/dev/null || true)
 [ "$role_count" -eq 3 ] && record PASS "Codex roles: three ephemeral process invocations" || record FAIL "Codex roles: isolation invocation count $role_count/3"
+evaluate_line=$(tail -1 "$ROLE_LOG_FILE")
+if printf '%s' "$evaluate_line" | grep -Fq -- '--skip-git-repo-check' && ! printf '%s' "$evaluate_line" | grep -Fq -- "-C $ROLE_FIXTURE"; then
+    record PASS "Codex evaluator: repository rules not auto-loaded"
+else
+    record FAIL "Codex evaluator: recursive rules-loading risk"
+fi
 git -C "$ROLE_FIXTURE" check-ignore -q .codex/state/.refine-eval.json && record PASS "Codex evaluator output: gitignored" || record FAIL "Codex evaluator output: tracked risk"
 cat > "$ROLE_FIXTURE/fake-mutator" <<'EOF'
 #!/bin/bash

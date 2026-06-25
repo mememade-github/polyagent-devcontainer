@@ -29,7 +29,16 @@ if [ -n "$OUTPUT_FILE" ]; then
 fi
 
 BEFORE=$(git -C "$PROJECT_ROOT" status --porcelain=v1)
-ARGS=(exec --ephemeral -C "$PROJECT_ROOT")
+RUN_ROOT="$PROJECT_ROOT"
+ISOLATED_ROOT=""
+if [ "$ROLE" = "evaluate" ]; then
+    ISOLATED_ROOT=$(mktemp -d)
+    trap 'rm -r "$ISOLATED_ROOT"' EXIT
+    RUN_ROOT="$ISOLATED_ROOT"
+fi
+
+ARGS=(exec --ephemeral -C "$RUN_ROOT")
+[ "$ROLE" = "evaluate" ] && ARGS+=(--skip-git-repo-check)
 
 if [ -f /.dockerenv ]; then
     ARGS+=(--dangerously-bypass-approvals-and-sandbox)

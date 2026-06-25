@@ -56,9 +56,10 @@ Claude and Codex `refinement-gate.sh` markers exactly.
 - **Claude**: use a fresh `Agent` subagent for Audit, Modify, and Evaluate.
 - **Codex**: invoke `scripts/meta/run-isolated-role.sh` separately for `audit`,
   `modify`, and `evaluate`. The helper starts a new `codex exec --ephemeral`
-  process every time. Audit and Evaluate receive only read-only evidence;
-  Modify receives the Gap Report and task scope. Never use the parent Codex
-  context as its own evaluator.
+  process every time; Evaluate starts outside the repository to prevent
+  recursive AGENTS.md loading. Audit and Evaluate receive only read-only
+  evidence; Modify receives the Gap Report and task scope. Never use the parent
+  Codex context as its own evaluator.
 - In a DevContainer where bubblewrap is unavailable, the child may use
   `--dangerously-bypass-approvals-and-sandbox`; capture
   `git status --porcelain` before and after Audit/Evaluate and reject the result

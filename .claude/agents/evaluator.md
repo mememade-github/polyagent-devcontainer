@@ -25,8 +25,9 @@ honor-system — and the structure differs by host:
   `codex exec --ephemeral` subprocess for every evaluation through
   `scripts/meta/run-isolated-role.sh evaluate`. Pass only the Contract, diff,
   prior-score path, `$EVAL_JSON` output path, and already-executed verification
-  evidence on stdin. Do not resume the parent session or pass the task
-  description.
+  evidence on stdin. The helper starts Evaluate outside the repository so the
+  child cannot auto-load `AGENTS.md` and recursively invoke another evaluator.
+  Do not resume the parent session or pass the task description.
   DevContainers that cannot run the Codex sandbox may use
   `--dangerously-bypass-approvals-and-sandbox` only for this ephemeral child;
   record `git status --porcelain` before and after and invalidate the evaluation
