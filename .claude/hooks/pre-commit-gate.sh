@@ -89,7 +89,7 @@ if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
   echo "Verification is stale or missing. Run verification before committing:" >&2
   echo "1. Python: ruff check src/ && mypy src/ --ignore-missing-imports" >&2
   echo "2. TypeScript: pnpm build" >&2
-  echo "3. Or run: your project verification script (see CLAUDE.md §3)" >&2
+  echo "3. Or run: your project verification script (see project governance docs)" >&2
   echo "Then create the marker: mkdir -p '$ACTUAL_ROOT/.claude' && touch '$MARKER'" >&2
   exit 2
 fi
