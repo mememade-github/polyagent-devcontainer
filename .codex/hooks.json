@@ -1,12 +1,4 @@
 {
-  "$comment": [
-    "Codex CLI hooks configuration — Tier 1 base template.",
-    "Requires [features] hooks = true in .codex/config.toml.",
-    "Hook scripts parse multiple common command field shapes (.tool_input.command, .toolInput.command, .command, .input.command).",
-    "Project root resolution uses $CODEX_PROJECT_DIR with '.' fallback.",
-    "PreCompact is not a Codex event and is intentionally not modeled here.",
-    "Non-Bash PreToolUse/PostToolUse are not supported by Codex — all hooks below match Bash tool only where applicable."
-  ],
   "hooks": {
     "SessionStart": [
       {
