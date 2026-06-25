@@ -1,69 +1,44 @@
 # Destructive Operations Discipline
 
-> Anti-pattern: invoking the most powerful destructive tool by default
-> when narrower alternatives exist. Surfaced by a Karpathy-4-rule
-> re-audit of a prior cycle in which a full git history rewrite was
-> chosen for a single-token leak; narrower alternatives (BFG,
-> single-commit revert + secret rotation, .gitattributes-driven LFS
-> strip) were never surfaced in the plan, failing R2 (Simplicity) and
-> R3 (Surgical).
+> Source: a prior cycle chose a full git-history rewrite for a single-name leak
+> when a revert + token rotation would have done — R2/R3 FAIL. The narrower
+> options were never surfaced in the plan.
 
-## 1. Surface alternatives before any destructive operation
+## 1. Surface alternatives first
 
-The destructive operations already requiring approval per CLAUDE.md
-§4.1 (`rm -rf`, `mv`/`cp` overwrite, `git push --force`,
-`git reset --hard`, `DROP`/`DELETE`) plus the irreversible class
-(`git filter-repo`, `git rebase --root`, repository-wide search-and-
-replace, `docker volume rm`, etc.) **must** be preceded by an
-explicit alternatives list.
+Before any approval-required destructive op (`rm -rf`, `mv`/`cp` overwrite,
+`git push --force`, `git reset --hard`, `DROP`/`DELETE`) or irreversible op
+(`git filter-repo`, `rebase --root`, repo-wide replace, `docker volume rm`),
+state: the proposed op, **≥1 narrower alternative**, the blast-radius asymmetry,
+and why the broader op was chosen. Skipping this fails Karpathy R1 (don't pick
+silently) and R2 (minimum that solves it).
 
-Minimum content of the alternatives list:
-- the proposed operation;
-- at least one narrower alternative if any plausibly exists;
-- the cost/blast-radius asymmetry between them;
-- the reason the broader operation was chosen (or the reason no
-  narrower alternative is sufficient).
+## 2. Narrower alternatives by operation
 
-Without this list, the agent has not satisfied Karpathy R1
-("present multiple interpretations — don't pick silently") or R2
-("minimum code that solves the problem").
+| Operation | Consider first |
+|-----------|----------------|
+| `git filter-repo --replace-text` | BFG; revert + secret rotation if recent; `--path`-scoped |
+| `git push --force` | `--force-with-lease`; coordinate timing |
+| `git reset --hard` | `--soft` + selective checkout; recovery branch first |
+| `rm -rf <dir>` | enumerate `rm <files>`; move to `.trash/`; check refs first |
+| repo-wide regex replace | path-scoped; one-by-one Edit |
+| `docker volume rm` | inspect first; rename to `<name>-archived-YYYYMMDD` |
+| `docker rm -f` | `docker stop` first; `-f` only after it fails |
+| `mv`/`cp` overwrite | back up `<dst>.bak`; `diff` first; `--no-clobber` |
+| `DROP`/`DELETE` bulk | soft-delete; archive table; verify a restorable backup |
 
-## 2. Concrete narrower alternatives by operation
+Principle: ask "what's the smallest action that reaches the end-state?" first.
 
-| Operation | Narrower alternatives to consider first |
-|-----------|------------------------------------------|
-| `git filter-repo --replace-text` | BFG Repo-Cleaner (line-level, idempotent); single-commit revert + secret rotation when leak is recent; selective `git filter-repo --path` |
-| `git push --force` | `--force-with-lease` (preserves concurrent commits); coordinate timing with collaborators |
-| `git reset --hard` | `git reset --soft` then selective `git checkout`; create a recovery branch first |
-| `rm -rf <dir>` | `rm <files>` enumerated; move to a `.trash/` for review window; verify nothing references the path first |
-| repository-wide regex replace | path-scoped replace; one-by-one Edit with context |
-| `docker volume rm` | inspect volume contents first; rename the volume to `<name>-archived-YYYYMMDD` instead |
-| `docker rm -f <container>` | `docker stop <container>` first to allow graceful shutdown (in-flight transactions complete); use `-f` only after stop fails or for stateless containers |
-| `mv` / `cp` (overwrite of existing destination) | rename existing destination to `<dst>.bak.YYYYMMDD` first; `diff <src> <dst>` to confirm intent; use `mv --no-clobber` to make accidental overwrite fail loudly |
-| `DROP TABLE` / `DELETE` (bulk) | soft-delete column; archive table to `<name>_archived_YYYYMMDD`; verify backups exist and are restorable |
+## 3. Rotate before scrub
 
-The list is illustrative, not exhaustive. The principle is: ask
-"what's the smallest action that achieves the end-state?" before
-running the largest.
-
-## 3. Token rotation precedes scrub
-
-When the destructive operation is for credential leak removal, the
-correct first step is *rotating the leaked credential*. History scrub
-is forensic cleanup for an already-mitigated leak. Reversing this
-order leaves the token live while you spend time on the rewrite.
+For credential-leak removal, *rotate the credential first*. History scrub is
+cleanup for an already-mitigated leak; reversing the order leaves the token live
+while you spend time on the rewrite.
 
 ## 4. Counter-test
 
-Before proceeding with a destructive operation, the plan should
-contain a sentence that names a narrower alternative and explains
-why it was rejected. If no such sentence exists, the plan is
-incomplete; do not proceed with execution.
+The plan must contain a sentence naming a narrower alternative and why it was
+rejected. No such sentence → the plan is incomplete; do not execute.
 
 ---
-
-*Source: a prior template audit cycle in which a multi-commit
-history rewrite was performed for a single-name leak that could have
-been addressed by a single revert plus token rotation (no live
-secret was involved). A Karpathy 4-rule re-audit assigned R2/R3
-FAIL.*
+*External anchor: least-blast-radius / staged rollout — Google SRE.*

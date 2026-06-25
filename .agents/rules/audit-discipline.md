@@ -1,103 +1,41 @@
 # Audit Discipline
 
-> Anti-patterns observed in a prior template audit cycle, codified after
-> an external vendor re-audit found issues that the internal audit
-> missed. The failures clustered in two structural areas: success-criteria
-> scope and entry-path coverage.
+> Source: a prior template audit cycle whose internal pass missed what an
+> external re-audit caught — failures clustered in success-criteria scope and
+> entry-path coverage.
 
-## 1. Negative space declaration
+## 1. Negative-space declaration
 
-**Before any audit, declare what you are *not* checking.**
+Before any audit, state in one sentence per axis what you are *not* checking —
+otherwise "all clear" silently means "all clear within my chosen lens". Axes
+templates commonly miss: cross-document consistency (counts/ports that disagree
+across docs), multi-entry-point parity (DevContainer vs plain `docker compose
+up`), rolling-version supply-chain drift, and marketing-vs-technical claims
+("isolated"/"sandbox" framing that overstates the trust model). If an excluded
+axis later turns out to matter, record it as a *scope error*, not a new finding.
 
-Audits silently exclude axes. If the exclusion is not declared, the
-audit reads as "all clear" when it actually means "all clear within the
-chosen lens". Axes commonly missed in template audits:
+## 2. Counter-test = two axes
 
-- cross-document numerical/textual consistency (e.g. port number
-  drift across docs, component counts that disagree between README
-  and detailed reference);
-- multi-entry-point parity (e.g. VS Code DevContainer mounts vs plain
-  `docker compose up`);
-- supply-chain time-axis stability (rolling tool versions producing
-  different installed software on different days);
-- marketing-vs-technical claim accuracy (e.g. "isolated" or "sandbox"
-  framing that does not match the actual trust model).
-
-**Required at audit start:**
-- one sentence per excluded axis: what is excluded and why.
-- if the user requested coverage for an excluded axis later, treat it
-  as a redo of the audit, not a follow-up of the previous one.
-
-**Required at audit end:**
-- if any excluded axis turned out to matter (post-hoc external
-  finding, regression, etc.), record it in the audit report as a
-  scope error, not as a new finding. The lesson is the scoping, not
-  the leak.
-
-## 2. Counter-test scope
-
-Counter-tests must verify two things, not one:
-
-- **Detection works (positive)**: with a synthetic violation injected,
-  the audit raises the violation. Standard.
-- **Adjacent paths intact (regression)**: the fix does not break a
-  path the audit did not exercise.
-
-The triggering audit cycle had only positive counter-tests. The
-textbook adjacent-path regression observed there: a fix touched
-README to correct one number, the audit verified the fix, but the
-same edit introduced a new inconsistency between the README and a
-co-mounted reference doc (component-count drift).
-
-**Required:** for any fix that edits a file, the counter-test must
-include "what other claims in the same file or co-mounted files
-should still hold true" — and verify them.
+Every fix's counter-test verifies both: (a) **positive** — an injected synthetic
+violation is detected; (b) **regression** — adjacent paths the audit did not
+exercise still hold. For any file edit, explicitly re-check what *other* claims
+in the same or co-mounted files must still be true (e.g. a README number fix that
+desyncs a co-mounted reference doc).
 
 ## 3. Mirror commits: re-verify locally
 
-A mirror commit's body that says "Counter-tests verified upstream" is
-an unstated assumption that the mirror is byte-identical to the
-upstream and runs in an identical environment.
+"Verified upstream" assumes a byte-identical mirror in an identical environment —
+rarely fully true (different remote, cache, `.gitignore`, post-commit CI). Re-run
+the counter-tests on the mirror; if genuinely redundant, state the basis in the
+commit body rather than by silence.
 
-The assumption is rarely fully true:
-- different git remote (GitHub upstream vs GitLab origin);
-- different container registry / cache state;
-- different `.gitignore` or LFS configuration;
-- different CI/CD pipeline that touches the file post-commit.
+## 4. External cross-check (AUD-2026-008)
 
-**Required for mirror commits:**
-- run the same counter-tests locally on the mirror, even if the diff
-  is byte-identical to upstream;
-- if the local re-verification is genuinely redundant (e.g.,
-  hash-locked artifact distribution), record the basis for that
-  judgment in the commit body — not by absence of information.
-
-## 4. External cross-check thresholds
-
-Self-audits structurally cannot catch their own scoping errors. For
-high-value surfaces (public OSS templates, security-sensitive code,
-governance-bearing files), the audit should include at least one
-external cross-check before declaring done:
-
-- a different vendor agent (e.g., a second AI coding assistant when
-  the work was done in the first);
-- an evaluator agent in a separate context window;
-- a static-analysis tool the primary agent did not pick.
-
-Single-agent self-audits remain valid for trivial, narrowly-scoped
-work. The decision test (AUD-2026-008):
-
-- **REQUIRED** — if the audit output will be cited by another party
-  (PR review, public docs, governance commit body, third-party report,
-  reachable Codex cross-check handoff).
-- **Recommended** — for internal audits whose conclusions stay within
-  the auditor's own scope of action.
-
-Treat the test as binary, not a slider. If the output is reachable by
-a non-auditor reader, external cross-check is required.
+Self-audits cannot catch their own scoping errors. Binary test: if the audit
+output is reachable by any non-auditor reader (PR review, public docs, governance
+commit body, Codex handoff), an external cross-check is **REQUIRED** — a different
+vendor agent, an evaluator in a separate context window, or a static analyzer the
+primary agent did not pick. Internal-only conclusions: recommended, not required.
 
 ---
-
-*Source: a prior template audit cycle plus its external vendor
-re-audit, the union of which surfaced these scoping and entry-path
-failures.*
+*External anchor: independent-review / separation-of-duties audit practice.*
