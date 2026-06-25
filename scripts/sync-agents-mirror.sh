@@ -51,7 +51,7 @@ fi
 for SUB in rules skills; do
     if [ -d "$SRC/$SUB" ]; then
         chmod --reference="$SRC/$SUB" "$EXPECTED/$SUB"
-        cp -a "$SRC/$SUB"/. "$EXPECTED/$SUB"/
+        cp -R --preserve=mode "$SRC/$SUB"/. "$EXPECTED/$SUB"/
     fi
 done
 
@@ -61,7 +61,7 @@ if [ -d "$SRC/agents" ]; then
         NAME=$(basename "$AGENT" .md)
         case "$NAME" in _*) continue ;; esac
         mkdir -p "$EXPECTED/skills/$NAME"
-        cp -p "$AGENT" "$EXPECTED/skills/$NAME/SKILL.md"
+        cp --preserve=mode "$AGENT" "$EXPECTED/skills/$NAME/SKILL.md"
     done
 fi
 
@@ -102,24 +102,16 @@ else
     mkdir -p "$DST"
 
     while IFS= read -r -d '' path; do
-        rel=${path#"$DST/"}
-        expected_path="$EXPECTED/$rel"
-        type_matches=0
-        if [ -d "$expected_path" ] && [ -d "$path" ]; then
-            type_matches=1
-        elif [ -f "$expected_path" ] && [ -f "$path" ]; then
-            type_matches=1
+        if [ -d "$path" ]; then
+            rm -r "$path"
+        else
+            rm -f "$path"
         fi
-        if [ "$type_matches" -eq 0 ]; then
-            if [ -d "$path" ]; then
-                rmdir "$path" 2>/dev/null || true
-            else
-                rm -f "$path"
-            fi
-        fi
-    done < <(find "$DST" -depth -mindepth 1 -print0)
+    done < <(find "$DST" -mindepth 1 -maxdepth 1 -print0)
 
-    cp -a "$EXPECTED"/. "$DST"/
+    while IFS= read -r -d '' path; do
+        cp -R --preserve=mode "$path" "$DST"/
+    done < <(find "$EXPECTED" -mindepth 1 -maxdepth 1 -print0)
     echo "[SYNC] exact .agents/"
 fi
 
