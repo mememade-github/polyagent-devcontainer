@@ -61,7 +61,8 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
                               git safe.directory, command-history setup
         [2/5] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
         [3/5] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
-        [4/5] Codex CLI      — `npm i -g --prefix ~/.npm-global @openai/codex@latest`
+        [4/5] Codex CLI      — reconcile PATH-first launcher, then refresh the
+                              real ~/.npm-global/bin/codex with npm --prefix
                               (skip with SKIP_CODEX_UPDATE=1)
         [5/5] Codex config   — validate project config; preserve user config without copying
 
@@ -99,16 +100,21 @@ Both `docker compose up` and VS Code "Reopen in Container" route through
 
 The template intentionally pulls latest releases at build/run time:
 - **Claude Code**: `curl https://claude.ai/install.sh | bash` (latest at build).
-- **Codex CLI**: `npm install -g @openai/codex` into `~/.npm-global`
-  (latest published, unpinned). The image and startup script set npm's global
-  prefix to the same directory so `codex doctor` and runtime updates agree.
+- **Codex CLI**: `npm install -g --prefix ~/.npm-global @openai/codex`
+  into `~/.npm-global` (latest published, unpinned). The image installs a
+  PATH-first `codex` launcher (`/usr/local/bin/codex-launcher`) that updates
+  through the same explicit prefix, then re-execs the real
+  `~/.npm-global/bin/codex` binary. The template does not persistently mutate
+  npm's global prefix.
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
   unless `SKIP_CLAUDE_UPDATE=1` is set.
-- **Codex update**: every container start re-runs `npm install -g --prefix
-  ~/.npm-global @openai/codex@latest` (`setup-env.sh` step 4), unless
-  `SKIP_CODEX_UPDATE=1` is set. Codex's built-in `codex update` is **not** used:
-  it targets the root-owned default npm prefix (`/usr/lib/node_modules`) and
-  fails as the unprivileged `vscode` user.
+- **Codex update**: every container start reconciles the launcher symlinks and
+  refreshes the real binary with `npm install -g --prefix ~/.npm-global
+  @openai/codex@latest` (`setup-env.sh` step 4), unless `SKIP_CODEX_UPDATE=1`
+  is set. The launcher performs the same preflight before every new `codex`
+  process. Codex's built-in `codex update` is **not** used: it targets the
+  root-owned default npm prefix (`/usr/lib/node_modules`) and fails as the
+  unprivileged `vscode` user.
 
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin: replace the Claude installer URL with a tagged
@@ -194,6 +200,7 @@ codex --version
 | Build fails | `docker compose build --no-cache` |
 | Claude re-auth needed | check named volume: `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | check named volume: `docker volume ls \| grep codex-config` |
+| Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
 | Hook test fails | `export CLAUDE_PROJECT_DIR=/workspaces` (Codex: `CODEX_PROJECT_DIR`) |

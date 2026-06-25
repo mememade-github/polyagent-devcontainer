@@ -66,6 +66,14 @@ grep -nE '^[^#]*\bcodex[[:space:]]+update\b' "$LAUNCHER" >/dev/null 2>&1 && reco
 grep -Fq 'codex_update_locked' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update uses lock" || record FAIL "setup-env: Codex update lock"
 grep -Fq 'CODEX_LAUNCHER="/usr/local/bin/codex-launcher"' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex launcher reconciliation" || record FAIL "setup-env: Codex launcher reconciliation"
 grep -q 'CODEX_UPDATE_LOG' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update failures are visible" || record FAIL "setup-env: Codex update failure visibility"
+if grep -Fq '/usr/local/bin/codex-launcher' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null &&
+    grep -Fq '~/.npm-global/bin/codex' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null &&
+    grep -Fq 're-execs' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null; then
+    record PASS "REFERENCE: Codex launcher/runtime boundary documented"
+else
+    record FAIL "REFERENCE: Codex launcher/runtime boundary documented"
+fi
+grep -Fq "set npm's global prefix" "$PROJECT_DIR/REFERENCE.md" 2>/dev/null && record FAIL "REFERENCE: stale persistent npm prefix claim" || record PASS "REFERENCE: no stale persistent npm prefix claim"
 if grep -Fq 'cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"' "$SETUP" 2>/dev/null; then
     record FAIL "setup-env: project config copied into persistent user config"
 else
