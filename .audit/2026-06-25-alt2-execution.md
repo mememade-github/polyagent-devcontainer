@@ -1,5 +1,14 @@
 # Alt-2 Execution — keep-essence reorganization of the whole agent system
 
+> **Codex re-audit erratum (2026-06-25):** the original H3 round-trip wrote a
+> `.codex/state` marker directly, but did not prove that the refine resolver
+> selected that path in a real Codex environment where `CODEX_PROJECT_DIR` is
+> unset. It selected `.claude` and left the Codex Stop gate dead. The original
+> sync proof also covered deleted top-level skills but not nested/root/type
+> conflicts. Both claims are superseded by
+> `2026-06-25-codex-full-component-execution-audit.md` and commits
+> `eb78d0e`, `19cbb56`, and `6c61814`.
+
 > Mandate (user, 2026-06-25): "전체 수행" of **Alt 2** — keep current elements +
 > Karpathy + best-practice meta-audit, then **keep only the core and reorganize**
 > (evaluator stays LLM-judgment, not a script; other scripts/hooks core-only).

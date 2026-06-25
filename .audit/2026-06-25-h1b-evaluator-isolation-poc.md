@@ -1,5 +1,11 @@
 # PoC Record — H1 Evaluator Isolation via Prompt (not script)
 
+> **Superseded implementation note (2026-06-25):** prompt minimization remains
+> the isolation contract, but execution now uses
+> `scripts/meta/run-isolated-role.sh` plus `codex exec --ephemeral`. Evaluate
+> starts outside the repository to prevent recursive `AGENTS.md` loading. See
+> `2026-06-25-codex-full-component-execution-audit.md`.
+
 > Status: RECORD ONLY (no system change, no commit, no push). Empirical
 > evidence for the H1 finding's remediation direction.
 > Run: 2026-06-25, in-container, codex-cli 0.142.0, ChatGPT auth.
