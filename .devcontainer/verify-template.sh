@@ -13,6 +13,25 @@ echo ""
 PASS=0
 FAIL=0
 record() { [ "$1" = "PASS" ] && PASS=$((PASS+1)) || FAIL=$((FAIL+1)); echo "$1: $2"; }
+frontmatter_header() {
+    awk 'BEGIN{n=0} /^---$/{n++; if(n==2) exit; next} n==1{print}' "$1"
+}
+flat_frontmatter_valid() {
+    file=$1
+    expected_keys=$2
+    [ "$(head -1 "$file" 2>/dev/null)" = "---" ] || return 1
+    [ "$(grep -n '^---$' "$file" 2>/dev/null | sed -n '2p' | cut -d: -f1)" -gt 1 ] 2>/dev/null || return 1
+    header=$(frontmatter_header "$file")
+    actual_keys=$(printf '%s\n' "$header" | sed -n 's/^\([A-Za-z][A-Za-z0-9-]*\):.*/\1/p' | sort)
+    expected_sorted=$(printf '%s\n' $expected_keys | sort)
+    [ "$actual_keys" = "$expected_sorted" ] || return 1
+    while IFS= read -r line; do
+        printf '%s\n' "$line" | grep -qE '^[A-Za-z][A-Za-z0-9-]*:[[:space:]]+[^[:space:]].*$' || return 1
+        value=${line#*:}
+        value=$(printf '%s' "$value" | sed 's/[[:space:]]*#.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+        [ -n "$value" ] && [ "$value" != '""' ] && [ "$value" != "''" ] && [ "$value" != "|" ] && [ "$value" != ">" ] || return 1
+    done <<< "$header"
+}
 
 # --- PHASE 1: Runtime ---
 echo "=== Phase 1: Runtime ==="
@@ -62,6 +81,10 @@ grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DI
 grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.claude/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill: bash invocation contract" || record FAIL "verify skill: bash invocation contract"
 grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.agents/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill mirror: bash invocation contract" || record FAIL "status skill mirror: bash invocation contract"
 grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.agents/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill mirror: bash invocation contract" || record FAIL "verify skill mirror: bash invocation contract"
+grep -Fq 'CODEX_CI' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && grep -Fq '.codex/state' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && record PASS "refine: Codex host/state resolver" || record FAIL "refine: Codex host/state resolver"
+grep -Fq 'codex exec --ephemeral' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && record PASS "refine: Codex fresh-role isolation" || record FAIL "refine: Codex fresh-role isolation"
+grep -Fq 'CODEX_CI' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && grep -Fq 'MARKER_PREFIX=".last-verification."' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && grep -Fq 'MARKER_PREFIX="last-verification."' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status: vendor state/marker resolver" || record FAIL "status: vendor state/marker resolver"
+grep -Fq 'CODEX_CI' "$PROJECT_DIR/scripts/meta/completion-checker.sh" 2>/dev/null && grep -Fq 'last-verification.$BRANCH_SAFE' "$PROJECT_DIR/scripts/meta/completion-checker.sh" 2>/dev/null && record PASS "completion-checker: vendor marker resolver" || record FAIL "completion-checker: vendor marker resolver"
 if [ -e "$PROJECT_DIR/.cursor" ]; then
     record FAIL "scope-membership: .cursor removed"
 else
@@ -106,10 +129,12 @@ done
 echo ""
 echo "=== Phase 2: Config Files ==="
 [ -f "$PROJECT_DIR/.claude/settings.json" ] && record PASS "settings.json exists" || record FAIL "settings.json"
+jq -e . "$PROJECT_DIR/.claude/settings.json" >/dev/null 2>&1 && record PASS "settings.json valid JSON" || record FAIL "settings.json invalid JSON"
 grep -q '"SessionStart"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "SessionStart hook registered" || record FAIL "SessionStart hook"
 grep -q '"Stop"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "Stop hook registered" || record FAIL "Stop hook"
 [ -f "$PROJECT_DIR/.codex/config.toml" ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
 [ -f "$PROJECT_DIR/.codex/hooks.json" ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
+jq -e . "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1 && record PASS "hooks.json valid JSON" || record FAIL "hooks.json invalid JSON"
 [ -f "$PROJECT_DIR/AGENTS.md" ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
 
 # --- PHASE 2a: Karpathy alignment ---
@@ -135,6 +160,7 @@ echo ""
 echo "=== Phase 2b: Agents ==="
 count=0
 total=0
+agent_schema_ok=0
 for f in "$PROJECT_DIR"/.claude/agents/*.md; do
     [ -f "$f" ] || continue
     name=$(basename "$f")
@@ -142,31 +168,64 @@ for f in "$PROJECT_DIR"/.claude/agents/*.md; do
     [[ "$name" == _* ]] && continue
     total=$((total+1))
     head -1 "$f" 2>/dev/null | grep -q "^---" && count=$((count+1)) || record FAIL "frontmatter: $name"
+    schema_ok=1
+    header=$(frontmatter_header "$f")
+    flat_frontmatter_valid "$f" "name description tools model maxTurns color" || schema_ok=0
+    declared_name=$(printf '%s\n' "$header" | sed -n 's/^name:[[:space:]]*//p')
+    [ "$declared_name" = "${name%.md}" ] || schema_ok=0
+    [ "$schema_ok" -eq 1 ] && agent_schema_ok=$((agent_schema_ok+1)) || record FAIL "agent schema: $name"
 done
 [ "$total" -eq 2 ] && record PASS "Agent count: $total (evaluator, wip-manager)" || record FAIL "Agent count: $total (expected 2)"
 record PASS "Agent frontmatter ($count/$total)"
+[ "$agent_schema_ok" -eq "$total" ] && record PASS "Agent schema ($agent_schema_ok/$total)" || record FAIL "Agent schema ($agent_schema_ok/$total)"
 
 # --- PHASE 2c: Skills (4 + karpathy-guidelines reference) ---
 echo ""
 echo "=== Phase 2c: Skills ==="
 skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
 [ "$skills" -eq 4 ] && record PASS "Skills: $skills/4 (refine, status, verify, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 4)"
+skill_schema_ok=0
+for f in "$PROJECT_DIR"/.claude/skills/*/SKILL.md; do
+    [ -f "$f" ] || continue
+    header=$(frontmatter_header "$f")
+    skill_name=$(basename "$(dirname "$f")")
+    if [ "$skill_name" = "karpathy-guidelines" ]; then
+        keys="name description license"
+    elif [ "$skill_name" = "status" ]; then
+        keys="name description user-invocable allowed-tools"
+    else
+        keys="name description argument-hint user-invocable allowed-tools"
+    fi
+    schema_ok=1
+    flat_frontmatter_valid "$f" "$keys" || schema_ok=0
+    declared_name=$(printf '%s\n' "$header" | sed -n 's/^name:[[:space:]]*//p')
+    [ "$declared_name" = "$skill_name" ] || schema_ok=0
+    [ "$schema_ok" -eq 1 ] && skill_schema_ok=$((skill_schema_ok+1)) || record FAIL "skill schema: $(basename "$(dirname "$f")")"
+done
+[ "$skill_schema_ok" -eq "$skills" ] && record PASS "Skill schema ($skill_schema_ok/$skills)" || record FAIL "Skill schema ($skill_schema_ok/$skills)"
 
-# --- PHASE 2d: Rules (5 portable) ---
+# --- PHASE 2d: Rules (6 portable) ---
 echo ""
 echo "=== Phase 2d: Rules ==="
-EXPECTED_RULES="audit-discipline behavioral-core commit-discipline destructive-ops-discipline devcontainer-patterns"
+EXPECTED_RULES="audit-discipline behavioral-core commit-discipline destructive-ops-discipline anchor-discipline devcontainer-patterns"
 missing=""
 for r in $EXPECTED_RULES; do
     [ -f "$PROJECT_DIR/.claude/rules/$r.md" ] || missing="$missing $r"
 done
 if [ -z "$missing" ]; then
-    record PASS "Rules: all 5 portable rules present ($EXPECTED_RULES)"
+    record PASS "Rules: all 6 portable rules present ($EXPECTED_RULES)"
 else
     record FAIL "Rules: missing$missing"
 fi
 rules_total=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
 [ "$rules_total" -eq 6 ] && record PASS "Rules count: $rules_total/6" || record FAIL "Rules count: $rules_total (expected 6)"
+
+for r in $EXPECTED_RULES; do
+    grep -Fq "@.claude/rules/$r.md" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null || missing="$missing CLAUDE:$r"
+    grep -Fq ".agents/rules/$r.md" "$PROJECT_DIR/AGENTS.md" 2>/dev/null || missing="$missing AGENTS:$r"
+    cmp -s "$PROJECT_DIR/.claude/rules/$r.md" "$PROJECT_DIR/.agents/rules/$r.md" || missing="$missing MIRROR:$r"
+done
+[ -z "$missing" ] && record PASS "Rules: imported, loaded, and mirrored by name" || record FAIL "Rules parity:$missing"
 
 # --- PHASE 2e: Codex hooks (4) ---
 echo ""
@@ -184,6 +243,115 @@ echo "=== Phase 2f: Mirror Integrity ==="
 [ -d "$PROJECT_DIR/.agents/skills/evaluator" ] && record PASS ".agents/skills/evaluator (agent->skill mirror)" || record FAIL ".agents/skills/evaluator missing"
 [ -d "$PROJECT_DIR/.agents/skills/wip-manager" ] && record PASS ".agents/skills/wip-manager (agent->skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
 [ -x "$PROJECT_DIR/scripts/sync-agents-mirror.sh" ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
+[ -x "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" ] && record PASS "run-isolated-role.sh executable" || record FAIL "run-isolated-role.sh"
+
+SYNC_FIXTURE=$(mktemp -d)
+mkdir -p "$SYNC_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$SYNC_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$SYNC_FIXTURE/scripts/"
+touch "$SYNC_FIXTURE/.agents/skills/refine/nested-orphan.txt"
+mkdir -p "$SYNC_FIXTURE/.agents/unexpected"
+touch "$SYNC_FIXTURE/.agents/unexpected/top-level-orphan.txt"
+SYNC_DRY=$(bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
+if printf '%s' "$SYNC_DRY" | grep -Fq 'nested-orphan.txt' && printf '%s' "$SYNC_DRY" | grep -Fq 'unexpected'; then
+    record PASS "sync dry-run: nested and top-level orphans detected"
+else
+    record FAIL "sync dry-run: orphan coverage incomplete"
+fi
+ln -s /tmp "$SYNC_FIXTURE/.agents/unsafe-link"
+if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry >/dev/null 2>&1; then
+    record FAIL "sync: destination symlink accepted"
+else
+    record PASS "sync: destination symlink rejected"
+fi
+rm -r "$SYNC_FIXTURE"
+
+PREMUT_FIXTURE=$(mktemp -d)
+mkdir -p "$PREMUT_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$PREMUT_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$PREMUT_FIXTURE/scripts/"
+ln -s /tmp "$PREMUT_FIXTURE/.claude/skills/unsafe-link"
+if bash "$PREMUT_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 || [ -e "$PREMUT_FIXTURE/.agents" ]; then
+    record FAIL "sync: source symlink mutated destination"
+else
+    record PASS "sync: source symlink rejected pre-mutation"
+fi
+rm -r "$PREMUT_FIXTURE"
+
+TYPE_FIXTURE=$(mktemp -d)
+mkdir -p "$TYPE_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$TYPE_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$TYPE_FIXTURE/scripts/"
+rm -r "$TYPE_FIXTURE/.agents/skills/refine"
+printf 'conflict\n' > "$TYPE_FIXTURE/.agents/skills/refine"
+if bash "$TYPE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 && [ -d "$TYPE_FIXTURE/.agents/skills/refine" ] && bash "$TYPE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
+    record PASS "sync: file/directory conflict reconciled"
+else
+    record FAIL "sync: file/directory conflict"
+fi
+rm -r "$TYPE_FIXTURE"
+
+ROOT_TYPE_FIXTURE=$(mktemp -d)
+mkdir -p "$ROOT_TYPE_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$ROOT_TYPE_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$ROOT_TYPE_FIXTURE/scripts/"
+printf 'conflict\n' > "$ROOT_TYPE_FIXTURE/.agents"
+if bash "$ROOT_TYPE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 && [ -d "$ROOT_TYPE_FIXTURE/.agents/skills" ] && bash "$ROOT_TYPE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
+    record PASS "sync: root file/directory conflict reconciled"
+else
+    record FAIL "sync: root file/directory conflict"
+fi
+rm -r "$ROOT_TYPE_FIXTURE"
+
+ROLE_FIXTURE=$(mktemp -d)
+ROLE_LOG_FILE=$(mktemp)
+mkdir -p "$ROLE_FIXTURE/.codex/state" "$ROLE_FIXTURE/scripts/meta"
+cp "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" "$ROLE_FIXTURE/scripts/meta/"
+cat > "$ROLE_FIXTURE/fake-codex" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >> "$ROLE_LOG"
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then
+        shift
+        printf '{"score":1,"suggestion":"ok"}\n' > "$1"
+    fi
+    shift
+done
+cat >/dev/null
+EOF
+chmod +x "$ROLE_FIXTURE/fake-codex"
+printf '.codex/state/\n' > "$ROLE_FIXTURE/.gitignore"
+printf 'contract and diff only\n' > "$ROLE_FIXTURE/prompt"
+git -C "$ROLE_FIXTURE" init -q
+git -C "$ROLE_FIXTURE" add -A
+git -C "$ROLE_FIXTURE" -c user.name=audit -c user.email=audit@example.invalid commit -qm fixture
+ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null
+ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" modify "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null
+ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null
+role_count=$(grep -c 'exec --ephemeral' "$ROLE_LOG_FILE" 2>/dev/null || true)
+[ "$role_count" -eq 3 ] && record PASS "Codex roles: three ephemeral process invocations" || record FAIL "Codex roles: isolation invocation count $role_count/3"
+git -C "$ROLE_FIXTURE" check-ignore -q .codex/state/.refine-eval.json && record PASS "Codex evaluator output: gitignored" || record FAIL "Codex evaluator output: tracked risk"
+cat > "$ROLE_FIXTURE/fake-mutator" <<'EOF'
+#!/bin/bash
+touch "$ROLE_PROJECT/mutated-by-readonly-role"
+cat >/dev/null
+EOF
+chmod +x "$ROLE_FIXTURE/fake-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_FIXTURE/fake-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: mutation not detected"
+else
+    record PASS "Codex audit role: mutation detected"
+fi
+rm -f "$ROLE_FIXTURE/mutated-by-readonly-role"
+rm -r "$ROLE_FIXTURE"
+rm -f "$ROLE_LOG_FILE"
+
+grep -Fq 'pushed only if explicitly requested' "$PROJECT_DIR/.claude/agents/wip-manager.md" 2>/dev/null && record PASS "wip-manager: local-only completion supported" || record FAIL "wip-manager: push incorrectly required"
+if grep -Fq 'preserve-extras' "$PROJECT_DIR/CLAUDE.md" 2>/dev/null; then
+    record FAIL "docs: stale preserve-extras claim"
+else
+    record PASS "docs: exact-mirror claim aligned"
+fi
 
 # --- Summary ---
 echo ""

@@ -14,7 +14,7 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 ```
 /workspaces/                        # Project root
 ├── CLAUDE.md                       # Governance — Claude (this file)
-├── AGENTS.md                       # Governance — Codex (delta only; references this file)
+├── AGENTS.md                       # Governance — Codex (self-contained mirror)
 ├── PROJECT.md                      # Domain context (customize per project)
 ├── REFERENCE.md                    # Commands and procedures
 ├── .claude/                        # Claude Code agent system (ground truth)
@@ -30,7 +30,7 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 │   ├── hooks/                      # 4 hook scripts
 │   └── state/                      # Runtime markers (gitignored)
 ├── scripts/
-│   └── sync-agents-mirror.sh       # .claude/ → .agents/ one-way sync (preserve-extras)
+│   └── sync-agents-mirror.sh       # .claude/ → .agents/ exact generated mirror
 └── .devcontainer/                  # Container configuration
 ```
 
