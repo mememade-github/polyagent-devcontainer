@@ -13,6 +13,52 @@ echo ""
 PASS=0
 FAIL=0
 record() { [ "$1" = "PASS" ] && PASS=$((PASS+1)) || FAIL=$((FAIL+1)); echo "$1: $2"; }
+workspace_marker_ok() {
+    root=$1
+    [ -d "$root/.git" ] ||
+        [ -f "$root/AGENTS.md" ] ||
+        [ -f "$root/CLAUDE.md" ] ||
+        [ -f "$root/README.md" ] ||
+        [ -d "$root/.devcontainer" ]
+}
+resolve_host_workspace_path() {
+    if [ -n "${HOST_WORKSPACE_PATH:-}" ]; then
+        printf '%s\n' "$HOST_WORKSPACE_PATH"
+        return 0
+    fi
+    case "$PROJECT_DIR" in
+        /workspaces|/workspaces/*)
+            if [ -f /.dockerenv ] && command -v docker >/dev/null 2>&1; then
+                container_id=$(cat /etc/hostname 2>/dev/null || true)
+                host_root=$(docker inspect "$container_id" --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)
+                if [ -n "$host_root" ]; then
+                    printf '%s%s\n' "$host_root" "${PROJECT_DIR#/workspaces}"
+                    return 0
+                fi
+            fi
+            ;;
+    esac
+    printf '%s\n' "$PROJECT_DIR"
+}
+compose_run_probe() {
+    project=$1
+    host_workspace=$2
+    shift 2
+    (
+        cd "$PROJECT_DIR/.devcontainer" &&
+            COMPOSE_PROJECT_NAME="$project" HOST_WORKSPACE_PATH="$host_workspace" \
+            docker compose run --rm --no-deps \
+                -e SKIP_CLAUDE_UPDATE=1 -e SKIP_CODEX_UPDATE=1 \
+                --entrypoint bash polyagent-devcontainer -lc "$*"
+    )
+}
+compose_cleanup() {
+    project=$1
+    (
+        cd "$PROJECT_DIR/.devcontainer" &&
+            COMPOSE_PROJECT_NAME="$project" docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+    )
+}
 frontmatter_header() {
     awk 'BEGIN{n=0} /^---$/{n++; if(n==2) exit; next} n==1{print}' "$1"
 }
@@ -43,6 +89,47 @@ node --version > /dev/null 2>&1 && record PASS "node ($(node --version))" || rec
 /home/vscode/.local/bin/uv --version > /dev/null 2>&1 && record PASS "uv" || record FAIL "uv"
 python3 --version > /dev/null 2>&1 && record PASS "python3 ($(python3 --version 2>&1))" || record FAIL "python3"
 
+# --- PHASE 1a: Workspace mount and persistence ---
+echo ""
+echo "=== Phase 1a: Workspace Mount + Persistence ==="
+workspace_marker_ok "$PROJECT_DIR" && record PASS "workspace marker: PROJECT_DIR recognizable" || record FAIL "workspace marker: PROJECT_DIR recognizable"
+if grep -Fq 'SKIP_CODEX_UPDATE=1 codex --version' "$PROJECT_DIR/.devcontainer/docker-compose.yml" 2>/dev/null &&
+    grep -Fq 'test -f /workspaces/AGENTS.md' "$PROJECT_DIR/.devcontainer/docker-compose.yml" 2>/dev/null; then
+    record PASS "docker-compose healthcheck: CLI + workspace marker"
+else
+    record FAIL "docker-compose healthcheck: CLI + workspace marker"
+fi
+if grep -Fq 'workspace_marker_ok "$WS"' "$PROJECT_DIR/.devcontainer/setup-env.sh" 2>/dev/null &&
+    grep -Fq 'ERROR: /workspaces has no project marker' "$PROJECT_DIR/.devcontainer/setup-env.sh" 2>/dev/null; then
+    record PASS "setup-env: missing workspace marker is explicit"
+else
+    record FAIL "setup-env: missing workspace marker is explicit"
+fi
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    HOST_PROJECT_DIR=$(resolve_host_workspace_path)
+    COMPOSE_PROJECT="polyagent-verify-$$"
+    WORKSPACE_PROBE=$(compose_run_probe "$COMPOSE_PROJECT" "$HOST_PROJECT_DIR" 'test -d /workspaces/.git && test -f /workspaces/AGENTS.md && test -f /workspaces/.devcontainer/verify-template.sh && echo workspace-ok' 2>&1 || true)
+    if printf '%s' "$WORKSPACE_PROBE" | grep -Fq 'workspace-ok'; then
+        record PASS "compose runtime: /workspaces contains template repo"
+    else
+        record FAIL "compose runtime: /workspaces contains template repo"
+        printf '%s\n' "$WORKSPACE_PROBE" | tail -20 | sed 's/^/      compose: /'
+    fi
+    PERSIST_PROJECT="polyagent-persist-$$"
+    PERSIST_WRITE=$(compose_run_probe "$PERSIST_PROJECT" "$HOST_PROJECT_DIR" 'printf persisted > "$HOME/.codex/verify-persistence" && echo wrote' 2>&1 || true)
+    PERSIST_READ=$(compose_run_probe "$PERSIST_PROJECT" "$HOST_PROJECT_DIR" 'grep -qx persisted "$HOME/.codex/verify-persistence" && echo persistence-ok' 2>&1 || true)
+    if printf '%s' "$PERSIST_WRITE" | grep -Fq 'wrote' && printf '%s' "$PERSIST_READ" | grep -Fq 'persistence-ok'; then
+        record PASS "compose runtime: codex-config named volume persists across containers"
+    else
+        record FAIL "compose runtime: codex-config named volume persists across containers"
+        printf '%s\n' "$PERSIST_WRITE" "$PERSIST_READ" | tail -20 | sed 's/^/      compose: /'
+    fi
+    compose_cleanup "$COMPOSE_PROJECT"
+    compose_cleanup "$PERSIST_PROJECT"
+else
+    record FAIL "compose runtime: docker daemon unavailable"
+fi
+
 # --- PHASE 1b: setup-env.sh lifecycle integrity ---
 echo ""
 echo "=== Phase 1b: setup-env.sh lifecycle ==="
@@ -50,7 +137,7 @@ SETUP="$PROJECT_DIR/.devcontainer/setup-env.sh"
 grep -q 'STEP_TOTAL=5' "$SETUP" 2>/dev/null && record PASS "setup-env: STEP_TOTAL=5" || record FAIL "setup-env: STEP_TOTAL (expected 5)"
 grep -q 'SKIP_CLAUDE_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Claude update step" || record FAIL "setup-env: Claude update step"
 grep -q 'SKIP_CODEX_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update step (SKIP_CODEX_UPDATE)" || record FAIL "setup-env: Codex update step"
-grep -q '@openai/codex@latest' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update via prefix npm (not codex update)" || record FAIL "setup-env: Codex update mechanism"
+grep -q '@openai/codex@latest' "$PROJECT_DIR/.devcontainer/codex-launcher.sh" 2>/dev/null && record PASS "codex-launcher: Codex update via prefix npm (not codex update)" || record FAIL "codex-launcher: Codex update mechanism"
 grep -Fq 'npm install -g --prefix "${HOME}/.npm-global" @openai/codex' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex install uses explicit npm prefix" || record FAIL "Dockerfile: Codex install prefix"
 grep -Fq 'COPY codex-launcher.sh /usr/local/bin/codex-launcher' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex launcher copied" || record FAIL "Dockerfile: Codex launcher copied"
 grep -Fq 'ln -sf /usr/local/bin/codex-launcher /usr/local/bin/codex' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex command points at launcher" || record FAIL "Dockerfile: Codex launcher command"
@@ -61,9 +148,10 @@ bash -n "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: syntax" || recor
 grep -Fq 'CODEX_REAL_BIN="${CODEX_REAL_BIN:-${CODEX_NPM_PREFIX}/bin/codex}"' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: real npm binary explicit" || record FAIL "codex-launcher: real npm binary explicit"
 grep -Fq 'codex_latest_version()' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: latest-version probe" || record FAIL "codex-launcher: latest-version probe"
 grep -Fq 'npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: update uses explicit npm prefix" || record FAIL "codex-launcher: update uses explicit npm prefix"
+grep -Fq -- '--update-only' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: update-only entrypoint" || record FAIL "codex-launcher: update-only entrypoint"
 grep -Fq 'exec "$CODEX_REAL_BIN" "$@"' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: re-execs real binary" || record FAIL "codex-launcher: re-execs real binary"
 grep -nE '^[^#]*\bcodex[[:space:]]+update\b' "$LAUNCHER" >/dev/null 2>&1 && record FAIL "codex-launcher: avoids direct codex update" || record PASS "codex-launcher: avoids direct codex update"
-grep -Fq 'codex_update_locked' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update uses lock" || record FAIL "setup-env: Codex update lock"
+grep -Fq '"$CODEX_LAUNCHER" --update-only' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update delegated to launcher" || record FAIL "setup-env: Codex update delegated to launcher"
 grep -Fq 'CODEX_LAUNCHER="/usr/local/bin/codex-launcher"' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex launcher reconciliation" || record FAIL "setup-env: Codex launcher reconciliation"
 grep -q 'CODEX_UPDATE_LOG' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update failures are visible" || record FAIL "setup-env: Codex update failure visibility"
 if grep -Fq '/usr/local/bin/codex-launcher' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null &&
@@ -199,6 +287,13 @@ else
     record PASS "hooks.json schema guard rejects legacy direct command"
 fi
 [ -f "$PROJECT_DIR/AGENTS.md" ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
+NON_EXEC_755=$(git -C "$PROJECT_DIR" ls-files -s 2>/dev/null | awk '$1 == "100755" && $4 !~ /^(\.claude\/hooks\/.*\.sh|\.codex\/hooks\/.*\.sh|\.devcontainer\/entrypoint\.sh|\.devcontainer\/setup-env\.sh|\.devcontainer\/verify-template\.sh|scripts\/sync-agents-mirror\.sh|scripts\/meta\/run-isolated-role\.sh)$/ { print $4 }')
+if [ -z "$NON_EXEC_755" ]; then
+    record PASS "file modes: executable bit limited to executable scripts"
+else
+    record FAIL "file modes: unexpected executable bit"
+    printf '%s\n' "$NON_EXEC_755" | sed 's/^/      mode: /'
+fi
 
 # --- PHASE 2a: Karpathy alignment ---
 echo ""
@@ -347,6 +442,16 @@ if printf '%s' "$SYNC_DRY" | grep -Fq 'nested-orphan.txt' && printf '%s' "$SYNC_
 else
     record FAIL "sync dry-run: orphan coverage incomplete"
 fi
+if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --check >/dev/null 2>&1; then
+    record FAIL "sync: unknown argument rejected"
+else
+    record PASS "sync: unknown argument rejected"
+fi
+if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry --check >/dev/null 2>&1; then
+    record FAIL "sync: trailing argument rejected"
+else
+    record PASS "sync: trailing argument rejected"
+fi
 ln -s /tmp "$SYNC_FIXTURE/.agents/unsafe-link"
 if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry >/dev/null 2>&1; then
     record FAIL "sync: destination symlink accepted"
@@ -416,7 +521,7 @@ rm -r "$MODE_FIXTURE"
 ROLE_FIXTURE=$(mktemp -d)
 ROLE_BIN_DIR=$(mktemp -d)
 ROLE_LOG_FILE=$(mktemp)
-mkdir -p "$ROLE_FIXTURE/.codex/state" "$ROLE_FIXTURE/scripts/meta"
+mkdir -p "$ROLE_FIXTURE/.codex/state" "$ROLE_FIXTURE/products/app" "$ROLE_FIXTURE/scripts/meta"
 cp "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" "$ROLE_FIXTURE/scripts/meta/"
 cat > "$ROLE_FIXTURE/fake-codex" <<'EOF'
 #!/bin/bash
@@ -434,11 +539,12 @@ done
 cat >/dev/null
 EOF
 chmod +x "$ROLE_FIXTURE/fake-codex"
-printf '.codex/state/\nignored-mutation\n' > "$ROLE_FIXTURE/.gitignore"
+printf '.codex/state/\nignored-mutation\nproducts/\n' > "$ROLE_FIXTURE/.gitignore"
 printf 'contract and diff only\n' > "$ROLE_FIXTURE/prompt"
 printf 'tracked\n' > "$ROLE_FIXTURE/tracked.txt"
 printf 'target a\n' > "$ROLE_FIXTURE/target-a"
 printf 'target b\n' > "$ROLE_FIXTURE/target-b"
+printf 'baseline\n' > "$ROLE_FIXTURE/products/app/ignored.txt"
 ln -s target-a "$ROLE_FIXTURE/tracked-link"
 git -C "$ROLE_FIXTURE" init -q
 git -C "$ROLE_FIXTURE" add -A
@@ -524,6 +630,18 @@ else
     record PASS "Codex audit role: ignored mutation detected"
 fi
 rm -f "$ROLE_FIXTURE/ignored-mutation"
+
+cat > "$ROLE_BIN_DIR/fake-products-mutator" <<'EOF'
+#!/bin/bash
+printf 'products mutation\n' > "$ROLE_PROJECT/products/app/ignored.txt"
+cat >/dev/null
+EOF
+chmod +x "$ROLE_BIN_DIR/fake-products-mutator"
+if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-products-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
+    record FAIL "Codex audit role: ignored products/ mutation not detected"
+else
+    record PASS "Codex audit role: ignored products/ mutation detected"
+fi
 
 cat > "$ROLE_BIN_DIR/fake-skip-worktree-mutator" <<'EOF'
 #!/bin/bash
