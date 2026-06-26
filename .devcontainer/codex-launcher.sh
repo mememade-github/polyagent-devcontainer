@@ -26,16 +26,25 @@ codex_update_if_needed() {
         return 0
     fi
     if [ -z "$latest" ] || [ "$current" != "$latest" ]; then
-        npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest >/dev/null 2>&1 || true
+        npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest
+    fi
+}
+
+codex_update_locked() {
+    if command -v flock >/dev/null 2>&1; then
+        ( flock 9; codex_update_if_needed ) 9>"$CODEX_LOCK"
+    else
+        codex_update_if_needed
     fi
 }
 
 mkdir -p "$CODEX_NPM_PREFIX"
-if command -v flock >/dev/null 2>&1; then
-    ( flock 9; codex_update_if_needed ) 9>"$CODEX_LOCK" || true
-else
-    codex_update_if_needed || true
+if [ "${1:-}" = "--update-only" ]; then
+    codex_update_locked
+    exit $?
 fi
+
+codex_update_locked >/dev/null 2>&1 || true
 
 if [ ! -x "$CODEX_REAL_BIN" ]; then
     echo "codex launcher: missing executable: $CODEX_REAL_BIN" >&2

@@ -94,7 +94,6 @@ step "Codex CLI version..."
 CODEX_NPM_PREFIX="${HOME}/.npm-global"
 CODEX_REAL_BIN="${CODEX_NPM_PREFIX}/bin/codex"
 CODEX_LAUNCHER="/usr/local/bin/codex-launcher"
-CODEX_LOCK="${CODEX_NPM_PREFIX}/.codex-update.lock"
 
 install_codex_launcher() {
     if [ ! -x "$CODEX_LAUNCHER" ]; then
@@ -115,34 +114,6 @@ codex_version() {
     "$CODEX_REAL_BIN" --version 2>/dev/null | awk '{print $2}' || true
 }
 
-codex_latest_version() {
-    command -v npm >/dev/null 2>&1 || return 0
-    npm view @openai/codex version 2>/dev/null || true
-}
-
-codex_update_if_needed() {
-    command -v npm >/dev/null 2>&1 || return 0
-    mkdir -p "$CODEX_NPM_PREFIX"
-
-    current="$(codex_version)"
-    latest="$(codex_latest_version)"
-    if [ -z "$latest" ] && [ -x "$CODEX_REAL_BIN" ]; then
-        return 0
-    fi
-    if [ -z "$latest" ] || [ "$current" != "$latest" ]; then
-        npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest
-    fi
-}
-
-codex_update_locked() {
-    mkdir -p "$CODEX_NPM_PREFIX"
-    if command -v flock >/dev/null 2>&1; then
-        ( flock 9; codex_update_if_needed ) 9>"$CODEX_LOCK"
-    else
-        codex_update_if_needed
-    fi
-}
-
 install_codex_launcher
 
 if [ ! -x "$CODEX_REAL_BIN" ] && ! command -v npm >/dev/null 2>&1; then
@@ -152,7 +123,7 @@ elif [ "${SKIP_CODEX_UPDATE:-}" = "1" ]; then
 else
     BEFORE=$(codex_version)
     CODEX_UPDATE_LOG=$(mktemp)
-    if codex_update_locked >"$CODEX_UPDATE_LOG" 2>&1; then
+    if "$CODEX_LAUNCHER" --update-only >"$CODEX_UPDATE_LOG" 2>&1; then
         AFTER=$(codex_version)
         if [ "$BEFORE" = "$AFTER" ]; then
             echo "      $AFTER (already latest)"

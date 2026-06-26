@@ -113,12 +113,12 @@ The template intentionally pulls latest releases at build/run time:
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
   unless `SKIP_CLAUDE_UPDATE=1` is set.
 - **Codex update**: every container start reconciles the launcher symlinks and
-  refreshes the real binary with `npm install -g --prefix ~/.npm-global
-  @openai/codex@latest` (`setup-env.sh` step 4), unless `SKIP_CODEX_UPDATE=1`
-  is set. The launcher performs the same preflight before every new `codex`
-  process. Codex's built-in `codex update` is **not** used: it targets the
-  root-owned default npm prefix (`/usr/lib/node_modules`) and fails as the
-  unprivileged `vscode` user.
+  delegates refresh to `/usr/local/bin/codex-launcher --update-only`, which
+  updates the real binary with `npm install -g --prefix ~/.npm-global
+  @openai/codex@latest`, unless `SKIP_CODEX_UPDATE=1` is set. The same launcher
+  performs the preflight before every new `codex` process. Codex's built-in
+  `codex update` is **not** used: it targets the root-owned default npm prefix
+  (`/usr/lib/node_modules`) and fails as the unprivileged `vscode` user.
 
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin: replace the Claude installer URL with a tagged
