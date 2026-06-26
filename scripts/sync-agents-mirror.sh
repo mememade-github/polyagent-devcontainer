@@ -26,7 +26,18 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$PROJECT_ROOT/.claude"
 DST="$PROJECT_ROOT/.agents"
 DRY_RUN=0
-[ "${1:-}" = "--dry" ] && DRY_RUN=1
+if [ "$#" -gt 1 ]; then
+    echo "Usage: bash scripts/sync-agents-mirror.sh [--dry]" >&2
+    exit 2
+fi
+case "${1:-}" in
+    "") ;;
+    "--dry") DRY_RUN=1 ;;
+    *)
+        echo "Usage: bash scripts/sync-agents-mirror.sh [--dry]" >&2
+        exit 2
+        ;;
+esac
 
 if [ ! -d "$SRC" ]; then
     echo "ERROR: $SRC not found. .claude/ ground truth required." >&2
