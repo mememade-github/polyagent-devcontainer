@@ -81,7 +81,7 @@ elif [ "${SKIP_CLAUDE_UPDATE:-}" = "1" ]; then
     echo "      Skipped (SKIP_CLAUDE_UPDATE=1), current: $(claude --version 2>/dev/null)"
 else
     BEFORE=$(claude --version 2>/dev/null | awk '{print $1}')
-    claude update 2>&1 >/dev/null || true
+    claude update >/dev/null 2>&1 || true
     AFTER=$(claude --version 2>/dev/null | awk '{print $1}')
     if [ "$BEFORE" = "$AFTER" ]; then
         echo "      $AFTER (already latest)"
