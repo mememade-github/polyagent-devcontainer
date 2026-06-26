@@ -32,11 +32,34 @@ if [ -n "$OUTPUT_FILE" ]; then
     esac
 fi
 
+IGNORED_FINGERPRINT_EXCLUDES=(
+    ':(exclude).codex/state/**'
+    ':(exclude).claude/.last-verification.*'
+    ':(exclude).claude/.refinement-active'
+    ':(exclude).claude/.refine-*'
+    ':(exclude).claude/agent-memory/refinement/**'
+    ':(exclude)node_modules/**'
+    ':(exclude).pnpm-store/**'
+    ':(exclude).venv/**'
+    ':(exclude)venv/**'
+    ':(exclude)dist/**'
+    ':(exclude)build/**'
+    ':(exclude)target/**'
+    ':(exclude)coverage/**'
+    ':(exclude)__pycache__/**'
+    ':(exclude).pytest_cache/**'
+    ':(exclude).ruff_cache/**'
+    ':(exclude).mypy_cache/**'
+)
+
 tree_fingerprint() {
     local root=$1 excluded=$2
     (
         cd "$root"
-        git ls-files -z --cached --others --exclude-standard |
+        {
+            git ls-files -z --cached --others --exclude-standard
+            git ls-files -z --others -i --exclude-standard -- "${IGNORED_FINGERPRINT_EXCLUDES[@]}"
+        } |
             LC_ALL=C sort -zu |
             while IFS= read -r -d '' rel; do
                 [ -n "$rel" ] || continue
@@ -120,7 +143,7 @@ fi
 if [ "$ROLE" != "modify" ]; then
     AFTER=$(repository_fingerprint)
     if [ "$BEFORE" != "$AFTER" ]; then
-        echo "ERROR: read-only role '$ROLE' changed HEAD, the index, or the project tree." >&2
+        echo "ERROR: read-only role '$ROLE' changed HEAD, the index, or the guarded project tree." >&2
         exit 1
     fi
 fi
