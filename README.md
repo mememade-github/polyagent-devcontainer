@@ -78,7 +78,7 @@ Always use **Reopen in Container** (`Ctrl+Shift+P`). Attach connects to a runnin
 | Symptom | Fix |
 |---------|-----|
 | Build fails | `docker compose build --no-cache` |
-| Files invisible | Use Reopen in Container, not Attach |
+| Files invisible or container is unhealthy | Use Reopen in Container, not Attach; for headless `docker compose`, set `HOST_WORKSPACE_PATH` to the host filesystem path |
 | Reopen menu missing | Install the Dev Containers extension |
 | Claude re-auth needed | `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | `docker volume ls \| grep codex-config` |

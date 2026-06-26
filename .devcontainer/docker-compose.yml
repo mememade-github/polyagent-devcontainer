@@ -48,7 +48,7 @@ services:
     tty: true
 
     healthcheck:
-      test: ["CMD-SHELL", "claude --version"]
+      test: ["CMD-SHELL", "claude --version >/dev/null 2>&1 && SKIP_CODEX_UPDATE=1 codex --version >/dev/null 2>&1 && { test -d /workspaces/.git || test -f /workspaces/AGENTS.md || test -f /workspaces/CLAUDE.md || test -f /workspaces/README.md || test -d /workspaces/.devcontainer; }"]
       interval: 30s
       timeout: 10s
       retries: 3

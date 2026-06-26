@@ -10,6 +10,14 @@ export LC_ALL=en_US.UTF-8
 STEP_TOTAL=5
 STEP=0
 step() { STEP=$((STEP + 1)); echo "[${STEP}/${STEP_TOTAL}] $1"; }
+workspace_marker_ok() {
+    root=$1
+    [ -d "$root/.git" ] ||
+        [ -f "$root/AGENTS.md" ] ||
+        [ -f "$root/CLAUDE.md" ] ||
+        [ -f "$root/README.md" ] ||
+        [ -d "$root/.devcontainer" ]
+}
 
 echo "=============================================="
 echo "  Polyagent DevContainer Setup"
@@ -26,6 +34,9 @@ if [ -S /var/run/docker.sock ]; then
 fi
 
 WS="/workspaces"
+if ! workspace_marker_ok "$WS"; then
+    echo "      ERROR: /workspaces has no project marker; set HOST_WORKSPACE_PATH for docker compose entrypoints"
+fi
 find "$WS" -maxdepth 3 -name ".git" -type d 2>/dev/null | while read gitdir; do
     repo=$(dirname "$gitdir")
     git -C "$repo" config core.filemode false 2>/dev/null || true

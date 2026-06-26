@@ -72,6 +72,10 @@ postStartCommand (every start, devcontainer.json)
 
 Both `docker compose up` and VS Code "Reopen in Container" route through
 `entrypoint.sh`, so the 5 steps run regardless of how the container was started.
+The container healthcheck requires both agent CLIs and a recognizable
+`/workspaces` project marker (`.git`, `AGENTS.md`, `CLAUDE.md`, `README.md`, or
+`.devcontainer/`). A container with an empty or mis-mounted workspace stays
+`unhealthy` instead of reporting a false green status.
 
 ## Persistent volumes
 
