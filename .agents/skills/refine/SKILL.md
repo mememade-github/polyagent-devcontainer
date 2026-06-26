@@ -68,9 +68,10 @@ Claude and Codex `refinement-gate.sh` markers exactly.
 - In a DevContainer where bubblewrap is unavailable, the child may use
   `--dangerously-bypass-approvals-and-sandbox`. This is a compatibility fallback,
   not a security boundary: the helper rejects Audit/Evaluate if HEAD, the index,
-  or any tracked, untracked, or ignored project-tree entry changes, including
-  file mode and symlink state. The single authorized output file is excluded
-  from that comparison.
+  or any git-visible tracked/untracked project-tree file changes, including
+  missing tracked files, file mode, and symlink state. Gitignored paths are
+  intentionally pruned. The single authorized output file is excluded from that
+  comparison.
 
 ## Step 0c: Pre-flight
 

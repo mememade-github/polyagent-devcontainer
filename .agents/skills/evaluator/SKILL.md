@@ -35,8 +35,9 @@ honor-system — and the structure differs by host:
   DevContainers that cannot run the Codex sandbox may use
   `--dangerously-bypass-approvals-and-sandbox` only for this ephemeral child;
   this compatibility fallback is not a security boundary. The helper invalidates
-  the evaluation if HEAD, the index, or any tracked, untracked, or ignored
-  project-tree entry changes, including file mode and symlink state; only the
+  the evaluation if HEAD, the index, or any git-visible tracked/untracked
+  project-tree file changes, including missing tracked files, file mode, and
+  symlink state; gitignored paths are intentionally pruned and only the
   authorized evaluator report path is excluded.
 
 If neither isolation path is available, say so in the report; never self-evaluate

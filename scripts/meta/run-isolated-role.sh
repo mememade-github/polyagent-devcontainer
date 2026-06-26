@@ -36,16 +36,20 @@ tree_fingerprint() {
     local root=$1 excluded=$2
     (
         cd "$root"
-        find -P . -mindepth 1 -path './.git' -prune -o -print0 |
-            LC_ALL=C sort -z |
-            while IFS= read -r -d '' path; do
-                local rel=${path#./}
+        git ls-files -z --cached --others --exclude-standard |
+            LC_ALL=C sort -zu |
+            while IFS= read -r -d '' rel; do
+                [ -n "$rel" ] || continue
                 [ -n "$excluded" ] && [ "$rel" = "$excluded" ] && continue
-                printf '%s\0%s\0' "$rel" "$(stat -c '%F:%f:%u:%g:%s:%t:%T' -- "$path")"
-                if [ -L "$path" ]; then
-                    readlink -z -- "$path"
-                elif [ -f "$path" ]; then
-                    sha256sum < "$path" | cut -d ' ' -f 1 | tr '\n' '\0'
+                if [ ! -e "$rel" ] && [ ! -L "$rel" ]; then
+                    printf '%s\0MISSING\0' "$rel"
+                    continue
+                fi
+                printf '%s\0%s\0' "$rel" "$(stat -c '%F:%f:%u:%g:%s:%t:%T' -- "$rel")"
+                if [ -L "$rel" ]; then
+                    readlink -z -- "$rel"
+                elif [ -f "$rel" ]; then
+                    sha256sum < "$rel" | cut -d ' ' -f 1 | tr '\n' '\0'
                 fi
             done
     ) | sha256sum | cut -d ' ' -f 1
