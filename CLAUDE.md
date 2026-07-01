@@ -30,7 +30,10 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 │   ├── hooks/                      # 4 hook scripts
 │   └── state/                      # Runtime markers (gitignored)
 ├── scripts/
+│   ├── meta/                       # completion-checker, karpathy-consistency-check, run-isolated-role, lib/detect-root
+│   ├── git/                        # git-status
 │   └── sync-agents-mirror.sh       # .claude/ → .agents/ exact generated mirror
+├── .vscode/                        # Editor settings (launch.json, settings.json) — tracked, not a vendor
 └── .devcontainer/                  # Container configuration
 ```
 

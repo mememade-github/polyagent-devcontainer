@@ -30,6 +30,11 @@ Skill mirror: [`.agents/skills/karpathy-guidelines/`](.agents/skills/karpathy-gu
 │   ├── rules/                      # Behavioral rules
 │   └── skills/                     # Skill mirror + agent-as-skill conversions
 ├── .claude/                        # Claude Code agent system (ground truth)
+├── scripts/
+│   ├── meta/                       # completion-checker, karpathy-consistency-check, run-isolated-role, lib/detect-root
+│   ├── git/                        # git-status
+│   └── sync-agents-mirror.sh       # .claude/ → .agents/ exact generated mirror
+├── .vscode/                        # Editor settings (launch.json, settings.json) — tracked, not a vendor
 └── .devcontainer/                  # Container configuration
 ```
 
