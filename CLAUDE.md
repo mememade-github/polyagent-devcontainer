@@ -51,7 +51,7 @@ These rules are enforced by hooks; no user commands required.
 
 1. **Session start**: hook reports current branch, active WIP tasks, environment. If WIP tasks exist, read the WIP `README.md` and resume immediately. Otherwise wait for user instruction. Always check auto memory (`MEMORY.md`) for known issues.
 2. **Change evaluation**:
-   - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). The pre-commit hook emits a non-blocking WARNING when `/refine` marker is absent for multi-file commits.
+   - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). When a scorer (`.refine/score.sh`) is present, the pre-commit hook emits a non-blocking WARNING for multi-file commits without an active `/refine` marker (the template ships no scorer, so this stays dormant until you add one).
    - *Trivial changes* (typo, single config line) → direct edit.
    - Never self-evaluate. Delegate to the **evaluator** agent.
 3. **Pre-commit gate**: `pre-commit-gate.sh` runs verification for affected code before any `git commit`. All checks must pass; no `--no-verify`.
