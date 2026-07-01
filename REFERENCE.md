@@ -127,8 +127,8 @@ The template intentionally pulls latest releases at build/run time:
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin the rolling sources: replace the Claude installer
 URL with a tagged release, set `npm install -g @openai/codex@<version>`, and
-pin the apt packages, the NodeSource Node major, and the pip tools
-(`ruff`/`pytest`/`mypy`). The base image, the `docker compose` plugin, and `uv`
+pin the apt packages, the pip tools (`ruff`/`pytest`/`mypy`), and Node to an
+exact version (`setup_22.x` already fixes only the major). The base image, the `docker compose` plugin, and `uv`
 are already version-pinned. To disable the per-start refresh, set
 `SKIP_CLAUDE_UPDATE=1` and `SKIP_CODEX_UPDATE=1` in the compose `environment:`
 block (values may come from `.env`) — `docker compose up` does not read
