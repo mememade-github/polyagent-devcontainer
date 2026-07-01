@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && usermod -aG docker ${USERNAME} \
     # Docker Compose v2 plugin (pinned — bump periodically)
     && mkdir -p /usr/local/lib/docker/cli-plugins \
-    && curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose \
+    && curl -fSL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Python tools — refinement loop verification (verify-score.sh dependency)
@@ -107,7 +107,7 @@ RUN mkdir -p ${HOME}/.npm-global \
 # =============================================================================
 RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
         mkdir -p ${NVM_DIR} \
-        && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+        && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
         && . ${NVM_DIR}/nvm.sh \
         && nvm install ${PROJECT_NODE_VERSION} \
         && nvm alias project-node ${PROJECT_NODE_VERSION} \
