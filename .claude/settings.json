@@ -22,14 +22,12 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-commit-gate.sh",
-            "timeout": 5,
-            "if": "Bash(git commit*)"
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-push-gate.sh",
-            "timeout": 5,
-            "if": "Bash(git push*)"
+            "timeout": 5
           }
         ]
       }

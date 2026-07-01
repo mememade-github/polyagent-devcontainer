@@ -256,6 +256,11 @@ echo "=== Phase 2: Config Files ==="
 jq -e . "$PROJECT_DIR/.claude/settings.json" >/dev/null 2>&1 && record PASS "settings.json valid JSON" || record FAIL "settings.json invalid JSON"
 grep -q '"SessionStart"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "SessionStart hook registered" || record FAIL "SessionStart hook"
 grep -q '"Stop"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "Stop hook registered" || record FAIL "Stop hook"
+if jq -e '[.hooks.PreToolUse[]?.hooks[]? | select((.command // "") | contains("pre-commit-gate.sh") or contains("pre-push-gate.sh")) | has("if")] | any | not' "$PROJECT_DIR/.claude/settings.json" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: git gates run on all Bash commands"
+else
+    record FAIL "Claude PreToolUse: git gates still have narrow if filters"
+fi
 [ -f "$PROJECT_DIR/.codex/config.toml" ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
 [ -f "$PROJECT_DIR/.codex/hooks.json" ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
 jq -e . "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1 && record PASS "hooks.json valid JSON" || record FAIL "hooks.json invalid JSON"
@@ -294,6 +299,20 @@ else
     record FAIL "file modes: unexpected executable bit"
     printf '%s\n' "$NON_EXEC_755" | sed 's/^/      mode: /'
 fi
+if [ -f "$PROJECT_DIR/LICENSE" ] && grep -Fq "MIT License" "$PROJECT_DIR/LICENSE" 2>/dev/null; then
+    record PASS "OSS license: MIT LICENSE present"
+else
+    record FAIL "OSS license: MIT LICENSE present"
+fi
+grep -Fq "Licensed under the MIT License" "$PROJECT_DIR/README.md" 2>/dev/null && record PASS "README: MIT license declared" || record FAIL "README: MIT license declared"
+INTERNAL_REF_PATTERN='products/[A-Za-z0-9._/-]*[A-Z][A-Z0-9_]*_ROOT|gitlab[.]local|cp[0-9]{3}[.]|172[.]10[.]'
+INTERNAL_REF_HITS=$(git -C "$PROJECT_DIR" grep -n -i -E "$INTERNAL_REF_PATTERN" -- ':!.devcontainer/verify-template.sh' 2>/dev/null || true)
+if [ -z "$INTERNAL_REF_HITS" ]; then
+    record PASS "OSS hygiene: tracked files contain no internal topology refs"
+else
+    record FAIL "OSS hygiene: tracked files contain internal topology refs"
+    printf '%s\n' "$INTERNAL_REF_HITS" | sed 's/^/      internal-ref: /'
+fi
 
 # --- PHASE 2a: Karpathy alignment ---
 echo ""
@@ -302,6 +321,21 @@ grep -q "behavioral-core" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null && record PASS "C
 grep -q "behavioral-core" "$PROJECT_DIR/AGENTS.md" 2>/dev/null && record PASS "AGENTS.md -> behavioral-core import" || record FAIL "AGENTS.md -> behavioral-core import"
 [ -f "$PROJECT_DIR/.claude/rules/behavioral-core.md" ] && record PASS ".claude/rules/behavioral-core.md exists" || record FAIL ".claude/rules/behavioral-core.md"
 [ -f "$PROJECT_DIR/.agents/rules/behavioral-core.md" ] && record PASS ".agents/rules/behavioral-core.md (mirror) exists" || record FAIL ".agents/rules/behavioral-core.md (mirror)"
+KARPATHY_GLOBAL_FIXTURE=$(mktemp -d)
+mkdir -p "$KARPATHY_GLOBAL_FIXTURE/.claude/rules" "$KARPATHY_GLOBAL_FIXTURE/.claude/skills/karpathy-guidelines" "$KARPATHY_GLOBAL_FIXTURE/products"
+cp "$PROJECT_DIR/.claude/rules/behavioral-core.md" "$KARPATHY_GLOBAL_FIXTURE/.claude/rules/behavioral-core.md"
+cp "$PROJECT_DIR/.claude/skills/karpathy-guidelines/SKILL.md" "$KARPATHY_GLOBAL_FIXTURE/.claude/skills/karpathy-guidelines/SKILL.md"
+if bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$KARPATHY_GLOBAL_FIXTURE" >/dev/null 2>&1; then
+    record FAIL "karpathy checker: GLOBAL default count fails closed"
+else
+    record PASS "karpathy checker: GLOBAL default count fails closed"
+fi
+if EXPECTED_KARPATHY_COUNT=1 bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$KARPATHY_GLOBAL_FIXTURE" >/dev/null 2>&1; then
+    record PASS "karpathy checker: explicit GLOBAL count override"
+else
+    record FAIL "karpathy checker: explicit GLOBAL count override"
+fi
+rm -r "$KARPATHY_GLOBAL_FIXTURE"
 
 # --- PHASE 3: Hooks syntax ---
 echo ""
@@ -405,6 +439,117 @@ if printf '{"tool_input":{"command":"git commit --no-verify -m probe"}}' | CODEX
 else
     record PASS "Codex PreToolUse: --no-verify bypass blocked"
 fi
+HOOK_FIXTURE=$(mktemp -d)
+git -C "$HOOK_FIXTURE" init -q
+git -C "$HOOK_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
+HOOK_BRANCH=$(git -C "$HOOK_FIXTURE" rev-parse --abbrev-ref HEAD)
+mkdir -p "$HOOK_FIXTURE/.codex/state" "$HOOK_FIXTURE/.claude"
+touch "$HOOK_FIXTURE/.codex/state/last-verification.$HOOK_BRANCH" "$HOOK_FIXTURE/.claude/.last-verification.$HOOK_BRANCH"
+if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: git -C commit -n bypass accepted"
+else
+    record PASS "Codex PreToolUse: git -C commit -n bypass blocked"
+fi
+if printf '{"tool_input":{"command":"NV=--no-verify; git commit $NV -m probe"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: variable-expanded commit flag accepted"
+else
+    record PASS "Codex PreToolUse: variable-expanded commit flag blocked"
+fi
+if printf '{"tool_input":{"command":"g\\"i\\"t commit --no-verify -m probe"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: quoted git commit bypass accepted"
+else
+    record PASS "Codex PreToolUse: quoted git commit bypass blocked"
+fi
+HOOK_FIXTURE_2=$(mktemp -d)
+git -C "$HOOK_FIXTURE_2" init -q
+git -C "$HOOK_FIXTURE_2" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
+if printf '{"tool_input":{"command":"git -C %s commit -m ok && git -C %s commit -m bypass"}}' "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: compound git commit accepted"
+else
+    record PASS "Codex PreToolUse: compound git commit blocked"
+fi
+if printf '{"tool_input":{"command":"if true; then git commit -n -m bypass; fi"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: control-structure git commit accepted"
+else
+    record PASS "Codex PreToolUse: control-structure git commit blocked"
+fi
+if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: git -C commit allowed after fresh verification"
+else
+    record FAIL "Codex PreToolUse: git -C commit false positive after fresh verification"
+fi
+if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: inline credential URL accepted"
+else
+    record PASS "Codex pre-push: inline credential URL blocked"
+fi
+if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: variable-expanded credential URL accepted"
+else
+    record PASS "Codex pre-push: variable-expanded credential URL blocked"
+fi
+if printf '{"tool_input":{"command":"if true; then git push https://example.invalid/x.git main; fi"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: control-structure git push accepted"
+else
+    record PASS "Codex pre-push: control-structure git push blocked"
+fi
+if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: transient include.path accepted"
+else
+    record PASS "Codex pre-push: transient include.path blocked"
+fi
+if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
+else
+    record PASS "Claude PreToolUse: git -C commit -n bypass blocked"
+fi
+if printf '{"tool_input":{"command":"NV=--no-verify; git commit $NV -m probe"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: variable-expanded commit flag accepted"
+else
+    record PASS "Claude PreToolUse: variable-expanded commit flag blocked"
+fi
+if printf '{"tool_input":{"command":"git -C %s commit -m ok && git -C %s commit -m bypass"}}' "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: compound git commit accepted"
+else
+    record PASS "Claude PreToolUse: compound git commit blocked"
+fi
+if printf '{"tool_input":{"command":"if true; then git commit -n -m bypass; fi"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: control-structure git commit accepted"
+else
+    record PASS "Claude PreToolUse: control-structure git commit blocked"
+fi
+if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: git -C commit allowed after fresh verification"
+else
+    record FAIL "Claude PreToolUse: git -C commit false positive after fresh verification"
+fi
+if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: inline credential URL accepted"
+else
+    record PASS "Claude pre-push: inline credential URL blocked"
+fi
+if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: variable-expanded credential URL accepted"
+else
+    record PASS "Claude pre-push: variable-expanded credential URL blocked"
+fi
+if printf '{"tool_input":{"command":"if true; then git push https://example.invalid/x.git main; fi"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: control-structure git push accepted"
+else
+    record PASS "Claude pre-push: control-structure git push blocked"
+fi
+if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: transient include.path accepted"
+else
+    record PASS "Claude pre-push: transient include.path blocked"
+fi
+NO_JQ_PATH=$(mktemp -d)
+if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH" CODEX_PROJECT_DIR="$HOOK_FIXTURE" /bin/bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: missing jq accepted"
+else
+    record PASS "Codex PreToolUse: missing jq fails closed"
+fi
+rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2"
 if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex PreToolUse: unrelated Bash command allowed"
 else
@@ -420,6 +565,26 @@ if CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/refinement-g
 else
     record FAIL "Codex Stop: no-marker regression"
 fi
+REFINE_FIXTURE=$(mktemp -d)
+git -C "$REFINE_FIXTURE" init -q
+mkdir -p "$REFINE_FIXTURE/.codex/state/refinement/attempts" "$REFINE_FIXTURE/.claude/agent-memory/refinement/attempts"
+printf '{"task_id":"strict","threshold":"1.2.3","max_iterations":"bad"}\n' > "$REFINE_FIXTURE/.codex/state/refinement-active"
+printf '{"score":0.9}\n' > "$REFINE_FIXTURE/.codex/state/refinement/attempts/strict.jsonl"
+CODEX_REFINE_OUTPUT=$(CODEX_PROJECT_DIR="$REFINE_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/refinement-gate.sh" </dev/null 2>&1 || true)
+if [ -z "$CODEX_REFINE_OUTPUT" ]; then
+    record PASS "Codex Stop: invalid numeric fields reset safely"
+else
+    record FAIL "Codex Stop: invalid numeric fields caused block output"
+fi
+printf '{"task_id":"strict","threshold":"1.2.3","max_iterations":"bad"}\n' > "$REFINE_FIXTURE/.claude/.refinement-active"
+printf '{"score":0.9}\n' > "$REFINE_FIXTURE/.claude/agent-memory/refinement/attempts/strict.jsonl"
+CLAUDE_REFINE_OUTPUT=$(CLAUDE_PROJECT_DIR="$REFINE_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/refinement-gate.sh" </dev/null 2>&1 || true)
+if [ -z "$CLAUDE_REFINE_OUTPUT" ]; then
+    record PASS "Claude Stop: invalid numeric fields reset safely"
+else
+    record FAIL "Claude Stop: invalid numeric fields caused block output"
+fi
+rm -r "$REFINE_FIXTURE"
 
 # --- PHASE 2f: Mirror integrity ---
 echo ""

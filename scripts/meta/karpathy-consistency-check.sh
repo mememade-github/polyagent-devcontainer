@@ -16,14 +16,14 @@
 #
 # Mode:
 #   GLOBAL (ROOT contains products/) — workspace origin. Asserts the full
-#           distribution matrix: 16 behavioral-core + 16 SKILL.
+#           distribution matrix. The default matrix count is 16 and can be
+#           overridden with EXPECTED_KARPATHY_COUNT for intentional reshapes.
 #   LEAF   (no products/)           — a standalone receiver clone. Asserts the
 #           local repo's pair is self-consistent (count-agnostic).
 #
 # Enumerator policy: find with path predicates ONLY. grep -r / grep -rl / rg
-#   --files are forbidden as enumerators — they silently fail to descend into
-#   nested receiver repos (observed: products/derived/DAX_ROOT/* under-scanned
-#   by grep -rl, off by 4). The wiki raw source
+#   --files are forbidden as enumerators — they can silently miss nested
+#   receiver repos and produce false global counts. The wiki raw source
 #   (.claude/agent-memory/wiki/raw/sources/behavioral-core.md) is a different
 #   doctrine lineage (6-rule) and is structurally excluded by the path
 #   predicate (it is not under .claude/rules/), by design.
@@ -45,6 +45,8 @@ _LIB="$SCRIPT_DIR/lib/detect-root.sh"
 . "$_LIB"
 
 ROOT="$(detect_root "${1:-}")"
+DEFAULT_EXPECTED_KARPATHY_COUNT=16
+EXPECTED_COUNT="${EXPECTED_KARPATHY_COUNT:-$DEFAULT_EXPECTED_KARPATHY_COUNT}"
 INVARIANT='Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.'
 NARROW='Body content (the 4 rules)'
 CODA='**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.'
@@ -66,8 +68,8 @@ echo "behavioral-core=${#BC_FILES[@]}  SKILL=${#SK_FILES[@]}"
 
 # --- 1-3. Count assertions (GLOBAL only; LEAF is count-agnostic but >=1) ---
 if [ "$MODE" = "GLOBAL" ]; then
-    [ "${#BC_FILES[@]}" -eq 16 ] && note_pass "behavioral-core count = 16" || note_fail "behavioral-core count = ${#BC_FILES[@]} (expected 16)"
-    [ "${#SK_FILES[@]}" -eq 16 ] && note_pass "SKILL count = 16"           || note_fail "SKILL count = ${#SK_FILES[@]} (expected 16)"
+    [ "${#BC_FILES[@]}" -eq "$EXPECTED_COUNT" ] && note_pass "behavioral-core count = $EXPECTED_COUNT" || note_fail "behavioral-core count = ${#BC_FILES[@]} (expected $EXPECTED_COUNT)"
+    [ "${#SK_FILES[@]}" -eq "$EXPECTED_COUNT" ] && note_pass "SKILL count = $EXPECTED_COUNT"           || note_fail "SKILL count = ${#SK_FILES[@]} (expected $EXPECTED_COUNT)"
 else
     [ "${#BC_FILES[@]}" -ge 1 ] && [ "${#SK_FILES[@]}" -ge 1 ] && note_pass "leaf: pair present (bc=${#BC_FILES[@]} skill=${#SK_FILES[@]})" || note_fail "leaf: behavioral-core/SKILL pair missing"
 fi
