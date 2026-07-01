@@ -19,17 +19,30 @@ codex_healthy() {
     [ -x "$CODEX_REAL_BIN" ] && "$CODEX_REAL_BIN" --version >/dev/null 2>&1
 }
 
-# Reinstall @openai/codex cleanly. The real binary ships as a nested platform
-# optional dep (@openai/codex-<os>-<arch>); npm's default in-place reinstall
-# renames the existing package dir aside, which on 9p/overlay filesystems fails
-# with ENOTEMPTY and leaves the platform binary uninstalled -- a half-install
-# that only throws at run time. Removing the package dir (and any leftover
-# .codex-* move-aside temp) first forces a clean install. Scope is exactly the
-# codex package under the codex-only prefix: the same paths npm would replace.
+# Reinstall @openai/codex without destroying a working install. The real binary
+# ships as a nested platform optional dep (@openai/codex-<os>-<arch>); npm's
+# default in-place reinstall renames the existing package dir aside, which on
+# 9p/overlay filesystems fails with ENOTEMPTY and leaves the platform binary
+# uninstalled -- a half-install that only throws at run time. So move the current
+# package aside ourselves first: a plain rename to a fresh name never hits
+# ENOTEMPTY, and npm then installs into an empty target and never performs its
+# own failing rename. If the install does not yield a healthy codex, restore the
+# preserved package -- a failed reinstall must never leave the prefix with no
+# codex at all (npm view can succeed and npm install still fail).
 codex_clean_install() {
-    rm -rf "$CODEX_NPM_PREFIX/lib/node_modules/@openai/codex" \
-           "$CODEX_NPM_PREFIX"/lib/node_modules/@openai/.codex-* 2>/dev/null || true
-    npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest
+    pkg="$CODEX_NPM_PREFIX/lib/node_modules/@openai/codex"
+    bak="$CODEX_NPM_PREFIX/.codex-pkg-bak"
+    rm -rf "$bak" "$CODEX_NPM_PREFIX"/lib/node_modules/@openai/.codex-* 2>/dev/null || true
+    [ -e "$pkg" ] && mv "$pkg" "$bak"
+    if npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest && codex_healthy; then
+        rm -rf "$bak" 2>/dev/null || true
+        return 0
+    fi
+    echo "codex launcher: reinstall failed; keeping previous install" >&2
+    rm -rf "$pkg" 2>/dev/null || true
+    mkdir -p "$(dirname "$pkg")"
+    [ -e "$bak" ] && mv "$bak" "$pkg"
+    return 1
 }
 
 codex_update_if_needed() {
@@ -47,9 +60,11 @@ codex_update_if_needed() {
     if [ -z "$latest" ] && [ -x "$CODEX_REAL_BIN" ]; then
         return 0
     fi
-    # Version drift OR half-install (unhealthy) -> clean reinstall.
+    # Version drift OR half-install (unhealthy) -> clean reinstall. Do not let a
+    # failed reinstall abort under set -e: codex_clean_install restores the prior
+    # install on failure, and the functional gate below is the real arbiter.
     if [ -z "$latest" ] || [ "$current" != "$latest" ] || ! codex_healthy; then
-        codex_clean_install
+        codex_clean_install || true
     fi
     # Functional gate: npm can exit 0 yet leave a half-install on 9p, so judge
     # by actually running the binary. This return propagates through
