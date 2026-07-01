@@ -41,4 +41,4 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-07-01*
