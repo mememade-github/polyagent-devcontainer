@@ -46,6 +46,9 @@ services:
 
     stdin_open: true
     tty: true
+    # tini as PID 1 (zombie reaping) — parity with devcontainer.json "init": true
+    # so plain `docker compose up` matches the VS Code "Reopen in Container" path.
+    init: true
 
     healthcheck:
       test: ["CMD-SHELL", "claude --version >/dev/null 2>&1 && SKIP_CODEX_UPDATE=1 codex --version >/dev/null 2>&1 && { test -d /workspaces/.git || test -f /workspaces/AGENTS.md || test -f /workspaces/CLAUDE.md || test -f /workspaces/README.md || test -d /workspaces/.devcontainer; }"]
