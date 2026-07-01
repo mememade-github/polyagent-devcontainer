@@ -423,11 +423,25 @@ def raw_env_split_push():
         )
     )
 
+def control_wrapped_git_subcommand(segment, subcommand):
+    if not segment:
+        return False
+    control_tokens = {
+        "if", "then", "elif", "else", "for", "while", "until", "case",
+        "do", "done", "esac", "fi", "function",
+    }
+    starts = []
+    if segment[0] in control_tokens or segment[0] == "{":
+        starts.append(1)
+    starts.extend(pos + 1 for pos, tok in enumerate(segment) if tok == "{")
+    for start in starts:
+        git_args = git_argv_from_segment(segment[start:])
+        if git_args and git_args_subcommand(git_args) == subcommand:
+            return True
+    return False
+
 def raw_control_structure_push():
-    return bool(
-        re.search(r"(^|[;&|]\s*)(if|then|elif|else|for|while|until|case|do|done|esac|fi|function)\b|[{}]", normalized_command)
-        and re.search(r"(^|[^A-Za-z0-9_])git\b.*\bpush\b", normalized_command)
-    )
+    return any(control_wrapped_git_subcommand(segment, "push") for segment in segments)
 
 def unsafe_git_environment_push(segment):
     idx = command_index(segment)

@@ -478,6 +478,26 @@ if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTUR
 else
     record FAIL "Codex PreToolUse: git -C commit false positive after fresh verification"
 fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"fix: handle {id}\"" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: brace literal in commit message allowed"
+else
+    record FAIL "Codex PreToolUse: brace literal in commit message false positive"
+fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"handle empty {} object\"" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: empty-brace literal in commit message allowed"
+else
+    record FAIL "Codex PreToolUse: empty-brace literal in commit message false positive"
+fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: brace pathspec allowed"
+else
+    record FAIL "Codex PreToolUse: brace pathspec false positive"
+fi
+if jq -n --arg c "{ git -C $HOOK_FIXTURE commit -n -m bypass; }" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: brace-group commit bypass accepted"
+else
+    record PASS "Codex PreToolUse: brace-group commit bypass blocked"
+fi
 if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex pre-push: inline credential URL accepted"
 else
@@ -492,6 +512,16 @@ if printf '{"tool_input":{"command":"if true; then git push https://example.inva
     record FAIL "Codex pre-push: control-structure git push accepted"
 else
     record PASS "Codex pre-push: control-structure git push blocked"
+fi
+if jq -n --arg c "for r in a b; do echo x; done; git -C $HOOK_FIXTURE push https://example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex pre-push: preceding shell loop does not false-positive"
+else
+    record FAIL "Codex pre-push: preceding shell loop false positive"
+fi
+if jq -n --arg c "{ git -C $HOOK_FIXTURE push https://example.invalid/x.git main; }" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: brace-group push accepted"
+else
+    record PASS "Codex pre-push: brace-group push blocked"
 fi
 if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex pre-push: transient include.path accepted"
@@ -523,6 +553,26 @@ if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTUR
 else
     record FAIL "Claude PreToolUse: git -C commit false positive after fresh verification"
 fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"fix: handle {id}\"" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: brace literal in commit message allowed"
+else
+    record FAIL "Claude PreToolUse: brace literal in commit message false positive"
+fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"handle empty {} object\"" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: empty-brace literal in commit message allowed"
+else
+    record FAIL "Claude PreToolUse: empty-brace literal in commit message false positive"
+fi
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: brace pathspec allowed"
+else
+    record FAIL "Claude PreToolUse: brace pathspec false positive"
+fi
+if jq -n --arg c "{ git -C $HOOK_FIXTURE commit -n -m bypass; }" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: brace-group commit bypass accepted"
+else
+    record PASS "Claude PreToolUse: brace-group commit bypass blocked"
+fi
 if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude pre-push: inline credential URL accepted"
 else
@@ -537,6 +587,16 @@ if printf '{"tool_input":{"command":"if true; then git push https://example.inva
     record FAIL "Claude pre-push: control-structure git push accepted"
 else
     record PASS "Claude pre-push: control-structure git push blocked"
+fi
+if jq -n --arg c "for r in a b; do echo x; done; git -C $HOOK_FIXTURE push https://example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude pre-push: preceding shell loop does not false-positive"
+else
+    record FAIL "Claude pre-push: preceding shell loop false positive"
+fi
+if jq -n --arg c "{ git -C $HOOK_FIXTURE push https://example.invalid/x.git main; }" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: brace-group push accepted"
+else
+    record PASS "Claude pre-push: brace-group push blocked"
 fi
 if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude pre-push: transient include.path accepted"
