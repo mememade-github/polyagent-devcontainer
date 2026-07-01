@@ -30,7 +30,9 @@ echo ""
 step "Setting permissions..."
 
 if [ -S /var/run/docker.sock ]; then
-    sudo chown root:docker /var/run/docker.sock 2>/dev/null || true
+    if ! sudo chown root:docker /var/run/docker.sock 2>/dev/null; then
+        echo "      WARN: could not chown docker.sock to root:docker; docker access via the socket may be unavailable" >&2
+    fi
 fi
 
 WS="/workspaces"
