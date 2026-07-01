@@ -38,18 +38,11 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-detect_root() {
-    if [ -n "${1:-}" ] && [ -d "${1:-}" ]; then echo "$1"; return; fi
-    if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -d "$CLAUDE_PROJECT_DIR" ]; then echo "$CLAUDE_PROJECT_DIR"; return; fi
-    if command -v git >/dev/null 2>&1; then
-        local gc tl
-        gc=$(git -C "$SCRIPT_DIR" rev-parse --git-common-dir 2>/dev/null || true)
-        if [ -n "$gc" ] && [ "$gc" != ".git" ]; then (cd "$SCRIPT_DIR" && cd "$(dirname "$gc")" && pwd); return; fi
-        tl=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)
-        if [ -n "$tl" ]; then echo "$tl"; return; fi
-    fi
-    (cd "$SCRIPT_DIR/../.." && pwd)
-}
+# Shared worktree-aware root detection — single source of truth (see lib/).
+_LIB="$SCRIPT_DIR/lib/detect-root.sh"
+[ -r "$_LIB" ] || { echo "FATAL: missing $_LIB" >&2; exit 3; }
+# shellcheck source=scripts/meta/lib/detect-root.sh
+. "$_LIB"
 
 ROOT="$(detect_root "${1:-}")"
 INVARIANT='Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.'
@@ -63,8 +56,8 @@ note_pass() { echo "[PASS] $1"; }
 note_fail() { echo "[FAIL] $1"; FAIL=$((FAIL + 1)); }
 
 # --- Enumerate (find, path-predicate, verbatim) ---
-mapfile -t BC_FILES < <(find "$ROOT" -type f \( -path '*/.claude/rules/behavioral-core.md' -o -path '*/.agents/rules/behavioral-core.md' \) | sort)
-mapfile -t SK_FILES < <(find "$ROOT" -type f \( -path '*/.claude/skills/karpathy-guidelines/SKILL.md' -o -path '*/.agents/skills/karpathy-guidelines/SKILL.md' \) | sort)
+mapfile -t BC_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/rules/behavioral-core.md' -o -path '*/.agents/rules/behavioral-core.md' \) | sort)
+mapfile -t SK_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/skills/karpathy-guidelines/SKILL.md' -o -path '*/.agents/skills/karpathy-guidelines/SKILL.md' \) | sort)
 
 MODE="LEAF"
 [ -d "$ROOT/products" ] && MODE="GLOBAL"
