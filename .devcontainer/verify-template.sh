@@ -450,6 +450,18 @@ if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIX
 else
     record PASS "Codex PreToolUse: git -C commit -n bypass blocked"
 fi
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE commit -n -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+        record FAIL "Codex PreToolUse: $wrapper git commit wrapper bypass accepted"
+    else
+        record PASS "Codex PreToolUse: $wrapper git commit wrapper bypass blocked"
+    fi
+done
+if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: timeout non-git command allowed"
+else
+    record FAIL "Codex PreToolUse: timeout non-git command blocked"
+fi
 if printf '{"tool_input":{"command":"NV=--no-verify; git commit $NV -m probe"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex PreToolUse: variable-expanded commit flag accepted"
 else
@@ -503,6 +515,18 @@ if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.i
 else
     record PASS "Codex pre-push: inline credential URL blocked"
 fi
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+        record FAIL "Codex pre-push: $wrapper git push wrapper credential accepted"
+    else
+        record PASS "Codex pre-push: $wrapper git push wrapper credential blocked"
+    fi
+done
+if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex pre-push: timeout non-git command allowed"
+else
+    record FAIL "Codex pre-push: timeout non-git command blocked"
+fi
 if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex pre-push: variable-expanded credential URL accepted"
 else
@@ -532,6 +556,18 @@ if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIX
     record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
 else
     record PASS "Claude PreToolUse: git -C commit -n bypass blocked"
+fi
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE commit -n -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+        record FAIL "Claude PreToolUse: $wrapper git commit wrapper bypass accepted"
+    else
+        record PASS "Claude PreToolUse: $wrapper git commit wrapper bypass blocked"
+    fi
+done
+if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: timeout non-git command allowed"
+else
+    record FAIL "Claude PreToolUse: timeout non-git command blocked"
 fi
 if printf '{"tool_input":{"command":"NV=--no-verify; git commit $NV -m probe"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude PreToolUse: variable-expanded commit flag accepted"
@@ -577,6 +613,18 @@ if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.i
     record FAIL "Claude pre-push: inline credential URL accepted"
 else
     record PASS "Claude pre-push: inline credential URL blocked"
+fi
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+        record FAIL "Claude pre-push: $wrapper git push wrapper credential accepted"
+    else
+        record PASS "Claude pre-push: $wrapper git push wrapper credential blocked"
+    fi
+done
+if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude pre-push: timeout non-git command allowed"
+else
+    record FAIL "Claude pre-push: timeout non-git command blocked"
 fi
 if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude pre-push: variable-expanded credential URL accepted"

@@ -149,6 +149,23 @@ def raw_command_segments(tokens):
                 yield tokens[start:idx]
             start = idx + 1
 
+def skip_option_words(segment, idx, value_opts=(), value_prefixes=()):
+    while idx < len(segment):
+        opt = segment[idx]
+        if opt == "--":
+            return idx + 1
+        if opt in value_opts:
+            idx += 2
+            continue
+        if any(opt.startswith(prefix) for prefix in value_prefixes):
+            idx += 1
+            continue
+        if opt.startswith("-"):
+            idx += 1
+            continue
+        return idx
+    return idx
+
 def command_index(segment):
     idx = 0
     while idx < len(segment):
@@ -177,6 +194,51 @@ def command_index(segment):
                     idx += 1
                     continue
                 break
+            continue
+        if cmd == "timeout":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-s", "--signal", "-k", "--kill-after"},
+                ("-s", "--signal=", "-k", "--kill-after="),
+            )
+            if idx < len(segment):
+                idx += 1
+            continue
+        if cmd == "nice":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-n", "--adjustment"},
+                ("-n", "--adjustment="),
+            )
+            continue
+        if cmd == "nohup":
+            idx += 1
+            continue
+        if cmd == "setsid":
+            idx = skip_option_words(segment, idx + 1)
+            continue
+        if cmd == "stdbuf":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-i", "-o", "-e", "--input", "--output", "--error"},
+                ("-i", "-o", "-e", "--input=", "--output=", "--error="),
+            )
+            continue
+        if cmd == "ionice":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-c", "--class", "-n", "--classdata", "-p", "--pid", "-P", "--pgid", "-u", "--uid"},
+                ("-c", "--class=", "-n", "--classdata=", "-p", "--pid=", "-P", "--pgid=", "-u", "--uid="),
+            )
+            continue
+        if cmd == "chrt":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-T", "--sched-runtime", "-P", "--sched-period", "-D", "--sched-deadline", "-p", "--pid"},
+                ("--sched-runtime=", "--sched-period=", "--sched-deadline=", "--pid="),
+            )
+            if idx < len(segment) - 1 and re.match(r"^[+-]?[0-9]+$", segment[idx]):
+                idx += 1
             continue
         if cmd == "sudo":
             idx += 1
