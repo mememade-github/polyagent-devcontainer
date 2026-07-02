@@ -853,6 +853,27 @@ else
 fi
 rm -r "$REFINE_FIXTURE"
 
+# Marker filenames keep dots from branch names (only '/' maps to '-'), so the
+# cleanup must strip the fixed prefix, not split on the last dot.
+DOTBR_FIXTURE=$(mktemp -d)
+git -C "$DOTBR_FIXTURE" init -q
+git -C "$DOTBR_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
+git -C "$DOTBR_FIXTURE" branch -m release-1.2
+mkdir -p "$DOTBR_FIXTURE/.codex/state"
+touch "$DOTBR_FIXTURE/.codex/state/last-verification.release-1.2" "$DOTBR_FIXTURE/.codex/state/last-verification.gone-branch"
+printf '{"source":"startup"}' | CODEX_PROJECT_DIR="$DOTBR_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/session-start.sh" >/dev/null 2>&1
+if [ -f "$DOTBR_FIXTURE/.codex/state/last-verification.release-1.2" ]; then
+    record PASS "Codex session-start: dotted-branch marker preserved"
+else
+    record FAIL "Codex session-start: dotted-branch marker deleted"
+fi
+if [ ! -f "$DOTBR_FIXTURE/.codex/state/last-verification.gone-branch" ]; then
+    record PASS "Codex session-start: gone-branch marker cleaned"
+else
+    record FAIL "Codex session-start: gone-branch marker retained"
+fi
+rm -r "$DOTBR_FIXTURE"
+
 # --- PHASE 2g: Mirror integrity ---
 echo ""
 echo "=== Phase 2g: Mirror Integrity ==="

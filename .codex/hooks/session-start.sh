@@ -57,7 +57,9 @@ if command -v git >/dev/null 2>&1; then
   ACTIVE_SAFE=$(git -C "$GIT_ROOT" for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null | while read -r b; do echo "$b" | tr '/' '-'; done)
   for marker in "$STATE_DIR"/last-verification.*; do
     [ -f "$marker" ] || continue
-    MARKER_BRANCH="${marker##*.}"
+    MARKER_FILE=$(basename "$marker")
+    MARKER_BRANCH="${MARKER_FILE#last-verification.}"
+    [ -z "$MARKER_BRANCH" ] && continue
     if ! echo "$ACTIVE_SAFE" | grep -qxF "$MARKER_BRANCH"; then
       rm -f "$marker"
     fi
