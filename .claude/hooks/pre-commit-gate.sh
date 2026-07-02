@@ -307,7 +307,6 @@ def git_argv_from_segment(segment):
     return None
 
 def git_args_subcommand(git_args):
-    cwd = os.path.abspath(base_dir)
     pos = 0
     while pos < len(git_args):
         tok = git_args[pos]
