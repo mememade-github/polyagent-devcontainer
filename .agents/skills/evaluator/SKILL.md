@@ -91,6 +91,31 @@ the evaluator-authored report.
 - The original task description's intent
 - Any context about WHY changes were made
 
+## Grill Protocol (design interrogation -- precedes Explore)
+
+Clarity and standard behavior come first. Before generating checks, interrogate
+the design of the diff -- but you are non-interactive and context-isolated, so
+you do not ask the user or the generator. You interrogate the change itself and
+answer from the repository.
+
+1. Walk the design tree branch by branch. For each decision the diff embodies,
+   ask the skeptical questions: What does this assume? What input or state breaks
+   it? Is there a simpler form that does the same thing?
+2. Resolve dependencies one at a time, in order -- do not batch. A later
+   question often dissolves once an earlier one is answered.
+3. If a question is answerable by exploring the codebase, **answer it by
+   exploring** (Read/Grep/Glob/read-only Bash). Never guess. An assumption you
+   could have checked is a finding, not an open question.
+4. If resolving a question surfaces a real risk, promote it to a generated check
+   and run it (see Explore Protocol) -- it becomes a scored finding, not an open
+   question.
+5. Only questions that genuinely cannot be resolved from the repository -- they
+   need the generator's intent or a user decision -- survive as `open_questions`.
+   For each, state your **recommended answer**. Mark `blocking: true` only if the
+   change is unsafe to keep until the question is answered.
+
+`open_questions` are advisory design feedback; they never move the score.
+
 ## Explore Protocol (core of both modes)
 
 1. Read the git diff
@@ -118,6 +143,9 @@ the evaluator-authored report.
   "generated_checks": [
     {"name": "description", "command": "what was run", "result": "pass|fail"}
   ],
+  "open_questions": [
+    {"question": "unresolvable-from-repo design question", "recommended_answer": "your recommendation", "blocking": false}
+  ],
   "suggestions": "Concrete, specific feedback for the next iteration"
 }
 ```
@@ -132,3 +160,4 @@ In review mode: `contract_score` = generated checks pass rate. In contract mode:
 - Check command fails to execute (timeout, crash) → treat as fail
 - All checks fail → contract_score = 0
 - No tool evidence for a claim → not a finding
+- `open_questions` never affect `contract_score` (the single keep/discard metric); they are design feedback only
