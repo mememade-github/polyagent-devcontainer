@@ -19,8 +19,8 @@ if [ ! -x "$VERIFY" ] && [ ! -f "$VERIFY" ]; then
     exit 2
 fi
 
-PROJECT_DIR="$PROJECT_DIR" bash "$VERIFY"
-RC=$?
+RC=0
+PROJECT_DIR="$PROJECT_DIR" bash "$VERIFY" || RC=$?
 
 # Marker write follows the active vendor's pre-commit gate.
 if [ "$RC" -eq 0 ]; then
