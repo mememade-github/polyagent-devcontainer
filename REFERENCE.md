@@ -128,7 +128,9 @@ Same git commit may produce different installed versions on different days.
 For reproducible images, pin the rolling sources: replace the Claude installer
 URL with a tagged release, set `npm install -g @openai/codex@<version>`, and
 pin the apt packages, the pip tools (`ruff`/`pytest`/`mypy`), and Node to an
-exact version (`setup_22.x` already fixes only the major). The base image, the `docker compose` plugin, and `uv`
+exact version (`setup_22.x` already fixes only the major), and pin the base
+image to a digest or fully-qualified version tag — `ubuntu-22.04` is a rolling
+alias that gets rebuilt. The `docker compose` plugin and `uv`
 are already version-pinned. To disable the per-start refresh, set
 `SKIP_CLAUDE_UPDATE=1` and `SKIP_CODEX_UPDATE=1` in the compose `environment:`
 block (values may come from `.env`) — `docker compose up` does not read
@@ -222,4 +224,4 @@ codex --version
 
 ---
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-07-03*
