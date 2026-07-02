@@ -701,6 +701,11 @@ echo "=== Phase 2f: Mirror Integrity ==="
 [ -d "$PROJECT_DIR/.agents/skills/wip-manager" ] && record PASS ".agents/skills/wip-manager (agent->skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
 [ -x "$PROJECT_DIR/scripts/sync-agents-mirror.sh" ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
 [ -x "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" ] && record PASS "run-isolated-role.sh executable" || record FAIL "run-isolated-role.sh"
+if SYNC_REAL_DRY=$(bash "$PROJECT_DIR/scripts/sync-agents-mirror.sh" --dry 2>&1) && printf '%s' "$SYNC_REAL_DRY" | grep -Fq '0 change(s) detected.'; then
+    record PASS "sync dry-run: actual .agents mirror has no drift"
+else
+    record FAIL "sync dry-run: actual .agents mirror drift detected"
+fi
 
 SYNC_FIXTURE=$(mktemp -d)
 mkdir -p "$SYNC_FIXTURE/scripts"
