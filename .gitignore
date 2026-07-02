@@ -33,9 +33,6 @@ yarn-error.log*
 .claude/.refinement-active
 .claude/.refine-output
 .claude/.refine-eval.json
-.claude/.update-check-cache
-.claude/.error-log
-.claude/.tool-call-counter
 .claude/settings.local.json
 .claude/worktrees/
 .mcp.json
