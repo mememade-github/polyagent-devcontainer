@@ -148,14 +148,6 @@ def command_segments(tokens):
                 yield strip_redirections(tokens[start:idx])
             start = idx + 1
 
-def raw_command_segments(tokens):
-    start = 0
-    for idx, tok in enumerate(tokens + [";"]):
-        if tok in separators:
-            if start < idx:
-                yield tokens[start:idx]
-            start = idx + 1
-
 def skip_option_words(segment, idx, value_opts=(), value_prefixes=()):
     while idx < len(segment):
         opt = segment[idx]
