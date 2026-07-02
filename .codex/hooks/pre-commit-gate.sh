@@ -821,18 +821,19 @@ else
 fi
 
 if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
+  # Fail closed: never run the checker inside the hook — its runtime exceeds
+  # the PreToolUse timeout budget (hooks.json), so an in-hook run can be
+  # killed mid-flight and the gate outcome would depend on harness timeout
+  # semantics. Block immediately and print the exact command instead.
+  echo "Blocked: verification marker is stale or missing for branch '$BRANCH'." >&2
   if [ -f "$CHECKER" ]; then
-    CODEX_PROJECT_DIR="$ACTUAL_ROOT" bash "$CHECKER" >&2
-    VERIFY_EXIT=$?
-    if [ "$VERIFY_EXIT" -eq 0 ]; then
-      touch "$MARKER"
-      exit 0
-    fi
-    echo "Auto-verification failed (exit $VERIFY_EXIT). Fix issues before committing." >&2
-    exit 2
+    echo "Run verification, then retry the commit:" >&2
+    echo "  CODEX_PROJECT_DIR=\"$ACTUAL_ROOT\" bash \"$CHECKER\"" >&2
+    echo "(On success it records the marker: $MARKER)" >&2
+  else
+    echo "Verification helper missing: $CHECKER" >&2
+    echo "Run your project verification, then create the marker: touch \"$MARKER\"" >&2
   fi
-
-  echo "Verification helper missing: $CHECKER" >&2
   exit 2
 fi
 

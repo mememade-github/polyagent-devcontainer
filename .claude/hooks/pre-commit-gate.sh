@@ -845,26 +845,23 @@ else
 fi
 
 if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
-  # Try auto-verification for common project types
+  # Fail closed: never run the checker inside the hook — its runtime exceeds
+  # the PreToolUse timeout budget (settings.json), so an in-hook run can be
+  # killed mid-flight and the gate outcome would depend on harness timeout
+  # semantics. Block immediately and print the exact command instead.
   CHECKER="$ACTUAL_ROOT/scripts/meta/completion-checker.sh"
-  if [ -x "$CHECKER" ] || [ -f "$CHECKER" ]; then
-    CLAUDE_PROJECT_DIR="$ACTUAL_ROOT" bash "$CHECKER" >&2
-    VERIFY_EXIT=$?
-    if [ "$VERIFY_EXIT" -eq 0 ]; then
-      mkdir -p "$ACTUAL_ROOT/.claude"
-      touch "$MARKER"
-      exit 0
-    fi
-    echo "Auto-verification failed (exit $VERIFY_EXIT). Fix issues before committing." >&2
-    exit 2
+  echo "Blocked: verification marker is stale or missing for branch '$BRANCH'." >&2
+  if [ -f "$CHECKER" ]; then
+    echo "Run verification, then retry the commit:" >&2
+    echo "  CLAUDE_PROJECT_DIR=\"$ACTUAL_ROOT\" bash \"$CHECKER\"" >&2
+    echo "(On success it records the marker: $MARKER)" >&2
+  else
+    echo "Run verification before committing:" >&2
+    echo "1. Python: ruff check src/ && mypy src/ --ignore-missing-imports" >&2
+    echo "2. TypeScript: pnpm build" >&2
+    echo "3. Or run: your project verification script (see project governance docs)" >&2
+    echo "Then create the marker: mkdir -p '$ACTUAL_ROOT/.claude' && touch '$MARKER'" >&2
   fi
-
-  # No checker available — provide self-service instructions
-  echo "Verification is stale or missing. Run verification before committing:" >&2
-  echo "1. Python: ruff check src/ && mypy src/ --ignore-missing-imports" >&2
-  echo "2. TypeScript: pnpm build" >&2
-  echo "3. Or run: your project verification script (see project governance docs)" >&2
-  echo "Then create the marker: mkdir -p '$ACTUAL_ROOT/.claude' && touch '$MARKER'" >&2
   exit 2
 fi
 

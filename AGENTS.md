@@ -71,7 +71,8 @@ manually until hook trust is established.
 ### Pre-commit gate (PreToolUse hook)
 
 Before any `git commit`:
-1. Run verification for affected code (auto-detected by file type).
+1. Verification must have run recently (fresh marker). When stale, the gate
+   fails closed and prints the exact `completion-checker.sh` command to run.
 2. All checks must pass; no `--no-verify`.
 
 ### Multi-session tasks

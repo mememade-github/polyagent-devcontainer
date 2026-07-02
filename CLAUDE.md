@@ -54,7 +54,7 @@ These rules are enforced by hooks; no user commands required.
    - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). When a scorer (`.refine/score.sh`) is present, the pre-commit hook emits a non-blocking WARNING for multi-file commits without an active `/refine` marker (the template ships no scorer, so this stays dormant until you add one).
    - *Trivial changes* (typo, single config line) → direct edit.
    - Never self-evaluate. Delegate to the **evaluator** agent.
-3. **Pre-commit gate**: `pre-commit-gate.sh` runs verification for affected code before any `git commit`. All checks must pass; no `--no-verify`.
+3. **Pre-commit gate**: `pre-commit-gate.sh` blocks `git commit` unless verification ran recently (fresh marker). When stale it fails closed and prints the exact `completion-checker.sh` command to run. All checks must pass; no `--no-verify`.
 4. **Multi-session tasks**: tasks likely to span sessions create a WIP via the **wip-manager** agent at `wip/task-YYYYMMDD-description/README.md`. Auto-resumed on next session start. Delete when complete.
 5. **Agent delegation**: `evaluator` after changes (1-pass review; within `/refine`); `wip-manager` when work spans sessions.
 

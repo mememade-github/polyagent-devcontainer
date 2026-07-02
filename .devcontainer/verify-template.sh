@@ -200,7 +200,7 @@ echo "=== Phase 1d: Governance regression guards ==="
 CODEX_PRECOMMIT="$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"
 CLAUDE_PRECOMMIT="$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh"
 grep -Fq '[ -f "$CHECKER" ]' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: checker may be 0644" || record FAIL "Codex pre-commit: checker exec contract"
-grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: writes Codex marker" || record FAIL "Codex pre-commit: marker write"
+if grep -Fq 'MARKER=' "$CODEX_PRECOMMIT" 2>/dev/null && ! grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null; then record PASS "Codex pre-commit: marker read-only (checker writes it)"; else record FAIL "Codex pre-commit: marker read-only contract"; fi
 grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: sk-* secret pattern" || record FAIL "Codex pre-commit: sk-* secret pattern"
 grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CLAUDE_PRECOMMIT" 2>/dev/null && record PASS "Claude pre-commit: sk-* secret pattern" || record FAIL "Claude pre-commit: sk-* secret pattern"
 grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill: bash invocation contract" || record FAIL "status skill: bash invocation contract"
@@ -509,19 +509,35 @@ cat > "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" <<EOF
 printf '%s\n' "\${CLAUDE_PROJECT_DIR:-\${CODEX_PROJECT_DIR:-}}" > "$CHECKER_FIXTURE/seen-root"
 exit 0
 EOF
-if jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
-   [ "$(cat "$CHECKER_FIXTURE/seen-root" 2>/dev/null)" = "$CHECKER_FIXTURE" ]; then
-    record PASS "Codex PreToolUse: target checker receives target root"
+# Fail-closed contract: stale marker in the target root must block within the
+# PreToolUse timeout budget (timeout 5 mirrors settings.json/hooks.json), print
+# guidance naming the TARGET root's checker (not the session root's), and must
+# NOT execute the checker in-hook (fixture checker records seen-root if run).
+CODEX_STALE_ERR=$(jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" timeout 5 bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
+CODEX_STALE_RC=$?
+if [ "$CODEX_STALE_RC" -eq 2 ] &&
+   printf '%s' "$CODEX_STALE_ERR" | grep -Fq "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" &&
+   [ ! -f "$CHECKER_FIXTURE/seen-root" ]; then
+    record PASS "Codex PreToolUse: stale marker fails closed with target-root guidance"
 else
-    record FAIL "Codex PreToolUse: target checker received session root"
+    record FAIL "Codex PreToolUse: stale marker fail-closed contract"
 fi
-rm -f "$CHECKER_FIXTURE/seen-root"
-if jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
-   [ "$(cat "$CHECKER_FIXTURE/seen-root" 2>/dev/null)" = "$CHECKER_FIXTURE" ] &&
-   [ -f "$CHECKER_FIXTURE/.claude/.last-verification.$CHECKER_BRANCH" ]; then
-    record PASS "Claude PreToolUse: target checker root and marker align"
+CLAUDE_STALE_ERR=$(jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" timeout 5 bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
+CLAUDE_STALE_RC=$?
+if [ "$CLAUDE_STALE_RC" -eq 2 ] &&
+   printf '%s' "$CLAUDE_STALE_ERR" | grep -Fq "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" &&
+   [ ! -f "$CHECKER_FIXTURE/seen-root" ] &&
+   [ ! -f "$CHECKER_FIXTURE/.claude/.last-verification.$CHECKER_BRANCH" ]; then
+    record PASS "Claude PreToolUse: stale marker fails closed with target-root guidance"
 else
-    record FAIL "Claude PreToolUse: target checker root or marker mismatch"
+    record FAIL "Claude PreToolUse: stale marker fail-closed contract"
+fi
+# Static tripwire: reintroducing in-hook checker execution reverts the gate to
+# a run that cannot finish inside the hook timeout budget.
+if grep -Fq 'bash "$CHECKER"' "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" || grep -Fq 'bash "$CHECKER"' "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"; then
+    record FAIL "pre-commit gates: in-hook checker execution present (exceeds hook timeout budget)"
+else
+    record PASS "pre-commit gates: no in-hook checker execution"
 fi
 if printf '{"tool_input":{"command":"if true; then git commit -n -m bypass; fi"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex PreToolUse: control-structure git commit accepted"
