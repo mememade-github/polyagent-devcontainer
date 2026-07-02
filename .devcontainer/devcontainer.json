@@ -81,6 +81,6 @@
   // 동일 named volume을 공유하도록 여기서 재정의하지 않음.
   // ==========================================================================
   "mounts": [
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
   ]
 }

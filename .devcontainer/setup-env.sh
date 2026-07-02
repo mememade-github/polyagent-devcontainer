@@ -65,7 +65,11 @@ if [ -d "$SSH_DIR" ]; then
     find "$SSH_DIR" -type f -name "known_hosts*" -exec chmod 644 {} \; 2>/dev/null || true
     find "$SSH_DIR" -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" -exec chmod 600 {} \; 2>/dev/null || true
     [ -f "$SSH_DIR/config" ] && chmod 644 "$SSH_DIR/config" 2>/dev/null || true
-    echo "      SSH keys found"
+    if find "$SSH_DIR" -type f -print -quit | grep -q .; then
+        echo "      SSH files found"
+    else
+        echo "      No SSH files (optional)"
+    fi
 else
     echo "      No SSH (optional)"
 fi
