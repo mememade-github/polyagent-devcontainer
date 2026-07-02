@@ -339,9 +339,9 @@ else
 fi
 rm -r "$KARPATHY_GLOBAL_FIXTURE"
 
-# --- PHASE 3: Hooks syntax ---
+# --- PHASE 2b: Hooks syntax ---
 echo ""
-echo "=== Phase 3A: Hook Syntax (Claude side) ==="
+echo "=== Phase 2b: Hook Syntax (Claude side) ==="
 claude_hooks=$(ls "$PROJECT_DIR"/.claude/hooks/*.sh 2>/dev/null | wc -l)
 [ "$claude_hooks" -eq 4 ] && record PASS "Claude hooks: $claude_hooks/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Claude hooks: $claude_hooks (expected 4)"
 for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
@@ -349,9 +349,9 @@ for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
 done
 
-# --- PHASE 2b: Agents ---
+# --- PHASE 2c: Agents ---
 echo ""
-echo "=== Phase 2b: Agents ==="
+echo "=== Phase 2c: Agents ==="
 count=0
 total=0
 agent_schema_ok=0
@@ -373,9 +373,9 @@ done
 record PASS "Agent frontmatter ($count/$total)"
 [ "$agent_schema_ok" -eq "$total" ] && record PASS "Agent schema ($agent_schema_ok/$total)" || record FAIL "Agent schema ($agent_schema_ok/$total)"
 
-# --- PHASE 2c: Skills (4 + karpathy-guidelines reference) ---
+# --- PHASE 2d: Skills (4 + karpathy-guidelines reference) ---
 echo ""
-echo "=== Phase 2c: Skills ==="
+echo "=== Phase 2d: Skills ==="
 skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
 [ "$skills" -eq 4 ] && record PASS "Skills: $skills/4 (refine, status, verify, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 4)"
 skill_schema_ok=0
@@ -398,9 +398,9 @@ for f in "$PROJECT_DIR"/.claude/skills/*/SKILL.md; do
 done
 [ "$skill_schema_ok" -eq "$skills" ] && record PASS "Skill schema ($skill_schema_ok/$skills)" || record FAIL "Skill schema ($skill_schema_ok/$skills)"
 
-# --- PHASE 2d: Rules (6 portable) ---
+# --- PHASE 2e: Rules (6 portable) ---
 echo ""
-echo "=== Phase 2d: Rules ==="
+echo "=== Phase 2e: Rules ==="
 EXPECTED_RULES="audit-discipline behavioral-core commit-discipline destructive-ops-discipline anchor-discipline devcontainer-patterns"
 missing=""
 for r in $EXPECTED_RULES; do
@@ -421,9 +421,9 @@ for r in $EXPECTED_RULES; do
 done
 [ -z "$missing" ] && record PASS "Rules: imported, loaded, and mirrored by name" || record FAIL "Rules parity:$missing"
 
-# --- PHASE 2e: Codex hooks (4) ---
+# --- PHASE 2f: Codex hooks (4) ---
 echo ""
-echo "=== Phase 2e: Codex Hooks ==="
+echo "=== Phase 2f: Codex Hooks ==="
 codex_hook_count=$(ls "$PROJECT_DIR"/.codex/hooks/*.sh 2>/dev/null | wc -l)
 [ "$codex_hook_count" -eq 4 ] && record PASS "Codex hooks: $codex_hook_count/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Codex hooks: $codex_hook_count (expected 4)"
 for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
@@ -804,9 +804,9 @@ else
 fi
 rm -r "$REFINE_FIXTURE"
 
-# --- PHASE 2f: Mirror integrity ---
+# --- PHASE 2g: Mirror integrity ---
 echo ""
-echo "=== Phase 2f: Mirror Integrity ==="
+echo "=== Phase 2g: Mirror Integrity ==="
 [ -d "$PROJECT_DIR/.agents/skills/evaluator" ] && record PASS ".agents/skills/evaluator (agent->skill mirror)" || record FAIL ".agents/skills/evaluator missing"
 [ -d "$PROJECT_DIR/.agents/skills/wip-manager" ] && record PASS ".agents/skills/wip-manager (agent->skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
 [ -x "$PROJECT_DIR/scripts/sync-agents-mirror.sh" ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
