@@ -494,6 +494,7 @@ fi
 HOOK_FIXTURE_2=$(mktemp -d)
 git -C "$HOOK_FIXTURE_2" init -q
 git -C "$HOOK_FIXTURE_2" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
+NONREPO_FIXTURE=$(mktemp -d)
 if printf '{"tool_input":{"command":"git -C %s commit -m ok && git -C %s commit -m bypass"}}' "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex PreToolUse: compound git commit accepted"
 else
@@ -628,6 +629,13 @@ if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig pus
 else
     record PASS "Codex pre-push: transient include.path blocked"
 fi
+# Layer 1 is compound-safe only if a non-repo FIRST target cannot short-circuit
+# the scan before the credentialed later target is inspected.
+if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main; git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: non-repo-first compound credential accepted"
+else
+    record PASS "Codex pre-push: non-repo-first compound credential blocked"
+fi
 if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
 else
@@ -761,13 +769,25 @@ if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig pus
 else
     record PASS "Claude pre-push: transient include.path blocked"
 fi
+# Layer 1 is compound-safe only if a non-repo FIRST target cannot short-circuit
+# the scan before the credentialed later target is inspected.
+if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main; git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: non-repo-first compound credential accepted"
+else
+    record PASS "Claude pre-push: non-repo-first compound credential blocked"
+fi
+if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude pre-push: lone non-repo push allowed"
+else
+    record FAIL "Claude pre-push: lone non-repo push blocked"
+fi
 NO_JQ_PATH=$(mktemp -d)
 if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH" CODEX_PROJECT_DIR="$HOOK_FIXTURE" /bin/bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex PreToolUse: missing jq accepted"
 else
     record PASS "Codex PreToolUse: missing jq fails closed"
 fi
-rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" "$CHECKER_FIXTURE"
+rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" "$CHECKER_FIXTURE" "$NONREPO_FIXTURE"
 if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex PreToolUse: unrelated Bash command allowed"
 else

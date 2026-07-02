@@ -780,7 +780,7 @@ fi
 
 PROJECT_DIR=$(echo "$PUSH_INFO" | jq -r '.workdir')
 if command -v git &>/dev/null; then
-  REPO_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null)
+  REPO_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_DIR")
 else
   REPO_ROOT="$PROJECT_DIR"
 fi
