@@ -52,9 +52,6 @@ fi
 # 3. Environment quick check
 ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
-# Check for any SSH deploy key (optional — only warn if a key file appears expected)
-SSH_KEY_FOUND=$(find "${HOME}/.ssh/" -name "*_ed25519" -o -name "*_rsa" 2>/dev/null | head -1)
-[ -z "$SSH_KEY_FOUND" ] && [ -f "$ACTUAL_ROOT/.env/ssh-key" ] && SSH_KEY_FOUND="project"
 # Template-level .devcontainer/.env presence (single source of user-tunable values per PROJECT.md)
 [ ! -f "$ACTUAL_ROOT/.devcontainer/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .devcontainer/.env missing (copy .devcontainer/.env.example)\n"
 
@@ -83,6 +80,7 @@ if [ -f /.dockerenv ]; then
 else
   CONTEXT="${CONTEXT}Environment: Host ($(uname -s))\n"
 fi
+CONTEXT="${CONTEXT}Hook source: ${SOURCE}\n"
 CONTEXT="${CONTEXT}User: $(whoami)\n"
 
 # Output JSON with additionalContext
