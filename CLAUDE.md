@@ -109,4 +109,4 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 
 ---
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-07-03*
