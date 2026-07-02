@@ -452,13 +452,30 @@ if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIX
 else
     record PASS "Codex PreToolUse: git -C commit -n bypass blocked"
 fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
     if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE commit -n -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
         record FAIL "Codex PreToolUse: $wrapper git commit wrapper bypass accepted"
     else
         record PASS "Codex PreToolUse: $wrapper git commit wrapper bypass blocked"
     fi
 done
+for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
+    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+        record PASS "Codex PreToolUse: $wrapper non-git command allowed"
+    else
+        record FAIL "Codex PreToolUse: $wrapper non-git command blocked"
+    fi
+done
+if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE commit -n -m probe' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: flock -c git commit wrapper bypass accepted"
+else
+    record PASS "Codex PreToolUse: flock -c git commit wrapper bypass blocked"
+fi
+if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: flock -c non-git command allowed"
+else
+    record FAIL "Codex PreToolUse: flock -c non-git command blocked"
+fi
 if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex PreToolUse: timeout non-git command allowed"
 else
@@ -541,13 +558,30 @@ if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.i
 else
     record PASS "Codex pre-push: inline credential URL blocked"
 fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
     if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
         record FAIL "Codex pre-push: $wrapper git push wrapper credential accepted"
     else
         record PASS "Codex pre-push: $wrapper git push wrapper credential blocked"
     fi
 done
+for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
+    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+        record PASS "Codex pre-push: $wrapper non-git command allowed"
+    else
+        record FAIL "Codex pre-push: $wrapper non-git command blocked"
+    fi
+done
+if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: flock -c git push wrapper credential accepted"
+else
+    record PASS "Codex pre-push: flock -c git push wrapper credential blocked"
+fi
+if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex pre-push: flock -c non-git command allowed"
+else
+    record FAIL "Codex pre-push: flock -c non-git command blocked"
+fi
 if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex pre-push: timeout non-git command allowed"
 else
@@ -583,13 +617,30 @@ if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIX
 else
     record PASS "Claude PreToolUse: git -C commit -n bypass blocked"
 fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
     if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE commit -n -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
         record FAIL "Claude PreToolUse: $wrapper git commit wrapper bypass accepted"
     else
         record PASS "Claude PreToolUse: $wrapper git commit wrapper bypass blocked"
     fi
 done
+for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
+    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+        record PASS "Claude PreToolUse: $wrapper non-git command allowed"
+    else
+        record FAIL "Claude PreToolUse: $wrapper non-git command blocked"
+    fi
+done
+if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE commit -n -m probe' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: flock -c git commit wrapper bypass accepted"
+else
+    record PASS "Claude PreToolUse: flock -c git commit wrapper bypass blocked"
+fi
+if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: flock -c non-git command allowed"
+else
+    record FAIL "Claude PreToolUse: flock -c non-git command blocked"
+fi
 if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Claude PreToolUse: timeout non-git command allowed"
 else
@@ -640,13 +691,30 @@ if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.i
 else
     record PASS "Claude pre-push: inline credential URL blocked"
 fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0"; do
+for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
     if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
         record FAIL "Claude pre-push: $wrapper git push wrapper credential accepted"
     else
         record PASS "Claude pre-push: $wrapper git push wrapper credential blocked"
     fi
 done
+for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
+    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+        record PASS "Claude pre-push: $wrapper non-git command allowed"
+    else
+        record FAIL "Claude pre-push: $wrapper non-git command blocked"
+    fi
+done
+if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: flock -c git push wrapper credential accepted"
+else
+    record PASS "Claude pre-push: flock -c git push wrapper credential blocked"
+fi
+if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude pre-push: flock -c non-git command allowed"
+else
+    record FAIL "Claude pre-push: flock -c non-git command blocked"
+fi
 if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record PASS "Claude pre-push: timeout non-git command allowed"
 else

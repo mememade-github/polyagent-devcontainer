@@ -254,6 +254,27 @@ def command_index(segment):
             if idx < len(segment) - 1 and re.match(r"^[+-]?[0-9]+$", segment[idx]):
                 idx += 1
             continue
+        if cmd == "xargs":
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-a", "--arg-file", "-d", "--delimiter", "-E", "--eof", "-I", "--replace", "-i", "-L", "--max-lines", "-l", "-n", "--max-args", "-P", "--max-procs", "-s", "--max-chars", "--process-slot-var"},
+                ("-a", "--arg-file=", "-d", "--delimiter=", "-E", "--eof=", "-I", "--replace=", "-i", "-L", "--max-lines=", "-l", "-n", "--max-args=", "-P", "--max-procs=", "-s", "--max-chars=", "--process-slot-var="),
+            )
+            continue
+        if cmd == "flock":
+            if any(
+                arg in {"-c", "--command"} or arg.startswith("--command=") or (arg.startswith("-c") and arg != "-c")
+                for arg in segment[idx + 1:]
+            ):
+                break
+            idx = skip_option_words(
+                segment, idx + 1,
+                {"-E", "--conflict-exit-code", "-c", "--command"},
+                ("-E", "--conflict-exit-code=", "-c", "--command="),
+            )
+            if idx < len(segment):
+                idx += 1
+            continue
         if cmd == "sudo":
             idx += 1
             while idx < len(segment) and segment[idx].startswith("-"):
@@ -314,6 +335,25 @@ def git_args_subcommand(git_args):
         return tok
     return ""
 
+def flock_shell_command(args):
+    pos = 0
+    while pos < len(args):
+        arg = args[pos]
+        if arg in {"-c", "--command"} and pos + 1 < len(args):
+            return args[pos + 1]
+        if arg.startswith("--command="):
+            return arg.split("=", 1)[1]
+        if arg.startswith("-c") and arg != "-c":
+            return arg[2:]
+        if arg in {"-E", "--conflict-exit-code"}:
+            pos += 2
+            continue
+        if arg.startswith("--conflict-exit-code=") or (arg.startswith("-E") and arg != "-E"):
+            pos += 1
+            continue
+        pos += 1
+    return ""
+
 def unsafe_cwd_change_before_commit(segments):
     cwd_changed = False
     for segment in segments:
@@ -353,6 +393,8 @@ def nested_git_commit(segment):
                 break
             if arg in {"-o", "--option"}:
                 skip = True
+    elif exe == "flock":
+        nested = flock_shell_command(args)
     elif exe == "eval":
         nested = " ".join(args)
     return bool(re.search(r"(^|[^A-Za-z0-9_])git([^;&|]*[ \t])commit([^A-Za-z0-9_]|$)", nested))
@@ -372,6 +414,8 @@ def nested_expansion_commit(segment):
             if arg.startswith("-") and "c" in arg[1:] and pos + 1 < len(args):
                 nested = args[pos + 1]
                 break
+    elif exe == "flock":
+        nested = flock_shell_command(args)
     elif exe == "eval":
         nested = " ".join(args)
     return bool(re.search(r"[$`]", nested) and re.search(r"g.*i.*t", nested) and re.search(r"commit", nested))
