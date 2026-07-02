@@ -480,6 +480,30 @@ if printf '{"tool_input":{"command":"git -C %s commit -m ok && git -C %s commit 
 else
     record PASS "Codex PreToolUse: compound git commit blocked"
 fi
+CHECKER_FIXTURE=$(mktemp -d)
+git -C "$CHECKER_FIXTURE" init -q
+git -C "$CHECKER_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
+CHECKER_BRANCH=$(git -C "$CHECKER_FIXTURE" rev-parse --abbrev-ref HEAD)
+mkdir -p "$CHECKER_FIXTURE/scripts/meta"
+cat > "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" <<EOF
+#!/bin/bash
+printf '%s\n' "\${CLAUDE_PROJECT_DIR:-\${CODEX_PROJECT_DIR:-}}" > "$CHECKER_FIXTURE/seen-root"
+exit 0
+EOF
+if jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
+   [ "$(cat "$CHECKER_FIXTURE/seen-root" 2>/dev/null)" = "$CHECKER_FIXTURE" ]; then
+    record PASS "Codex PreToolUse: target checker receives target root"
+else
+    record FAIL "Codex PreToolUse: target checker received session root"
+fi
+rm -f "$CHECKER_FIXTURE/seen-root"
+if jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
+   [ "$(cat "$CHECKER_FIXTURE/seen-root" 2>/dev/null)" = "$CHECKER_FIXTURE" ] &&
+   [ -f "$CHECKER_FIXTURE/.claude/.last-verification.$CHECKER_BRANCH" ]; then
+    record PASS "Claude PreToolUse: target checker root and marker align"
+else
+    record FAIL "Claude PreToolUse: target checker root or marker mismatch"
+fi
 if printf '{"tool_input":{"command":"if true; then git commit -n -m bypass; fi"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex PreToolUse: control-structure git commit accepted"
 else
@@ -657,7 +681,7 @@ if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH
 else
     record PASS "Codex PreToolUse: missing jq fails closed"
 fi
-rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2"
+rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" "$CHECKER_FIXTURE"
 if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex PreToolUse: unrelated Bash command allowed"
 else

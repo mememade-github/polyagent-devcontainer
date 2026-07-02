@@ -778,7 +778,7 @@ fi
 
 if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
   if [ -f "$CHECKER" ]; then
-    bash "$CHECKER" >&2
+    CODEX_PROJECT_DIR="$ACTUAL_ROOT" bash "$CHECKER" >&2
     VERIFY_EXIT=$?
     if [ "$VERIFY_EXIT" -eq 0 ]; then
       touch "$MARKER"

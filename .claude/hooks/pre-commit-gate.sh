@@ -804,10 +804,12 @@ if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
   # Try auto-verification for common project types
   CHECKER="$ACTUAL_ROOT/scripts/meta/completion-checker.sh"
   if [ -x "$CHECKER" ] || [ -f "$CHECKER" ]; then
-    bash "$CHECKER" >&2
+    CLAUDE_PROJECT_DIR="$ACTUAL_ROOT" bash "$CHECKER" >&2
     VERIFY_EXIT=$?
     if [ "$VERIFY_EXIT" -eq 0 ]; then
-      exit 0  # checker creates marker on success
+      mkdir -p "$ACTUAL_ROOT/.claude"
+      touch "$MARKER"
+      exit 0
     fi
     echo "Auto-verification failed (exit $VERIFY_EXIT). Fix issues before committing." >&2
     exit 2
