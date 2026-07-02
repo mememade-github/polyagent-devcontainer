@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fSL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Python tools — refinement loop verification (verify-score.sh dependency)
+# Python tools — refinement loop verification (project scorer dependency, e.g. .refine/score.sh)
 # ruff/pytest/mypy provide deterministic reward signals for the refinement loop.
 # Without them, score=0 (loop becomes meaningless).
 # --break-system-packages: required since pip 23.0+; Ubuntu 22.04 default pip (22.x) does not need it.
