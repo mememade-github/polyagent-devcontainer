@@ -154,7 +154,7 @@ In review mode: `contract_score` = generated checks pass rate. In contract mode:
 
 ## Scoring Rules
 
-- Every score is derived from tool execution results, never opinion
+- Every score is derived from tool execution results — no free-form judgment. (Choosing which checks to run and matching anchors is still LLM judgment; it is constrained by tool evidence and the fixed anchors, never replaced by opinion of overall quality.)
 - `contract_score` drives keep/discard in /refine (single metric)
 - `findings` feed back to generator as improvement guidance
 - Check command fails to execute (timeout, crash) → treat as fail

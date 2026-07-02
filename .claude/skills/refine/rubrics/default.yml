@@ -19,7 +19,7 @@ rubric:
   description: Universal rubric for any project type (code, docs, system, config)
 
   evaluation_rules:
-    - "Score ONLY against the anchor criteria below. No subjective judgment."
+    - "Score ONLY against the anchor criteria below. No free-form judgment: anchor matching is constrained by cited evidence, never by overall impressions."
     - "Every score MUST cite specific evidence from tool output or file:line."
     - "If no evidence can be cited, score is 0.0 for that dimension."
     - "Evaluate the DIFF (changes made), not the entire codebase."
