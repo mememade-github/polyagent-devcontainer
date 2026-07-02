@@ -918,6 +918,29 @@ else
 fi
 rm -r "$SYNC_FIXTURE"
 
+# Coupling-guard contract: bare $CLAUDE_PROJECT_DIR expansions (end-of-word or
+# end-of-line included) are rejected; backticked prose mentions and the
+# vendor-neutral ${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-...}} fallback pass.
+LEAK_FIXTURE=$(mktemp -d)
+mkdir -p "$LEAK_FIXTURE/scripts"
+cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$LEAK_FIXTURE/"
+cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$LEAK_FIXTURE/scripts/"
+printf 'cd $CLAUDE_PROJECT_DIR\n' > "$LEAK_FIXTURE/.claude/rules/leak-probe.md"
+LEAK_DRY=$(bash "$LEAK_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
+if printf '%s' "$LEAK_DRY" | grep -Fq 'bare $CLAUDE_PROJECT_DIR expansion'; then
+    record PASS "sync: bare end-of-word \$CLAUDE_PROJECT_DIR rejected"
+else
+    record FAIL "sync: bare end-of-word \$CLAUDE_PROJECT_DIR accepted"
+fi
+printf 'see `$CLAUDE_PROJECT_DIR` and "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-.}}"\n' > "$LEAK_FIXTURE/.claude/rules/leak-probe.md"
+LEAK_DRY=$(bash "$LEAK_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
+if printf '%s' "$LEAK_DRY" | grep -Fq 'bare $CLAUDE_PROJECT_DIR expansion'; then
+    record FAIL "sync: backticked prose or vendor fallback rejected"
+else
+    record PASS "sync: backticked prose and vendor fallback allowed"
+fi
+rm -r "$LEAK_FIXTURE"
+
 PREMUT_FIXTURE=$(mktemp -d)
 mkdir -p "$PREMUT_FIXTURE/scripts"
 cp -R "$PROJECT_DIR/.claude" "$PREMUT_FIXTURE/"

@@ -77,7 +77,7 @@ if [ -d "$SRC/agents" ]; then
 fi
 
 # --- 2. Coupling guard (fatal and pre-mutation). ---
-LEAKS=$(grep -rnE '\$CLAUDE_PROJECT_DIR["/]|\$\{CLAUDE_PROJECT_DIR\}' "$EXPECTED" 2>/dev/null || true)
+LEAKS=$(grep -rnE '\$CLAUDE_PROJECT_DIR([^A-Za-z0-9_`]|$)|\$\{CLAUDE_PROJECT_DIR\}' "$EXPECTED" 2>/dev/null || true)
 if [ -n "$LEAKS" ]; then
     echo "ERROR: bare \$CLAUDE_PROJECT_DIR expansion in generated mirror:" >&2
     echo "$LEAKS" >&2
