@@ -509,7 +509,7 @@ def raw_command_expansion_push():
 def raw_env_split_push():
     return bool(
         re.search(
-            r"(^|[;&|]\s*)(\S*/)?env\b[^;&|]*\s(-S|--split-string)(=|\s+)[^;&|]*\bgit\s+push\b",
+            r"(^|[;&|]\s*)(\S*/)?env\b[^;&|]*\s(-S|--split-string)(=|\s+)[^;&|]*\bgit\b[^;&|]*\bpush\b",
             normalized_command,
         )
     )

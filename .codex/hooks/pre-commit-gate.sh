@@ -484,7 +484,7 @@ def raw_command_expansion_commit():
 def raw_env_split_commit():
     return bool(
         re.search(
-            r"(^|[;&|]\s*)(\S*/)?env\b[^;&|]*\s(-S|--split-string)(=|\s+)[^;&|]*\bgit\s+commit\b",
+            r"(^|[;&|]\s*)(\S*/)?env\b[^;&|]*\s(-S|--split-string)(=|\s+)[^;&|]*\bgit\b[^;&|]*\bcommit\b",
             normalized_command,
         )
     )

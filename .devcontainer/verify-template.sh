@@ -636,6 +636,18 @@ if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main; git -C $HOOK_FIXTURE
 else
     record PASS "Codex pre-push: non-repo-first compound credential blocked"
 fi
+# env -S re-splits and execs its payload; interposed git global options (-C, -c)
+# must not defeat the raw guard's git..push/commit match.
+if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main'" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: env -S interposed-option push accepted"
+else
+    record PASS "Codex pre-push: env -S interposed-option push blocked"
+fi
+if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE commit --no-verify -m probe'" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex PreToolUse: env -S interposed-option commit accepted"
+else
+    record PASS "Codex PreToolUse: env -S interposed-option commit blocked"
+fi
 if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
 else
@@ -780,6 +792,23 @@ if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main" '{tool_input:{comman
     record PASS "Claude pre-push: lone non-repo push allowed"
 else
     record FAIL "Claude pre-push: lone non-repo push blocked"
+fi
+# env -S re-splits and execs its payload; interposed git global options (-C, -c)
+# must not defeat the raw guard's git..push/commit match.
+if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main'" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: env -S interposed-option push accepted"
+else
+    record PASS "Claude pre-push: env -S interposed-option push blocked"
+fi
+if jq -n --arg c "env -S 'git push origin main'" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: env -S adjacent push accepted"
+else
+    record PASS "Claude pre-push: env -S adjacent push blocked"
+fi
+if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE commit --no-verify -m probe'" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude PreToolUse: env -S interposed-option commit accepted"
+else
+    record PASS "Claude PreToolUse: env -S interposed-option commit blocked"
 fi
 NO_JQ_PATH=$(mktemp -d)
 if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH" CODEX_PROJECT_DIR="$HOOK_FIXTURE" /bin/bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
