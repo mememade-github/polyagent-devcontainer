@@ -2,13 +2,13 @@
   // ==========================================================================
   // Polyagent DevContainer — Debug Configurations
   // ==========================================================================
-  // 프로젝트에 맞는 디버그 구성을 추가하세요.
+  // Add debug configurations to match your project.
   // Python: debugpy, Node.js: node, Go: dlv
   // ==========================================================================
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Node.js: 현재 파일",
+      "name": "Node.js: current file",
       "type": "node",
       "request": "launch",
       "program": "${file}",

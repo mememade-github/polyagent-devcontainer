@@ -2,7 +2,7 @@
   // ==========================================================================
   // Polyagent DevContainer — Universal Base Template
   // ==========================================================================
-  // 표준 근거:
+  // Standards basis:
   //   - DevContainer Specification: https://containers.dev/implementors/json_reference/
   //   - Anthropic Claude Code: https://github.com/anthropics/claude-code/tree/main/.devcontainer
   //   - OpenAI Codex CLI: https://github.com/openai/codex
@@ -75,10 +75,10 @@
 
   // ==========================================================================
   // Mounts
-  // SSH: 호스트 키 바인드 (git push/pull)
-  // 인증/히스토리 영속 볼륨(claude-config·codex-config·command-history)은
-  // docker-compose.yml에서 정의 — plain `docker compose up`과 VS Code가
-  // 동일 named volume을 공유하도록 여기서 재정의하지 않음.
+  // SSH: bind host keys (for git pushes/pulls)
+  // Auth/history persistent volumes (claude-config, codex-config,
+  // command-history) are defined in docker-compose.yml — not redeclared here
+  // so plain `docker compose up` and VS Code share the same named volumes.
   // ==========================================================================
   "mounts": [
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"

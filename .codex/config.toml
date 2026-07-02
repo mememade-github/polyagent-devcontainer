@@ -2,8 +2,8 @@
 
 # --- Sandbox / Approval policy ---
 # Host default: workspace-write + on-request.
-# - workspace-write: 워크스페이스 내 파일 편집/쉘 실행 허용, 외부 네트워크/시스템 쓰기 차단
-# - on-request: 모델이 필요하다고 판단할 때만 승인 요청
+# - workspace-write: allows file edits / shell execution inside the workspace; blocks external network and system writes
+# - on-request: asks for approval only when the model deems it necessary
 #
 # IMPORTANT — DevContainer execution:
 #   The bubblewrap sandbox cannot create user namespaces inside Docker
@@ -16,7 +16,7 @@
 #   grants host-level power. Outside containers, keep this workspace-write
 #   default. See REFERENCE.md §"Codex sandbox bypass (DevContainer only)".
 #
-# NOTE: TOML 규약상 최상위 키는 반드시 [section] 헤더보다 앞에 와야 함.
+# NOTE: per TOML rules, top-level keys must precede any [section] header.
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 model = "gpt-5.5"

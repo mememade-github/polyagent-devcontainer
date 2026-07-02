@@ -17,7 +17,7 @@ ARG PROJECT_NODE_VERSION=
 ARG USERNAME=vscode
 ARG DOCKER_GID=999
 
-# UTF-8 인코딩 및 타임존
+# UTF-8 encoding and timezone
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
@@ -26,7 +26,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DEVCONTAINER=true
 
 # =============================================================================
-# Layer 1: 시스템 패키지 (root)
+# Layer 1: system packages (root)
 # =============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     locales tzdata \
@@ -64,7 +64,7 @@ RUN pip3 install --no-cache-dir $(pip3 install --help 2>&1 | grep -q break-syste
     ruff pytest mypy
 
 # =============================================================================
-# Layer 2: 사용자 설정 (root → vscode)
+# Layer 2: user setup (root → vscode)
 # =============================================================================
 RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
@@ -74,15 +74,15 @@ RUN mkdir -p /commandhistory /workspaces \
 
 USER ${USERNAME}
 
-# PATH: Claude Code + uv가 항상 해석되도록 정적 경로 포함
+# PATH: include static paths so Claude Code + uv always resolve
 ENV HOME=/home/${USERNAME} \
     NVM_DIR=/home/${USERNAME}/.nvm \
     PATH=/home/${USERNAME}/.local/bin:${PATH}
 
 # =============================================================================
 # Layer 3: Claude Code CLI — Native Installer
-# 네이티브 바이너리 설치. Node.js 불필요. 자동 업데이트.
-# OOM 방지: 임시 디렉토리에서 실행 (Docker root / 에서 OOM 이슈)
+# Native binary install. No Node.js required. Auto-updates.
+# OOM guard: run the installer from a temp directory (OOM issue when run from Docker root /)
 # =============================================================================
 RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
     && curl -fsSL https://claude.ai/install.sh | bash \
@@ -92,8 +92,8 @@ RUN mkdir /tmp/claude-install && cd /tmp/claude-install \
 
 # =============================================================================
 # Layer 3.5: Codex CLI — npm global install (parity with Claude)
-# OpenAI Codex CLI는 npm 글로벌 패키지. 사용자 ~/.npm-global에 설치하여
-# root 권한 없이 업데이트/관리 가능. PATH는 .bashrc에 추가.
+# OpenAI Codex CLI is an npm global package. Installed into the user's
+# ~/.npm-global so it can be updated and managed without root. PATH is added in .bashrc.
 # =============================================================================
 RUN mkdir -p ${HOME}/.npm-global \
     && npm install -g --prefix "${HOME}/.npm-global" @openai/codex \
@@ -102,8 +102,8 @@ RUN mkdir -p ${HOME}/.npm-global \
 
 # =============================================================================
 # Layer 4: Node.js — Project (optional)
-# 시스템 Node.js(Layer 1)와 별도로, 프로젝트 전용 버전이 필요할 때만 nvm 설치.
-# 미설정 시 시스템 Node.js(LTS)만 사용.
+# Separate from the system Node.js (Layer 1): nvm is installed only when a
+# project-specific version is needed. Unset = system Node.js (LTS) only.
 # =============================================================================
 RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
         mkdir -p ${NVM_DIR} \
@@ -120,7 +120,7 @@ RUN if [ -n "${PROJECT_NODE_VERSION}" ]; then \
 RUN curl -LsSf https://astral.sh/uv/0.6.0/install.sh | sh
 
 # =============================================================================
-# Layer 6: 사용자 설정 (shell, editor, git)
+# Layer 6: user configuration (shell, editor, git)
 # =============================================================================
 RUN mkdir -p ${HOME}/.claude ${HOME}/.config/nano
 
@@ -132,7 +132,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> ${HOME}/.bashrc \
     && echo 'export HISTFILESIZE=20000' >> ${HOME}/.bashrc \
     && echo 'export NVM_DIR="${HOME}/.nvm"' >> ${HOME}/.bashrc \
     && echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"' >> ${HOME}/.bashrc \
-    && echo '# Activate project Node.js (nvm 존재 시에만, reads .nvmrc if present)' >> ${HOME}/.bashrc \
+    && echo '# Activate project Node.js (only if nvm exists; reads .nvmrc if present)' >> ${HOME}/.bashrc \
     && echo 'if command -v nvm &>/dev/null; then if [ -f ".nvmrc" ]; then nvm use 2>/dev/null || true; else nvm use project-node 2>/dev/null || true; fi; fi' >> ${HOME}/.bashrc \
     && echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> ${HOME}/.bashrc \
     && echo 'alias ll="ls -alF"' >> ${HOME}/.bashrc \
