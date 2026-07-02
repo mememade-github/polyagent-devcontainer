@@ -4,7 +4,7 @@ DevContainer template for running multiple AI coding agents (Claude Code · Code
 
 Single ground truth (`.claude/`) + per-vendor mirror (`.agents/`, `.codex/`). Adding a new vendor reuses the mirror pattern instead of rewriting governance.
 
-Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution) auto-loaded for Claude (`@import` in `CLAUDE.md`) and inlined for Codex (`AGENTS.md`).
+Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution) auto-loaded for Claude (`@import` in `CLAUDE.md`); for Codex, `AGENTS.md` instructs an explicit `Read` of the rule files under `.agents/rules/` at session start.
 
 ## Requirements
 
