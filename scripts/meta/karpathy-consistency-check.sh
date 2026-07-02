@@ -45,6 +45,10 @@ _LIB="$SCRIPT_DIR/lib/detect-root.sh"
 . "$_LIB"
 
 ROOT="$(detect_root "${1:-}")"
+# Template default only. GLOBAL mode fires when the workspace contains
+# products/, and the right count depends on how many receiver copies that
+# workspace distributes — consuming workspaces MUST set EXPECTED_KARPATHY_COUNT
+# to their own fleet size (a wrong value fails closed, by design).
 DEFAULT_EXPECTED_KARPATHY_COUNT=16
 EXPECTED_COUNT="${EXPECTED_KARPATHY_COUNT:-$DEFAULT_EXPECTED_KARPATHY_COUNT}"
 INVARIANT='Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.'
