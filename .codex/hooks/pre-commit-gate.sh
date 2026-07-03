@@ -46,7 +46,13 @@ value_long = {"--message", "--reuse-message", "--reedit-message", "--file",
               "--trailer", "--cleanup"}
 
 try:
-    toks = shlex.split(command, posix=True)
+    # shlex.shlex with punctuation_chars splits operators even without surrounding
+    # spaces (x&&git -> x, &&, git), so a no-space `&&`/`;` between a commit and a
+    # following `git log -n` is segmented out, not mis-read as the commit's -n.
+    lex = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    lex.commenters = ""   # match shlex.split: no comment handling
+    toks = list(lex)
 except ValueError:
     # Unbalanced quotes / trailing backslash: cannot tokenize safely. Fail closed
     # — signal the wrapper to block if the raw command looks like a git commit, so

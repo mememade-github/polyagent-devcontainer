@@ -549,6 +549,13 @@ if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_i
 else
     record FAIL "Codex PreToolUse: brace pathspec false positive"
 fi
+# A no-space `&&` between the commit and a following `git log -n 5` must be
+# segmented, not mis-read so the log's -n reads as the commit's --no-verify.
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m x&&git log -n 5" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: no-space && before git log -n allowed"
+else
+    record FAIL "Codex PreToolUse: no-space && before git log -n false positive"
+fi
 if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Codex pre-push: inline credential URL accepted"
 else
@@ -695,6 +702,13 @@ if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_i
     record PASS "Claude PreToolUse: brace pathspec allowed"
 else
     record FAIL "Claude PreToolUse: brace pathspec false positive"
+fi
+# A no-space `&&` between the commit and a following `git log -n 5` must be
+# segmented, not mis-read so the log's -n reads as the commit's --no-verify.
+if jq -n --arg c "git -C $HOOK_FIXTURE commit -m x&&git log -n 5" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: no-space && before git log -n allowed"
+else
+    record FAIL "Claude PreToolUse: no-space && before git log -n false positive"
 fi
 if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude pre-push: inline credential URL accepted"
