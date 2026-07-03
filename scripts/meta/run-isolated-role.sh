@@ -120,6 +120,11 @@ if [ -f /.dockerenv ]; then
     ARGS+=(--dangerously-bypass-approvals-and-sandbox)
 elif [ "$ROLE" = "modify" ]; then
     ARGS+=(--sandbox workspace-write)
+elif [ "$ROLE" = "evaluate" ] && [ -n "$OUTPUT_FILE" ]; then
+    # The evaluator must author its report file on the host too; the
+    # BEFORE/AFTER repository fingerprint below still hard-fails any
+    # change to the guarded project tree.
+    ARGS+=(--sandbox workspace-write --add-dir "$(dirname "$OUTPUT_FILE")")
 else
     ARGS+=(--sandbox read-only)
 fi

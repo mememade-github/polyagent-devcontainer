@@ -1118,6 +1118,35 @@ else
 fi
 git -C "$ROLE_FIXTURE" worktree remove "$ROLE_WORKTREE" >/dev/null 2>&1
 
+# Host (non-container) sandbox contract: exercised via a fixture copy whose
+# /.dockerenv check is redirected to an absent path, since this container
+# cannot leave the bypass branch. The evaluator must get a writable report
+# path (workspace-write + report dir); audit must stay read-only.
+sed 's|-f /\.dockerenv |-f /.dockerenv-hostsim-absent |' \
+    "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" > "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh"
+HOSTSIM_LOG=$(mktemp)
+ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" ROLE_LOG="$HOSTSIM_LOG" CODEX_BIN="$ROLE_FIXTURE/fake-codex" \
+    bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1
+hostsim_eval_line=$(tail -1 "$HOSTSIM_LOG" 2>/dev/null)
+if grep -Fq 'dockerenv-hostsim-absent' "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" &&
+   printf '%s' "$hostsim_eval_line" | grep -Fq -- '--sandbox workspace-write' &&
+   printf '%s' "$hostsim_eval_line" | grep -Fq -- "--add-dir $ROLE_FIXTURE/.codex/state" &&
+   ! printf '%s' "$hostsim_eval_line" | grep -Fq -- '--dangerously-bypass-approvals-and-sandbox'; then
+    record PASS "Codex evaluator (host): report directory writable under sandbox"
+else
+    record FAIL "Codex evaluator (host): read-only sandbox contradicts required report write"
+fi
+ROLE_LOG="$HOSTSIM_LOG" CODEX_BIN="$ROLE_FIXTURE/fake-codex" \
+    bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1
+hostsim_audit_line=$(tail -1 "$HOSTSIM_LOG" 2>/dev/null)
+if printf '%s' "$hostsim_audit_line" | grep -Fq -- '--sandbox read-only' &&
+   ! printf '%s' "$hostsim_audit_line" | grep -Fq -- '--add-dir'; then
+    record PASS "Codex audit (host): read-only sandbox retained"
+else
+    record FAIL "Codex audit (host): sandbox loosened beyond the evaluate report path"
+fi
+rm -f "$HOSTSIM_LOG" "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh"
+
 cat > "$ROLE_BIN_DIR/fake-visible-mutator" <<'EOF'
 #!/bin/bash
 touch "$ROLE_PROJECT/visible-mutation"
