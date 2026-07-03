@@ -773,17 +773,11 @@ fi
 
 PROJECT_DIR=$(echo "$COMMIT_INFO" | jq -r '.workdir')
 
-# Resolve actual project root (worktree -> original repo root)
-if command -v git &>/dev/null; then
-  GIT_COMMON=$(git -C "$PROJECT_DIR" rev-parse --git-common-dir 2>/dev/null)
-  if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
-    ACTUAL_ROOT=$(dirname "$GIT_COMMON")
-  else
-    ACTUAL_ROOT="$PROJECT_DIR"
-  fi
-else
-  ACTUAL_ROOT="$PROJECT_DIR"
-fi
+# Resolve the repo root of the commit target. Per-worktree on purpose: the
+# marker lives in the worktree being committed — the same locus
+# completion-checker.sh derives from CLAUDE_PROJECT_DIR and the Codex gate
+# resolves via show-toplevel. A main-root locus deadlocks worktree commits.
+ACTUAL_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_DIR")
 
 # AUD-2026-030: secret-pattern scan on staged content. project coding rules "Protect secrets".
 # Extends pre-push-gate.sh Layer 1 (which only scans remote URL) to scan staged file content.

@@ -1,7 +1,8 @@
 #!/bin/bash
 # SessionStart hook: Inject project context + WIP auto-resume + env check
 # Outputs JSON with additionalContext that Claude receives at session start.
-# Worktree-aware: resolves actual project root via git-common-dir.
+# Worktree-aware: a linked worktree resolves to its own checkout root
+# (per-worktree verification markers, same locus as the pre-commit gate).
 
 INPUT=$(cat)
 SOURCE=$(echo "$INPUT" | jq -r '.source // "startup"')
@@ -12,17 +13,9 @@ CONTEXT=""
 # Set project dir early (used by all sections)
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 
-# Resolve actual project root (worktree → original repo root)
-if command -v git &>/dev/null; then
-  GIT_COMMON=$(git -C "$PROJECT_DIR" rev-parse --git-common-dir 2>/dev/null)
-  if [ -n "$GIT_COMMON" ] && [ "$GIT_COMMON" != ".git" ]; then
-    ACTUAL_ROOT=$(dirname "$GIT_COMMON")
-  else
-    ACTUAL_ROOT="$PROJECT_DIR"
-  fi
-else
-  ACTUAL_ROOT="$PROJECT_DIR"
-fi
+# Resolve actual project root (a linked worktree resolves to its own root,
+# matching the pre-commit gate's per-worktree marker locus)
+ACTUAL_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_DIR")
 
 # 1. Git status summary
 if command -v git &>/dev/null && [ -e "$PROJECT_DIR/.git" ]; then

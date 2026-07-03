@@ -817,6 +817,52 @@ else
     record PASS "Codex PreToolUse: missing jq fails closed"
 fi
 rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$HOOK_FIXTURE_2" "$CHECKER_FIXTURE" "$NONREPO_FIXTURE"
+# Linked-worktree marker contract: the gate, completion-checker, and
+# session-start must all resolve the SAME per-worktree marker locus, or a
+# worktree commit deadlocks (gate demands a marker no checker call can write).
+WT_FIXTURE=$(mktemp -d)
+WT_DIR=$(mktemp -d)
+rmdir "$WT_DIR"
+git -C "$WT_FIXTURE" init -q
+mkdir -p "$WT_FIXTURE/.devcontainer" "$WT_FIXTURE/scripts/meta"
+printf '#!/bin/bash\nexit 0\n' > "$WT_FIXTURE/.devcontainer/verify-template.sh"
+printf '#!/bin/bash\nexit 0\n' > "$WT_FIXTURE/scripts/meta/completion-checker.sh"
+printf '.claude/.last-verification*\n.codex/state/last-verification*\n' > "$WT_FIXTURE/.gitignore"
+git -C "$WT_FIXTURE" add -A
+git -C "$WT_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -qm fixture
+git -C "$WT_FIXTURE" worktree add -q -b wt-probe "$WT_DIR"
+if CLAUDE_PROJECT_DIR="$WT_DIR" bash "$PROJECT_DIR/scripts/meta/completion-checker.sh" >/dev/null 2>&1 &&
+   [ -f "$WT_DIR/.claude/.last-verification.wt-probe" ] &&
+   jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Claude PreToolUse: worktree commit allowed after checker run in that worktree"
+else
+    record FAIL "Claude PreToolUse: worktree marker deadlock (checker writes where the gate does not look)"
+fi
+mkdir -p "$WT_DIR/.codex/state"
+touch "$WT_DIR/.codex/state/last-verification.wt-probe"
+if jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record PASS "Codex PreToolUse: worktree commit allowed with per-worktree marker"
+else
+    record FAIL "Codex PreToolUse: worktree per-worktree marker regression"
+fi
+touch "$WT_DIR/.claude/.last-verification.dead-branch-probe"
+printf '{"source":"startup"}' | CLAUDE_PROJECT_DIR="$WT_DIR" bash "$PROJECT_DIR/.claude/hooks/session-start.sh" >/dev/null 2>&1
+if [ ! -f "$WT_DIR/.claude/.last-verification.dead-branch-probe" ] &&
+   [ -f "$WT_DIR/.claude/.last-verification.wt-probe" ]; then
+    record PASS "Claude SessionStart: worktree stale-marker cleanup scoped to that worktree"
+else
+    record FAIL "Claude SessionStart: worktree marker cleanup ignores the worktree"
+fi
+rm "$WT_DIR/.claude/.last-verification.wt-probe"
+WT_STALE_ERR=$(jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" timeout 5 bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
+WT_STALE_RC=$?
+if [ "$WT_STALE_RC" -eq 2 ] && printf '%s' "$WT_STALE_ERR" | grep -Fq "CLAUDE_PROJECT_DIR=\"$WT_DIR\""; then
+    record PASS "Claude PreToolUse: worktree stale guidance names the worktree root"
+else
+    record FAIL "Claude PreToolUse: worktree stale guidance points outside the worktree"
+fi
+git -C "$WT_FIXTURE" worktree remove --force "$WT_DIR" >/dev/null 2>&1
+rm -r "$WT_FIXTURE"
 if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record PASS "Codex PreToolUse: unrelated Bash command allowed"
 else
