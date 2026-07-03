@@ -20,9 +20,17 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // .toolInput.command // .c
 [ -z "$COMMAND" ] && exit 0
 PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
 
-# Intercept on a raw regex so wrapped/nested pushes are still seen.
-PUSH_RE='(^|[^A-Za-z0-9_])git([^;&|]*[[:space:]])push([^A-Za-z0-9_]|$)'
-if ! echo "$COMMAND" | grep -qE "$PUSH_RE"; then
+# Cheap pre-filter: proceed only for commands that could be a git push. Strip
+# shell quotes first so quote-obfuscated words (g"i"t / pu"sh") and a separator
+# between git and push (-c '...;...' push) are still recognized; Layer 1 scans
+# the raw command, so wrapping is caught regardless.
+# Quote-strip only: backslash-split words (git p\ush) and custom push aliases
+# stay out of charter — the container is a workspace boundary, not a trust one.
+STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140')
+if ! printf '%s' "$STRIPPED" | grep -qw git; then
+  exit 0
+fi
+if ! printf '%s' "$STRIPPED" | grep -qw push; then
   exit 0
 fi
 
@@ -164,9 +172,9 @@ while IFS= read -r _push; do
 $_s"
 done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
 if [ -n "$LEAK" ]; then
-  echo "Push blocked: credential, config override (remote/url/credential/include/http.extraHeader), or GIT_CONFIG env injection detected on a push." >&2
+  echo "Blocked: credential, config override (remote/url/credential/include/http.extraHeader), or GIT_CONFIG env injection detected in the command." >&2
   echo "$LEAK" | sed -E 's#(https?://)[^/@[:space:]]+@#\1***@#g' | sed -E 's/(oauth2:|github_pat_|ghp_|glpat-|ghs_)[^@]*@/***@/g' | sed 's/^/  /' >&2
-  echo "Fix: git remote set-url <remote> <url-without-credentials>; keep tokens and remote/url overrides out of the push command." >&2
+  echo "Fix: git remote set-url <remote> <url-without-credentials>; keep tokens and remote/url overrides out of the command." >&2
   exit 2
 fi
 

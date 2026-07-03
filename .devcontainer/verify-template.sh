@@ -624,6 +624,24 @@ if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.i
 else
     record PASS "Codex pre-push: env -S interposed-option push blocked"
 fi
+# Quote-split git/push words (g"i"t, pu"sh") and a separator inside a quoted -c
+# value must not slip a credentialed push past the pre-filter; the raw credential
+# scan still runs on the reassembled command.
+if jq -n --arg c 'g"i"t push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: quote-split git word credential accepted"
+else
+    record PASS "Codex pre-push: quote-split git word credential blocked"
+fi
+if jq -n --arg c 'git pu"sh" https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: quote-split push word credential accepted"
+else
+    record PASS "Codex pre-push: quote-split push word credential blocked"
+fi
+if jq -n --arg c 'git -c foo.bar="!f(){ echo x; }" push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-push: separator-in-option-value credential accepted"
+else
+    record PASS "Codex pre-push: separator-in-option-value credential blocked"
+fi
 if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
     record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
 else
@@ -757,6 +775,24 @@ if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.i
     record FAIL "Claude pre-push: env -S interposed-option push accepted"
 else
     record PASS "Claude pre-push: env -S interposed-option push blocked"
+fi
+# Quote-split git/push words (g"i"t, pu"sh") and a separator inside a quoted -c
+# value must not slip a credentialed push past the pre-filter; the raw credential
+# scan still runs on the reassembled command.
+if jq -n --arg c 'g"i"t push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: quote-split git word credential accepted"
+else
+    record PASS "Claude pre-push: quote-split git word credential blocked"
+fi
+if jq -n --arg c 'git pu"sh" https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: quote-split push word credential accepted"
+else
+    record PASS "Claude pre-push: quote-split push word credential blocked"
+fi
+if jq -n --arg c 'git -c foo.bar="!f(){ echo x; }" push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-push: separator-in-option-value credential accepted"
+else
+    record PASS "Claude pre-push: separator-in-option-value credential blocked"
 fi
 NO_JQ_PATH=$(mktemp -d)
 if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH" CODEX_PROJECT_DIR="$HOOK_FIXTURE" /bin/bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
