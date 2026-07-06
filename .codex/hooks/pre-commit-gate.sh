@@ -208,18 +208,40 @@ ACTUAL_ROOT=$(git -C "$PROJECT_DIR" rev-parse --show-toplevel 2>/dev/null || ech
 # git commit -a auto-stages tracked mods at commit time and `git commit <path>` commits
 # the working-tree version, so scan --cached plus the extra diff each form will pull in.
 SECRET_PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{36}|glpat-[A-Za-z0-9_-]{20,}|ghs_[A-Za-z0-9]{36}|(^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}|BEGIN[[:space:]]+(RSA[[:space:]]+|OPENSSH[[:space:]]+|EC[[:space:]]+|DSA[[:space:]]+|ENCRYPTED[[:space:]]+)?PRIVATE[[:space:]]+KEY[-]*[-][[:space:]]*$|AKIA[0-9A-Z]{16}'
-SECRET_SCAN=$(git -C "$PROJECT_DIR" diff --cached -U0 2>/dev/null)
+MAX_SCAN_LINES=200000
+# Cap avoids a fail-open timeout: measured 1.5M diff lines at about 5.0s
+# against the 5s hook budget.
+diff_lines() {
+  git -C "$PROJECT_DIR" diff --numstat "$@" 2>/dev/null | awk '{n+=$1+$2} END{print n+0}'
+}
+SCAN_LINES=$(diff_lines --cached)
 if [ "$(echo "$COMMIT_INFO" | jq -r '.all // false')" = "true" ]; then
-  SECRET_SCAN="$SECRET_SCAN
-$(git -C "$PROJECT_DIR" diff -U0 2>/dev/null)"
+  _lines=$(diff_lines)
+  SCAN_LINES=$((SCAN_LINES + _lines))
 else
   while IFS= read -r _path; do
     [ -z "$_path" ] && continue
-    SECRET_SCAN="$SECRET_SCAN
-$(git -C "$PROJECT_DIR" diff -U0 -- "$_path" 2>/dev/null)"
+    _lines=$(diff_lines -- "$_path")
+    SCAN_LINES=$((SCAN_LINES + _lines))
   done < <(echo "$COMMIT_INFO" | jq -r '.paths[]?')
 fi
-if echo "$SECRET_SCAN" | grep -qE "$SECRET_PATTERNS"; then
+if [ "$SCAN_LINES" -gt "$MAX_SCAN_LINES" ]; then
+  echo "Blocked: diff too large for in-hook secret scan within the hook timeout budget ($SCAN_LINES changed lines; limit $MAX_SCAN_LINES)." >&2
+  echo "Split the commit into smaller slices (commit-discipline §1) and inspect git diff --cached manually." >&2
+  exit 2
+fi
+
+SECRET_HIT=0
+git -C "$PROJECT_DIR" diff --cached -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS" && SECRET_HIT=1
+if [ "$(echo "$COMMIT_INFO" | jq -r '.all // false')" = "true" ]; then
+  git -C "$PROJECT_DIR" diff -U0 2>/dev/null | grep -qE "$SECRET_PATTERNS" && SECRET_HIT=1
+else
+  while IFS= read -r _path; do
+    [ -z "$_path" ] && continue
+    git -C "$PROJECT_DIR" diff -U0 -- "$_path" 2>/dev/null | grep -qE "$SECRET_PATTERNS" && SECRET_HIT=1
+  done < <(echo "$COMMIT_INFO" | jq -r '.paths[]?')
+fi
+if [ "$SECRET_HIT" -eq 1 ]; then
   echo "Blocked: secret pattern detected in staged content (AGENTS.md Coding Rules item 1)." >&2
   echo "Inspect: git diff --cached" >&2
   exit 2
