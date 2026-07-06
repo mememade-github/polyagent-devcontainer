@@ -30,6 +30,17 @@ if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
+# Cheap pre-filter, matching the pre-push twin's quote-strip rationale: only
+# parse commands that still contain both git and commit after stripping shell
+# quotes/backticks; false candidates are handled by the parser below.
+STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140')
+if ! printf '%s' "$STRIPPED" | grep -qw git; then
+  exit 0
+fi
+if ! printf '%s' "$STRIPPED" | grep -qw commit; then
+  exit 0
+fi
+
 if ! command -v python3 >/dev/null 2>&1; then
   if echo "$COMMAND" | grep -qE '(^|[^A-Za-z0-9_])git([^;&|]*[[:space:]])commit([^A-Za-z0-9_]|$)'; then
     echo "Blocked: python3 is required to parse git commit commands safely." >&2
