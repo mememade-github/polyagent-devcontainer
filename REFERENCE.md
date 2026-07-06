@@ -148,7 +148,7 @@ block (values may come from `.env`) — `docker compose up` does not read
 Current Codex supports in-process subagents and project
 `.codex/agents/*.toml`. The template mirrors these Claude role bodies as Codex
 skills for portable discovery; evaluator runs still use a fresh
-`codex exec --ephemeral` process to enforce the exact Contract/diff-only input
+`codex exec --ephemeral` process to carry the exact Contract/diff-only input
 boundary in interactive and non-interactive flows.
 
 ### Hooks

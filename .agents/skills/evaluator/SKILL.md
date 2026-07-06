@@ -24,7 +24,7 @@ honor-system — and the structure differs by host:
 - **Codex CLI**: current releases support subagents and custom
   `.codex/agents/*.toml`, but this evaluator contract deliberately uses a fresh
   `codex exec --ephemeral` subprocess through
-  `scripts/meta/run-isolated-role.sh evaluate`. That path admits only the
+  `scripts/meta/run-isolated-role.sh evaluate`. That path is given only the
   Contract, diff, prior-score path, `$EVAL_JSON` output path, and
   already-executed verification evidence on stdin, including in non-interactive
   refine runs. The helper starts Evaluate outside the repository so the child
