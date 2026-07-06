@@ -113,6 +113,10 @@ EOF
 
 ## Step 2: Baseline
 
+For tool-augmented/calibrated contracts with no `verify_cmd`, baseline = evaluator
+run of `Contract.checks[]` against HEAD (no diff); skip the `verify_cmd`
+validation in Step 1.
+
 ```bash
 bash -c "<Contract.verify_cmd>" > "$OUTPUT" 2>&1
 SCORE=<parse .score>; GAPS=<failing check IDs, or []>
