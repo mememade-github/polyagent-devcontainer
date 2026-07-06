@@ -72,7 +72,7 @@ You receive:
 1. **Contract** -- immutable JSON with: mode, checks[], verify_cmd, metric, direction
 2. **Git diff** -- changes only
 3. **Calibration anchors** -- (for calibrated mode)
-4. **Attempts file path** -- read for previous scores (never reasoning)
+4. **Previous scores** -- a score list extracted by the orchestrator (never the attempts file or its result one-liners)
 
 Protocol:
 1. **Execute** -- run Contract.checks[] or verify_cmd

@@ -151,7 +151,8 @@ SCORE=<parse .score>; GAPS=<failing IDs>; SUGGESTION=<parse .feedback>
 **tool-augmented / calibrated** — spawn a fresh evaluator role with **ONLY**:
 Contract JSON, `git diff --cached`, calibration anchors from
 `rubrics/default.yml` (calibrated only), frozen at Contract time, and
-"read `$ATTEMPTS` for previous scores", plus the `$EVAL_JSON` output path. It
+`previous scores: $(jq -s '[.[].score]' "$ATTEMPTS")`, plus the `$EVAL_JSON`
+output path. It
 writes its full report to `$EVAL_JSON` and returns ONLY
 `{"score":N,"suggestion":"one line"}`. The helper reserves `$EVAL_JSON` for that
 authored report, captures Codex's final message in a separate temporary file,
