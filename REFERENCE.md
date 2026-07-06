@@ -30,6 +30,7 @@ All user-tunable values live in `.devcontainer/.env`.
 | `IMAGE_NAME` | `polyagent-devcontainer` | docker-compose.yml | Image name |
 | `IMAGE_TAG` | `latest` | docker-compose.yml | Image tag |
 | `TZ` | `UTC` | docker-compose.yml | Timezone |
+| `DNS_PRIMARY` | `8.8.8.8` | docker-compose.yml dns | First DNS resolver; set to your network's DNS server if internal hostnames must resolve |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
 | `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | HOST path for cross-namespace bind mounts (see `.claude/rules/devcontainer-patterns.md`) |
 

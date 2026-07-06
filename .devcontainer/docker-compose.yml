@@ -37,7 +37,7 @@ services:
     # Avoids Docker Desktop DNS (192.168.65.x) resolution failures on Windows/WSL2
     # =========================================================================
     dns:
-      - 8.8.8.8
+      - ${DNS_PRIMARY:-8.8.8.8}
       - 8.8.4.4
       - 1.1.1.1
 
