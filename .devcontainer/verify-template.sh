@@ -472,6 +472,14 @@ if printf '{"tool_input":{"command":"g\\"i\\"t commit --no-verify -m probe"}}' |
 else
     record PASS "Codex PreToolUse: quoted git commit bypass blocked"
 fi
+# Backslash-split subcommand (git com\mit) must not skip the gate at the
+# prefilter: bash strips the backslash at execution, so the gate must still see
+# a commit.
+if jq -n --arg c 'git com\mit --no-verify -m probe' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Codex pre-commit: backslash-split commit accepted"
+else
+    record PASS "Codex pre-commit: backslash-split commit blocked"
+fi
 NONREPO_FIXTURE=$(mktemp -d)
 CHECKER_FIXTURE=$(mktemp -d)
 git -C "$CHECKER_FIXTURE" init -q
@@ -644,6 +652,14 @@ if jq -n --arg c 'git commit -n -m x\' '{tool_input:{command:$c}}' | CLAUDE_PROJ
     record FAIL "Claude PreToolUse: trailing-backslash shlex-fail -n bypass accepted"
 else
     record PASS "Claude PreToolUse: trailing-backslash shlex-fail -n bypass blocked"
+fi
+# Backslash-split subcommand (git com\mit) must not skip the gate at the
+# prefilter: bash strips the backslash at execution, so the gate must still see
+# a commit.
+if jq -n --arg c 'git com\mit --no-verify -m probe' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
+    record FAIL "Claude pre-commit: backslash-split commit accepted"
+else
+    record PASS "Claude pre-commit: backslash-split commit blocked"
 fi
 # Scope note: like the Codex twin, the Claude pre-commit gate covers only the
 # common accidental --no-verify/-n bypass on a top-level `git commit`; exotic

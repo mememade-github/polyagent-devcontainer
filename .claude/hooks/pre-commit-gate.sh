@@ -37,8 +37,9 @@ fi
 
 # Cheap pre-filter, matching the pre-push twin's quote-strip rationale: only
 # parse commands that still contain both git and commit after stripping shell
-# quotes/backticks; false candidates are handled by the parser below.
-STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140')
+# quotes/backticks/backslashes (the shlex parser below unescapes backslashes, so the
+# strip view must not under-match); false candidates are handled by the parser below.
+STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140\\')
 if ! printf '%s' "$STRIPPED" | grep -qw git; then
   exit 0
 fi
