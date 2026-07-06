@@ -70,7 +70,7 @@ Claude and Codex `refinement-gate.sh` markers exactly.
   not a security boundary: the helper rejects Audit/Evaluate if HEAD, the index,
   or any tracked/untracked project-tree file changes, including guarded
   gitignored files, missing tracked files, file mode, and symlink state.
-  High-churn generated paths such as `.codex/state`, refinement attempts,
+  Gitignored high-churn generated paths such as `.codex/state`, refinement attempts,
   dependency caches, and build outputs are excluded. The single authorized
   output file is excluded from that comparison.
 

@@ -37,7 +37,7 @@ honor-system — and the structure differs by host:
   this compatibility fallback is not a security boundary. The helper invalidates
   the evaluation if HEAD, the index, or any tracked/untracked project-tree file
   changes, including guarded gitignored files, missing tracked files, file mode,
-  and symlink state. High-churn generated paths such as `.codex/state`,
+  and symlink state. Gitignored high-churn generated paths such as `.codex/state`,
   refinement attempts, dependency caches, and build outputs are excluded; the
   authorized evaluator report path is also excluded.
 
