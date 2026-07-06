@@ -2,6 +2,8 @@
 # Template verification — defaults to /workspaces, override via PROJECT_DIR.
 # Designed for use both inside a polyagent-derived devcontainer (where /workspaces IS the
 # project) and from outside (where PROJECT_DIR points at the template directory).
+# Oracle rule: new checks must exercise behavior on a fixture/probe or cite the
+# exact regression they pin.
 PROJECT_DIR="${PROJECT_DIR:-/workspaces}"
 
 echo "=============================================="
@@ -134,36 +136,19 @@ fi
 echo ""
 echo "=== Phase 1b: setup-env.sh lifecycle ==="
 SETUP="$PROJECT_DIR/.devcontainer/setup-env.sh"
-grep -q 'STEP_TOTAL=5' "$SETUP" 2>/dev/null && record PASS "setup-env: STEP_TOTAL=5" || record FAIL "setup-env: STEP_TOTAL (expected 5)"
-grep -q 'SKIP_CLAUDE_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Claude update step" || record FAIL "setup-env: Claude update step"
-grep -q 'SKIP_CODEX_UPDATE' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update step (SKIP_CODEX_UPDATE)" || record FAIL "setup-env: Codex update step"
-grep -Fq '${localEnv:HOME}${localEnv:USERPROFILE}/.ssh' "$PROJECT_DIR/.devcontainer/devcontainer.json" 2>/dev/null && record PASS "devcontainer: SSH mount supports Windows USERPROFILE fallback" || record FAIL "devcontainer: SSH mount USERPROFILE fallback"
-grep -Fq 'No SSH files (optional)' "$SETUP" 2>/dev/null && record PASS "setup-env: empty SSH dir is not reported as keys" || record FAIL "setup-env: empty SSH dir diagnostic"
+# Regression pin: avoids direct codex update by keeping package-based updates.
 grep -q '@openai/codex@latest' "$PROJECT_DIR/.devcontainer/codex-launcher.sh" 2>/dev/null && record PASS "codex-launcher: Codex update via prefix npm (not codex update)" || record FAIL "codex-launcher: Codex update mechanism"
+# Regression pin: no persistent npm prefix mutation.
 grep -Fq 'npm install -g --prefix "${HOME}/.npm-global" @openai/codex' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex install uses explicit npm prefix" || record FAIL "Dockerfile: Codex install prefix"
-grep -Fq 'COPY codex-launcher.sh /usr/local/bin/codex-launcher' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex launcher copied" || record FAIL "Dockerfile: Codex launcher copied"
-grep -Fq 'ln -sf /usr/local/bin/codex-launcher /usr/local/bin/codex' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex command points at launcher" || record FAIL "Dockerfile: Codex launcher command"
 grep -Fq 'npm config set prefix' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record FAIL "Dockerfile: persistent npm prefix mutation" || record PASS "Dockerfile: no persistent npm prefix mutation"
 LAUNCHER="$PROJECT_DIR/.devcontainer/codex-launcher.sh"
 [ -f "$LAUNCHER" ] && record PASS "codex-launcher: exists" || record FAIL "codex-launcher: exists"
 bash -n "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: syntax" || record FAIL "codex-launcher: syntax"
-grep -Fq 'CODEX_REAL_BIN="${CODEX_REAL_BIN:-${CODEX_NPM_PREFIX}/bin/codex}"' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: real npm binary explicit" || record FAIL "codex-launcher: real npm binary explicit"
-grep -Fq 'codex_latest_version()' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: latest-version probe" || record FAIL "codex-launcher: latest-version probe"
-grep -Fq 'npm install -g --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: update uses explicit npm prefix" || record FAIL "codex-launcher: update uses explicit npm prefix"
-grep -Fq -- '--update-only' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: update-only entrypoint" || record FAIL "codex-launcher: update-only entrypoint"
-grep -Fq 'exec "$CODEX_REAL_BIN" "$@"' "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: re-execs real binary" || record FAIL "codex-launcher: re-execs real binary"
+# Regression pin: avoids direct codex update.
 grep -nE '^[^#]*\bcodex[[:space:]]+update\b' "$LAUNCHER" >/dev/null 2>&1 && record FAIL "codex-launcher: avoids direct codex update" || record PASS "codex-launcher: avoids direct codex update"
-grep -Fq '"$CODEX_LAUNCHER" --update-only' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update delegated to launcher" || record FAIL "setup-env: Codex update delegated to launcher"
-grep -Fq 'CODEX_LAUNCHER="/usr/local/bin/codex-launcher"' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex launcher reconciliation" || record FAIL "setup-env: Codex launcher reconciliation"
-grep -q 'CODEX_UPDATE_LOG' "$SETUP" 2>/dev/null && record PASS "setup-env: Codex update failures are visible" || record FAIL "setup-env: Codex update failure visibility"
-if grep -Fq '/usr/local/bin/codex-launcher' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null &&
-    grep -Fq '~/.npm-global/bin/codex' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null &&
-    grep -Fq 're-execs' "$PROJECT_DIR/REFERENCE.md" 2>/dev/null; then
-    record PASS "REFERENCE: Codex launcher/runtime boundary documented"
-else
-    record FAIL "REFERENCE: Codex launcher/runtime boundary documented"
-fi
+# Regression pin: stale persistent npm prefix claim.
 grep -Fq "set npm's global prefix" "$PROJECT_DIR/REFERENCE.md" 2>/dev/null && record FAIL "REFERENCE: stale persistent npm prefix claim" || record PASS "REFERENCE: no stale persistent npm prefix claim"
+# Regression pin: tracked config must not be copied into persistent user config.
 if grep -Fq 'cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"' "$SETUP" 2>/dev/null; then
     record FAIL "setup-env: project config copied into persistent user config"
 else
@@ -201,16 +186,6 @@ CODEX_PRECOMMIT="$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"
 CLAUDE_PRECOMMIT="$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh"
 grep -Fq '[ -f "$CHECKER" ]' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: checker may be 0644" || record FAIL "Codex pre-commit: checker exec contract"
 if grep -Fq 'MARKER=' "$CODEX_PRECOMMIT" 2>/dev/null && ! grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null; then record PASS "Codex pre-commit: marker read-only (checker writes it)"; else record FAIL "Codex pre-commit: marker read-only contract"; fi
-grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: sk-* secret pattern" || record FAIL "Codex pre-commit: sk-* secret pattern"
-grep -Fq 'sk-[A-Za-z0-9_-]{20,}' "$CLAUDE_PRECOMMIT" 2>/dev/null && record PASS "Claude pre-commit: sk-* secret pattern" || record FAIL "Claude pre-commit: sk-* secret pattern"
-grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill: bash invocation contract" || record FAIL "status skill: bash invocation contract"
-grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.claude/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill: bash invocation contract" || record FAIL "verify skill: bash invocation contract"
-grep -Fq 'bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief' "$PROJECT_DIR/.agents/skills/status/SKILL.md" 2>/dev/null && record PASS "status skill mirror: bash invocation contract" || record FAIL "status skill mirror: bash invocation contract"
-grep -Fq 'scripts/meta/completion-checker.sh"' "$PROJECT_DIR/.agents/skills/verify/SKILL.md" 2>/dev/null && record PASS "verify skill mirror: bash invocation contract" || record FAIL "verify skill mirror: bash invocation contract"
-grep -Fq 'CODEX_CI' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && grep -Fq '.codex/state' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && record PASS "refine: Codex host/state resolver" || record FAIL "refine: Codex host/state resolver"
-grep -Fq 'codex exec --ephemeral' "$PROJECT_DIR/.claude/skills/refine/SKILL.md" 2>/dev/null && record PASS "refine: Codex fresh-role isolation" || record FAIL "refine: Codex fresh-role isolation"
-grep -Fq 'CODEX_CI' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && grep -Fq 'MARKER_PREFIX=".last-verification."' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && grep -Fq 'MARKER_PREFIX="last-verification."' "$PROJECT_DIR/.claude/skills/status/SKILL.md" 2>/dev/null && record PASS "status: vendor state/marker resolver" || record FAIL "status: vendor state/marker resolver"
-grep -Fq 'CODEX_CI' "$PROJECT_DIR/scripts/meta/completion-checker.sh" 2>/dev/null && grep -Fq 'last-verification.$BRANCH_SAFE' "$PROJECT_DIR/scripts/meta/completion-checker.sh" 2>/dev/null && record PASS "completion-checker: vendor marker resolver" || record FAIL "completion-checker: vendor marker resolver"
 if [ -e "$PROJECT_DIR/.cursor" ]; then
     record FAIL "scope-membership: .cursor removed"
 else
