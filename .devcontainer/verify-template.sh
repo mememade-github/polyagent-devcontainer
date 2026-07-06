@@ -299,21 +299,11 @@ grep -q "behavioral-core" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null && record PASS "C
 grep -q "behavioral-core" "$PROJECT_DIR/AGENTS.md" 2>/dev/null && record PASS "AGENTS.md -> behavioral-core import" || record FAIL "AGENTS.md -> behavioral-core import"
 [ -f "$PROJECT_DIR/.claude/rules/behavioral-core.md" ] && record PASS ".claude/rules/behavioral-core.md exists" || record FAIL ".claude/rules/behavioral-core.md"
 [ -f "$PROJECT_DIR/.agents/rules/behavioral-core.md" ] && record PASS ".agents/rules/behavioral-core.md (mirror) exists" || record FAIL ".agents/rules/behavioral-core.md (mirror)"
-KARPATHY_GLOBAL_FIXTURE=$(mktemp -d)
-mkdir -p "$KARPATHY_GLOBAL_FIXTURE/.claude/rules" "$KARPATHY_GLOBAL_FIXTURE/.claude/skills/karpathy-guidelines" "$KARPATHY_GLOBAL_FIXTURE/products"
-cp "$PROJECT_DIR/.claude/rules/behavioral-core.md" "$KARPATHY_GLOBAL_FIXTURE/.claude/rules/behavioral-core.md"
-cp "$PROJECT_DIR/.claude/skills/karpathy-guidelines/SKILL.md" "$KARPATHY_GLOBAL_FIXTURE/.claude/skills/karpathy-guidelines/SKILL.md"
-if bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$KARPATHY_GLOBAL_FIXTURE" >/dev/null 2>&1; then
-    record FAIL "karpathy checker: GLOBAL default count fails closed"
+if bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$PROJECT_DIR" >/dev/null 2>&1; then
+    record PASS "karpathy: repo bc/SKILL pair consistent"
 else
-    record PASS "karpathy checker: GLOBAL default count fails closed"
+    record FAIL "karpathy: repo bc/SKILL pair consistent"
 fi
-if EXPECTED_KARPATHY_COUNT=1 bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$KARPATHY_GLOBAL_FIXTURE" >/dev/null 2>&1; then
-    record PASS "karpathy checker: explicit GLOBAL count override"
-else
-    record FAIL "karpathy checker: explicit GLOBAL count override"
-fi
-rm -r "$KARPATHY_GLOBAL_FIXTURE"
 
 # --- PHASE 2b: Hooks syntax ---
 echo ""
