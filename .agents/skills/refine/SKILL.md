@@ -97,7 +97,7 @@ Rediscover ground truth every run (no cached config). Read the project
 |---|---|---|---|
 | `objective` | tests/build/lint exist | none | verify_cmd → parse → number |
 | `tool-augmented` | checks definable / no infra | evaluator subagent | checks[] + diff explore |
-| `calibrated` | no objective metric (last resort) | evaluator subagent | rubric anchors |
+| `calibrated` | no objective metric (last resort) | evaluator subagent | `rubrics/default.yml` anchors |
 
 Prefer `objective`. If a project-local `.refine/score.sh` exists (JSON out:
 `{"score":0-1,"feedback":"...","metrics":{"<id>":"pass|fail"}}`) it is
@@ -149,7 +149,8 @@ SCORE=<parse .score>; GAPS=<failing IDs>; SUGGESTION=<parse .feedback>
 ```
 
 **tool-augmented / calibrated** — spawn a fresh evaluator role with **ONLY**:
-Contract JSON, `git diff --cached`, calibration anchors (calibrated only), and
+Contract JSON, `git diff --cached`, calibration anchors from
+`rubrics/default.yml` (calibrated only), frozen at Contract time, and
 "read `$ATTEMPTS` for previous scores", plus the `$EVAL_JSON` output path. It
 writes its full report to `$EVAL_JSON` and returns ONLY
 `{"score":N,"suggestion":"one line"}`. The helper reserves `$EVAL_JSON` for that
