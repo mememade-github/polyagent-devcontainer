@@ -63,7 +63,7 @@ codex_update_if_needed() {
     # Version drift OR half-install (unhealthy) -> clean reinstall. Do not let a
     # failed reinstall abort under set -e: codex_clean_install restores the prior
     # install on failure, and the functional gate below is the real arbiter.
-    if [ -z "$latest" ] || [ "$current" != "$latest" ] || ! codex_healthy; then
+    if [ -z "$latest" ] || ! codex_healthy || { [ -n "$current" ] && [ "$current" != "$latest" ]; }; then
         codex_clean_install || true
     fi
     # Functional gate: npm can exit 0 yet leave a half-install on 9p, so judge
