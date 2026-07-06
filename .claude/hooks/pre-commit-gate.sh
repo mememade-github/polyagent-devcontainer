@@ -15,10 +15,13 @@
 # xargs/flock wrappers): per REFERENCE.md the container is a workspace boundary,
 # not a trust boundary — an agent that owns the shell can always skip a
 # self-imposed gate, so completeness there is unwinnable and not worth the
-# complexity. The base template ships zero native git hooks, so this
-# --no-verify/-n block is a policy tripwire; real bypass prevention applies only
-# in derived repos that add native hooks. The load-bearing enforcement is the
-# fail-closed verification marker below, which no argument spelling can bypass.
+# complexity. Known scope limits: `cd <other-repo> && git commit` gates against
+# the session root, and unexpanded-variable `git -C "$D"` paths yield
+# literal-path remediation. The base template ships zero native git hooks, so
+# this --no-verify/-n block is a policy tripwire; real bypass prevention applies
+# only in derived repos that add native hooks. The load-bearing enforcement is
+# the fail-closed verification marker below, which flag spelling cannot bypass;
+# workdir mis-aim shapes above remain.
 
 INPUT=$(cat)
 if ! command -v jq >/dev/null 2>&1; then
