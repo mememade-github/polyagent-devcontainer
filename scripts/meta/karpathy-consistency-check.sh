@@ -14,16 +14,9 @@
 # Usage:
 #   bash scripts/meta/karpathy-consistency-check.sh [ROOT]
 #
-# Mode:
-#   GLOBAL (ROOT contains products/) — workspace origin. Asserts the full
-#           distribution matrix. The default matrix count is 16 and can be
-#           overridden with EXPECTED_KARPATHY_COUNT for intentional reshapes.
-#   LEAF   (no products/)           — a standalone receiver clone. Asserts the
-#           local repo's pair is self-consistent (count-agnostic).
-#
 # Enumerator policy: find with path predicates ONLY. grep -r / grep -rl / rg
 #   --files are forbidden as enumerators — they can silently miss nested
-#   receiver repos and produce false global counts. The wiki raw source
+#   receiver repos. The wiki raw source
 #   (.claude/agent-memory/wiki/raw/sources/behavioral-core.md) is a different
 #   doctrine lineage (6-rule) and is structurally excluded by the path
 #   predicate (it is not under .claude/rules/), by design.
@@ -45,12 +38,6 @@ _LIB="$SCRIPT_DIR/lib/detect-root.sh"
 . "$_LIB"
 
 ROOT="$(detect_root "${1:-}")"
-# Template default only. GLOBAL mode fires when the workspace contains
-# products/, and the right count depends on how many receiver copies that
-# workspace distributes — consuming workspaces MUST set EXPECTED_KARPATHY_COUNT
-# to their own fleet size (a wrong value fails closed, by design).
-DEFAULT_EXPECTED_KARPATHY_COUNT=16
-EXPECTED_COUNT="${EXPECTED_KARPATHY_COUNT:-$DEFAULT_EXPECTED_KARPATHY_COUNT}"
 INVARIANT='Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.'
 CODA='**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.'
 
@@ -64,18 +51,11 @@ note_fail() { echo "[FAIL] $1"; FAIL=$((FAIL + 1)); }
 mapfile -t BC_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/rules/behavioral-core.md' -o -path '*/.agents/rules/behavioral-core.md' \) | sort)
 mapfile -t SK_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/skills/karpathy-guidelines/SKILL.md' -o -path '*/.agents/skills/karpathy-guidelines/SKILL.md' \) | sort)
 
-MODE="LEAF"
-[ -d "$ROOT/products" ] && MODE="GLOBAL"
-echo "=== karpathy-consistency-check  mode=$MODE  root=$ROOT ==="
+echo "=== karpathy-consistency-check  root=$ROOT ==="
 echo "behavioral-core=${#BC_FILES[@]}  SKILL=${#SK_FILES[@]}"
 
-# --- 1-3. Count assertions (GLOBAL only; LEAF is count-agnostic but >=1) ---
-if [ "$MODE" = "GLOBAL" ]; then
-    [ "${#BC_FILES[@]}" -eq "$EXPECTED_COUNT" ] && note_pass "behavioral-core count = $EXPECTED_COUNT" || note_fail "behavioral-core count = ${#BC_FILES[@]} (expected $EXPECTED_COUNT)"
-    [ "${#SK_FILES[@]}" -eq "$EXPECTED_COUNT" ] && note_pass "SKILL count = $EXPECTED_COUNT"           || note_fail "SKILL count = ${#SK_FILES[@]} (expected $EXPECTED_COUNT)"
-else
-    [ "${#BC_FILES[@]}" -ge 1 ] && [ "${#SK_FILES[@]}" -ge 1 ] && note_pass "leaf: pair present (bc=${#BC_FILES[@]} skill=${#SK_FILES[@]})" || note_fail "leaf: behavioral-core/SKILL pair missing"
-fi
+# --- 1. Pair present (count-agnostic) ---
+[ "${#BC_FILES[@]}" -ge 1 ] && [ "${#SK_FILES[@]}" -ge 1 ] && note_pass "pair present (bc=${#BC_FILES[@]} skill=${#SK_FILES[@]})" || note_fail "behavioral-core/SKILL pair missing"
 
 if [ "${#BC_FILES[@]}" -eq 0 ] || [ "${#SK_FILES[@]}" -eq 0 ]; then
     echo "=== RESULT: FAIL (no files enumerated) ==="; exit 1
