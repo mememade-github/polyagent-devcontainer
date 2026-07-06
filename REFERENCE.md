@@ -130,7 +130,8 @@ The template intentionally pulls latest releases at build/run time:
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin the rolling sources: replace the Claude installer
 URL with a tagged release, set `npm install -g @openai/codex@<version>`, and
-pin the apt packages, the pip tools (`ruff`/`pytest`/`mypy`), and Node to an
+`npm install -g @devcontainers/cli@<version>`, and pin the apt packages, the pip
+tools (`ruff`/`pytest`/`mypy`), and Node to an
 exact version (`setup_22.x` already fixes only the major), and pin the base
 image to a digest or fully-qualified version tag — `ubuntu-22.04` is a rolling
 alias that gets rebuilt. The `docker compose` plugin and `uv`
