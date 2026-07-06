@@ -200,8 +200,7 @@ fi
 grep -Fq '.vscode/' "$PROJECT_DIR/PROJECT.md" 2>/dev/null && record PASS "scope-membership: .vscode documented as editor settings" || record FAIL "scope-membership: .vscode documentation"
 
 # --- PHASE 1e: secret-pattern false-positive regression (audit-discipline §2) ---
-# Phase 1d asserts the sk- pattern STRING is present (positive axis only). This
-# guard exercises BOTH axes against BOTH live hook patterns: a real sk- key is
+# This guard exercises BOTH axes against BOTH live hook patterns: a real sk- key is
 # still detected, AND the repo's own `task-YYYYMMDD-description` convention is
 # NOT flagged (the bare sk- run over-matched any "...sk-<20+ word/hyphen chars>").
 # Fixtures are fragment-built / boundary-safe so this file never trips the gate it
