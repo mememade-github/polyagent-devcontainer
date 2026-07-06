@@ -25,13 +25,14 @@ if [ -z "$COMMAND" ]; then
 fi
 
 # Cheap pre-filter: proceed only for commands that could be a git push. Strip
-# shell quotes first so quote-obfuscated words (g"i"t / pu"sh") and a separator
-# between git and push (-c '...;...' push) are still recognized; Layer 1 below
-# then scans the raw command, so wrapping (timeout/xargs/sh -c/env -S) is caught
-# regardless. A false candidate costs only one python parse; it never blocks.
-# Quote-strip only: backslash-split words (git p\ush) and custom push aliases
-# stay out of charter — the container is a workspace boundary, not a trust one.
-STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140')
+# quotes/backticks/backslashes so quote-obfuscated (g"i"t) and backslash-split
+# (git p\ush) words both reduce to their executed form before the word test.
+# Layer 1 below then scans the raw command, so wrapping (timeout/xargs/sh -c/env -S)
+# is caught regardless. A false candidate costs only one python parse; it never blocks.
+# The shlex parser below unescapes backslashes, so the strip view must not
+# under-match. Custom push aliases stay out of charter — the container is a
+# workspace boundary, not a trust one.
+STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140\\')
 if ! printf '%s' "$STRIPPED" | grep -qw git; then
   exit 0
 fi
