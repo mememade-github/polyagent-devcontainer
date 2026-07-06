@@ -208,7 +208,7 @@ while IFS= read -r _push; do
       echo "Warning: remote '$PUSH_REMOTE' URL changed since last push." >&2
       echo "  Previous: $BASELINE_URL" >&2
       echo "  Current:  $ACTUAL_URL" >&2
-      echo "If intentional, baseline will update after this push." >&2
+      echo "If intentional, no action needed — this URL is now recorded as the baseline (recorded at gate time, before the push runs)." >&2
     fi
   fi
   printf '%s\n' "$ACTUAL_URL" > "$BASELINE_FILE"
