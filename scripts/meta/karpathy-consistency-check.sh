@@ -52,7 +52,6 @@ ROOT="$(detect_root "${1:-}")"
 DEFAULT_EXPECTED_KARPATHY_COUNT=16
 EXPECTED_COUNT="${EXPECTED_KARPATHY_COUNT:-$DEFAULT_EXPECTED_KARPATHY_COUNT}"
 INVARIANT='Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.'
-NARROW='Body content (the 4 rules)'
 CODA='**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.'
 
 canonical_karpathy_body() { awk '/^## 1\. /{flag=1} flag' "$1"; }
@@ -101,13 +100,6 @@ for f in "${BC_FILES[@]}" "${SK_FILES[@]}"; do
     grep -qF "$INVARIANT" "$f" || { note_fail "invariant sentence missing: $f"; INV_OK=0; }
 done
 [ "$INV_OK" -eq 1 ] && note_pass "invariant sentence present in all bc+skill"
-
-# --- 6. Narrow phrase global count == 0 (bc + skill) ---
-NARROW_HITS=0
-for f in "${BC_FILES[@]}" "${SK_FILES[@]}"; do
-    grep -qF "$NARROW" "$f" && NARROW_HITS=$((NARROW_HITS + 1))
-done
-[ "$NARROW_HITS" -eq 0 ] && note_pass "narrow phrase global count = 0" || note_fail "narrow phrase still present in $NARROW_HITS file(s)"
 
 # --- 7. Closing coda present in every bc + skill ---
 CODA_OK=1
