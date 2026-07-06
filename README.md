@@ -28,6 +28,9 @@ claude --dangerously-skip-permissions
 codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
 ```
 
+On first run, `claude` prompts interactive login and Codex needs
+`codex login --device-auth` once; both credentials persist in the named volumes.
+
 The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's
 bubblewrap sandbox cannot create user namespaces inside Docker. It is only a
 compatibility workaround: because `docker.sock` is mounted,
