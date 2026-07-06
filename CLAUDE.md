@@ -47,14 +47,16 @@ Every claim must be verified by execution before statement. Don't say "tests pas
 
 ## Automated workflow (mandatory)
 
-These rules are enforced by hooks; no user commands required.
+The blocking hooks enforce only the pre-commit and pre-push gates; SessionStart
+injects context. Change evaluation, WIP handling, and role delegation remain
+agent-governance rules rather than hook-enforced guarantees.
 
 1. **Session start**: hook reports current branch, active WIP tasks, environment. If WIP tasks exist, read the WIP `README.md` and resume immediately. Otherwise wait for user instruction. Always check auto memory (`MEMORY.md`) for known issues.
 2. **Change evaluation**:
    - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). When a scorer (`.refine/score.sh`) is present, the pre-commit hook emits a non-blocking WARNING for multi-file commits without an active `/refine` marker (the template ships no scorer, so this stays dormant until you add one).
    - *Trivial changes* (typo, single config line) → direct edit.
    - Never self-evaluate. Delegate to the **evaluator** agent.
-3. **Pre-commit gate**: `pre-commit-gate.sh` blocks `git commit` unless verification ran recently (fresh marker). When stale it fails closed and prints the exact `completion-checker.sh` command to run. All checks must pass; no `--no-verify`.
+3. **Pre-commit gate**: `pre-commit-gate.sh` blocks agent-issued `git commit` commands unless verification ran recently (fresh marker). When stale it fails closed and prints the exact `completion-checker.sh` command to run. All checks must pass; no `--no-verify`. The base template ships zero native git hooks, so this is a policy tripwire; real bypass prevention applies only in derived repos that add native hooks, with the broader privilege boundary documented in REFERENCE.md §Privilege boundary.
 4. **Multi-session tasks**: tasks likely to span sessions create a WIP via the **wip-manager** agent at `wip/task-YYYYMMDD-description/README.md`. Auto-resumed on next session start. Delete when complete.
 5. **Agent delegation**: `evaluator` after changes (1-pass review; within `/refine`); `wip-manager` when work spans sessions.
 

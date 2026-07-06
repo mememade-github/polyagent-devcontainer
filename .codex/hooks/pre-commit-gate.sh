@@ -7,8 +7,11 @@
 # so a `-n` on an adjacent command (git commit -m x && git log -n 5) is not
 # matched. It does NOT chase exotic shell evasions (nested `sh -c`, process
 # substitution, env overrides): per REFERENCE.md the container is a workspace
-# boundary, not a trust boundary, so completeness there is unwinnable. The
-# load-bearing enforcement is the fail-closed verification marker below.
+# boundary, not a trust boundary, so completeness there is unwinnable. The base
+# template ships zero native git hooks, so this --no-verify/-n block is a policy
+# tripwire; real bypass prevention applies only in derived repos that add native
+# hooks. The load-bearing enforcement is the fail-closed verification marker
+# below.
 
 set -u
 

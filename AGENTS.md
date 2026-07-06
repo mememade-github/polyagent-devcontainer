@@ -48,11 +48,13 @@ Never execute without explicit user approval: `rm -rf`, `mv`/`cp` overwriting ex
 
 ## Automated workflow (mandatory)
 
-The workflow rules are mandatory. Codex command hooks enforce them after the
-project is trusted and the exact hook definitions are reviewed in `/hooks`.
-Changed hooks are skipped until re-reviewed. Vetted non-interactive automation
-may use `--dangerously-bypass-hook-trust`; otherwise, run the same gates
-manually until hook trust is established.
+The workflow rules are mandatory. Blocking Codex command hooks enforce only the
+pre-commit and pre-push gates after the project is trusted and the exact hook
+definitions are reviewed in `/hooks`; SessionStart injects context. Change
+evaluation, WIP handling, and role delegation remain agent-governance rules the
+hooks do not enforce. Changed hooks are skipped until re-reviewed. Vetted
+non-interactive automation may use `--dangerously-bypass-hook-trust`;
+otherwise, run the blocking gates manually until hook trust is established.
 
 ### Session start (SessionStart hook)
 
@@ -70,10 +72,12 @@ manually until hook trust is established.
 
 ### Pre-commit gate (PreToolUse hook)
 
-Before any `git commit`:
+Before any agent-issued `git commit` (see REFERENCE.md §Privilege boundary):
 1. Verification must have run recently (fresh marker). When stale, the gate
    fails closed and prints the exact `completion-checker.sh` command to run.
-2. All checks must pass; no `--no-verify`.
+2. All checks must pass; no `--no-verify`. The base template ships zero native
+   git hooks, so this is a policy tripwire; real bypass prevention applies only
+   in derived repos that add native hooks.
 
 ### Multi-session tasks
 
