@@ -2,15 +2,15 @@
 # PrePush gate (PreToolUse, matcher: Bash): block pushing inline credentials and
 # flag remote-URL drift / declaration mismatches.
 #
-# Scope (deliberate): the credential HARD BLOCK below scans the RAW command plus
-# every configured remote of the target repo, so a credential is caught no matter
-# how the command is wrapped or nested (timeout/xargs/flock/sh -c/env -S/control
-# structures) — the raw scan does not depend on parsing the push out of a wrapper.
-# The gate therefore does NOT carry a large adversarial command parser: per
-# REFERENCE.md the container is a workspace boundary, not a trust boundary, so
-# enforcing "the command must be shaped so the gate can parse it" adds complexity
-# without adding credential safety. Drift (Layer 2) and declaration (Layer 3) use
-# a light best-effort parse of the push target.
+# Scope (deliberate): the credential HARD BLOCK catches credentials visible in
+# the raw command text plus every configured remote of the target repo, regardless
+# of common wrappers (timeout/xargs/flock/sh -c/env -S/control structures);
+# deliberate obfuscation and assembled tokens are out of charter — the container
+# is a workspace boundary, not a trust boundary.
+# The gate therefore does NOT carry a large adversarial command parser: enforcing
+# "the command must be shaped so the gate can parse it" adds complexity without
+# adding credential safety. Drift (Layer 2) and declaration (Layer 3) use a light
+# best-effort parse of the push target.
 
 INPUT=$(cat)
 if ! command -v jq >/dev/null 2>&1; then
