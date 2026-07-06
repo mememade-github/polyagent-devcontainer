@@ -19,8 +19,6 @@
 # NOTE: per TOML rules, top-level keys must precede any [section] header.
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
-model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
 
 [features]
 hooks = true
