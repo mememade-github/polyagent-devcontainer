@@ -186,7 +186,7 @@ PREV_BEST=$(jq -s 'sort_by(.score)|last|.score//0' "$ATTEMPTS" 2>/dev/null || ec
 echo "{\"score\":$SCORE,\"gaps\":$GAPS,\"result\":\"<KEEP|DISCARD>: $SUMMARY\",\"feedback\":\"$SUGGESTION\"}" >> "$ATTEMPTS"
 ITERATION=$(wc -l < "$ATTEMPTS")
 ```
-- `SCORE >= THRESHOLD` → **ACCEPT** · `ITERATION >= MAX_ITER` → **STOP** · else → return to **Step 3**.
+- `SCORE >= THRESHOLD` → **ACCEPT** · `ITERATION > MAX_ITER` → **STOP** · else → return to **Step 3**.
 - **Always `rm -f "$MARKER"` on every exit path** (ACCEPT / STOP / error), then
   report best: `jq -s 'sort_by(.score)|last' "$ATTEMPTS"`. Do not ask permission
   between iterations.
