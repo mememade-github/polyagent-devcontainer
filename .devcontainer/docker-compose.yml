@@ -7,7 +7,7 @@
 #   docker compose up -d
 #
 # Multiple instances:
-#   cp .env .env.project-b
+#   cp .env.example .env.project-b
 #   docker compose --env-file .env.project-b up -d
 # =============================================================================
 

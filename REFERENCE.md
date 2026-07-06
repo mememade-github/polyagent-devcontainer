@@ -21,7 +21,9 @@ DevContainer inside a VM or on a dedicated machine.
 
 ## Configuration (`.devcontainer/.env`)
 
-All user-tunable values live in `.devcontainer/.env`.
+All user-tunable values live in `.devcontainer/.env`. The tracked file is
+`.devcontainer/.env.example`; copy it to `.devcontainer/.env` to customize
+(compose defaults apply when `.env` is absent).
 
 | Variable | Default | Used by | Purpose |
 |----------|---------|---------|---------|
