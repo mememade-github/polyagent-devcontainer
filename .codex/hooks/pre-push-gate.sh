@@ -16,7 +16,7 @@ if ! command -v jq >/dev/null 2>&1; then
   echo "Blocked: jq is required to parse hook input safely." >&2
   exit 2
 fi
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // .toolInput.command // .command // .input.command // empty' 2>/dev/null)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$COMMAND" ] && exit 0
 PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
 

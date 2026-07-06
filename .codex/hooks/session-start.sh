@@ -4,7 +4,7 @@
 set -u
 
 INPUT=$(cat)
-SOURCE=$(echo "$INPUT" | jq -r '.source // .hook_event_name // "startup"' 2>/dev/null || echo "startup")
+SOURCE=$(echo "$INPUT" | jq -r '.source // "startup"' 2>/dev/null || echo "startup")
 PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
 STATE_DIR="$PROJECT_DIR/.codex/state"
 CONTEXT=""
