@@ -258,7 +258,7 @@ else
   done < <(echo "$COMMIT_INFO" | jq -r '.paths[]?')
 fi
 if [ "$SECRET_HIT" -eq 1 ]; then
-  echo "Blocked: secret pattern detected in staged content (AGENTS.md Coding Rules item 1)." >&2
+  echo "Blocked: secret pattern detected in staged content." >&2
   echo "Inspect: git diff --cached" >&2
   exit 2
 fi
