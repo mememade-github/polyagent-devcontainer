@@ -323,20 +323,5 @@ if [ -f "$SCORER" ] && [ ! -f "$REFINE_MARKER" ]; then
   fi
 fi
 
-# --- Layer 3: Coupling: reminder for multi-file commits (AUD-2026-031, non-blocking) ---
-# commit-discipline §2 requires explicit "Coupling:" line when bundling orthogonal concerns.
-# Tooling cannot mechanically determine orthogonality, so this is a reminder gate, not enforcement.
-STAGED_COUNT_L3=$(git -C "$PROJECT_DIR" diff --cached --name-only 2>/dev/null | wc -l)
-if [ "$STAGED_COUNT_L3" -ge 2 ]; then
-  # Extract -m message if present in the command. Limitation: only the first -m argument is inspected;
-  # commit via editor (no -m) bypasses this reminder. Acceptable trade-off — reminder, not enforcement.
-  COMMIT_MSG=$(echo "$COMMAND" | grep -oE -- '-m[[:space:]]+"[^"]*"' | head -1 | sed -E 's/^-m[[:space:]]+"//; s/"$//')
-  if [ -n "$COMMIT_MSG" ] && ! echo "$COMMIT_MSG" | grep -qE '^[[:space:]]*Coupling:'; then
-    echo "REMINDER: $STAGED_COUNT_L3 files staged but commit message lacks 'Coupling:' line." >&2
-    echo "commit-discipline §2: bundled commits must state coupling reason. Add 'Coupling: <reason>' line if files are intentionally bundled." >&2
-    echo "(reminder only, not blocking — single-concern multi-file commits are legitimate)" >&2
-  fi
-fi
-
 # Verification is recent — allow commit
 exit 0

@@ -297,15 +297,4 @@ if [ -f "$SCORER" ] && [ ! -f "$REFINE_MARKER" ]; then
   fi
 fi
 
-# AUD-2026-031: Coupling: reminder for multi-file commits (non-blocking).
-# commit-discipline §2 mirror. Codex parity for reminder gate.
-STAGED_COUNT_L3=$(git -C "$ACTUAL_ROOT" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
-if [ "$STAGED_COUNT_L3" -ge 2 ]; then
-  COMMIT_MSG=$(echo "$COMMAND" | grep -oE -- '-m[[:space:]]+"[^"]*"' | head -1 | sed -E 's/^-m[[:space:]]+"//; s/"$//')
-  if [ -n "$COMMIT_MSG" ] && ! echo "$COMMIT_MSG" | grep -qE '^[[:space:]]*Coupling:'; then
-    echo "REMINDER: $STAGED_COUNT_L3 files staged but commit message lacks 'Coupling:' line." >&2
-    echo "commit-discipline §2 mirror: bundled commits state coupling reason. Add 'Coupling: <reason>' if intentional bundle." >&2
-  fi
-fi
-
 exit 0

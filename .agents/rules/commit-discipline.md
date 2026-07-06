@@ -14,8 +14,7 @@ fix vs docs, behavior vs formatting, one rule vs another.
 Bundle only when revert-of-one breaks the other, or all sub-changes share one
 end-state that fails if any is missing — and state the reason in a `Coupling:`
 line in the commit body. Without it, a reviewer cannot tell deliberate coupling
-from oversight. (The pre-commit gate emits a non-blocking reminder on multi-file
-commits whose message lacks this line.)
+from oversight.
 
 ## 3. Forbidden bundles
 
