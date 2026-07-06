@@ -116,6 +116,7 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     else
         record FAIL "compose runtime: /workspaces contains template repo"
         printf '%s\n' "$WORKSPACE_PROBE" | tail -20 | sed 's/^/      compose: /'
+        [ -n "${HOST_WORKSPACE_PATH:-}" ] || echo "      hint: this checkout may not be visible to the host Docker daemon; set HOST_WORKSPACE_PATH to the host filesystem path (README Troubleshooting; .claude/rules/devcontainer-patterns.md)"
     fi
     PERSIST_PROJECT="polyagent-persist-$$"
     PERSIST_WRITE=$(compose_run_probe "$PERSIST_PROJECT" "$HOST_PROJECT_DIR" 'printf persisted > "$HOME/.codex/verify-persistence" && echo wrote' 2>&1 || true)
