@@ -80,6 +80,8 @@ Protocol:
 3. **Write** -- full report to the caller-supplied `$EVAL_JSON`
 4. **Return** -- ONLY `{"score": <number>, "suggestion": "<one line>"}` to caller
 
+The returned `score` is the report's `contract_score` (same value, single metric).
+
 The full report goes to the file; Codex's final score is captured separately and
 emitted to stdout. The helper fails if the full report is absent or empty. This
 keeps the orchestrator's context minimal across iterations without overwriting
@@ -150,7 +152,7 @@ answer from the repository.
 }
 ```
 
-In review mode: `contract_score` = generated checks pass rate. In contract mode: `contract_score` = Contract checks pass rate.
+In review mode: `contract_score` = generated checks pass rate. In contract mode, pass rate applies to objective/tool-augmented checks; in calibrated mode `contract_score` is the weighted anchor score defined by `rubrics/default.yml`.
 
 ## Scoring Rules
 
