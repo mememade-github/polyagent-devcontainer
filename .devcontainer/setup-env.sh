@@ -30,8 +30,12 @@ echo ""
 step "Setting permissions..."
 
 if [ -S /var/run/docker.sock ]; then
-    if ! sudo chown root:docker /var/run/docker.sock 2>/dev/null; then
-        echo "      WARN: could not chown docker.sock to root:docker; docker access via the socket may be unavailable" >&2
+    SOCK_GID=$(stat -c %g /var/run/docker.sock 2>/dev/null || true)
+    DOCKER_GROUP_GID=$(getent group docker 2>/dev/null | cut -d: -f3 || true)
+    if [ -n "$SOCK_GID" ] && [ "$SOCK_GID" != "0" ] && [ "$SOCK_GID" != "$DOCKER_GROUP_GID" ]; then
+        if ! sudo groupmod -g "$SOCK_GID" docker 2>/dev/null; then
+            echo "      WARN: could not align docker group with docker.sock GID; docker access via the socket may be unavailable" >&2
+        fi
     fi
 fi
 

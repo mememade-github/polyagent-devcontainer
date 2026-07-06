@@ -15,7 +15,6 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 ARG PROJECT_NODE_VERSION=
 ARG USERNAME=vscode
-ARG DOCKER_GID=999
 
 # UTF-8 encoding and timezone
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -49,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @devcontainers/cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && (groupmod -g ${DOCKER_GID} docker 2>/dev/null || groupadd -g ${DOCKER_GID} docker 2>/dev/null || true) \
+    && (groupadd docker 2>/dev/null || true) \
     && usermod -aG docker ${USERNAME} \
     # Docker Compose v2 plugin (pinned — bump periodically)
     && mkdir -p /usr/local/lib/docker/cli-plugins \
