@@ -70,7 +70,6 @@ if [ -d "$SRC/agents" ]; then
     for AGENT in "$SRC/agents"/*.md; do
         [ -f "$AGENT" ] || continue
         NAME=$(basename "$AGENT" .md)
-        case "$NAME" in _*) continue ;; esac
         mkdir -p "$EXPECTED/skills/$NAME"
         cp --preserve=mode "$AGENT" "$EXPECTED/skills/$NAME/SKILL.md"
     done
