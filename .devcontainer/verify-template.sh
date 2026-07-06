@@ -185,7 +185,9 @@ echo ""
 echo "=== Phase 1d: Governance regression guards ==="
 CODEX_PRECOMMIT="$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"
 CLAUDE_PRECOMMIT="$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh"
+# Regression pin: 9p/drvfs filemode makes +x unreliable; the hook must test -f and invoke the checker via bash.
 grep -Fq '[ -f "$CHECKER" ]' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: checker may be 0644" || record FAIL "Codex pre-commit: checker exec contract"
+# Regression pin: the gate must never write the marker itself; only completion-checker.sh writes it, avoiding self-satisfaction.
 if grep -Fq 'MARKER=' "$CODEX_PRECOMMIT" 2>/dev/null && ! grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null; then record PASS "Codex pre-commit: marker read-only (checker writes it)"; else record FAIL "Codex pre-commit: marker read-only contract"; fi
 if [ -e "$PROJECT_DIR/.cursor" ]; then
     record FAIL "scope-membership: .cursor removed"
