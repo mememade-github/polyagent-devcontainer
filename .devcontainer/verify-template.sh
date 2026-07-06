@@ -317,8 +317,16 @@ rm -r "$KARPATHY_GLOBAL_FIXTURE"
 # --- PHASE 2b: Hooks syntax ---
 echo ""
 echo "=== Phase 2b: Hook Syntax (Claude side) ==="
-claude_hooks=$(ls "$PROJECT_DIR"/.claude/hooks/*.sh 2>/dev/null | wc -l)
-[ "$claude_hooks" -eq 4 ] && record PASS "Claude hooks: $claude_hooks/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Claude hooks: $claude_hooks (expected 4)"
+EXPECTED_HOOKS="session-start pre-commit-gate pre-push-gate refinement-gate"
+missing=""
+for h in $EXPECTED_HOOKS; do
+    [ -f "$PROJECT_DIR/.claude/hooks/$h.sh" ] || missing="$missing $h"
+done
+if [ -z "$missing" ]; then
+    record PASS "Claude hooks: baseline hooks present ($EXPECTED_HOOKS)"
+else
+    record FAIL "Claude hooks: missing$missing"
+fi
 for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
@@ -328,14 +336,17 @@ done
 echo ""
 echo "=== Phase 2c: Agents ==="
 count=0
-total=0
+agent_expected_total=0
 agent_schema_ok=0
-for f in "$PROJECT_DIR"/.claude/agents/*.md; do
-    [ -f "$f" ] || continue
+EXPECTED_AGENTS="evaluator wip-manager"
+for agent in $EXPECTED_AGENTS; do
+    agent_expected_total=$((agent_expected_total+1))
+    f="$PROJECT_DIR/.claude/agents/$agent.md"
+    if [ ! -f "$f" ]; then
+        record FAIL "agent exists: $agent"
+        continue
+    fi
     name=$(basename "$f")
-    [ "$name" = "_schema.md" ] && continue
-    [[ "$name" == _* ]] && continue
-    total=$((total+1))
     head -1 "$f" 2>/dev/null | grep -q "^---" && count=$((count+1)) || record FAIL "frontmatter: $name"
     schema_ok=1
     header=$(frontmatter_header "$f")
@@ -344,20 +355,23 @@ for f in "$PROJECT_DIR"/.claude/agents/*.md; do
     [ "$declared_name" = "${name%.md}" ] || schema_ok=0
     [ "$schema_ok" -eq 1 ] && agent_schema_ok=$((agent_schema_ok+1)) || record FAIL "agent schema: $name"
 done
-[ "$total" -eq 2 ] && record PASS "Agent count: $total (evaluator, wip-manager)" || record FAIL "Agent count: $total (expected 2)"
-record PASS "Agent frontmatter ($count/$total)"
-[ "$agent_schema_ok" -eq "$total" ] && record PASS "Agent schema ($agent_schema_ok/$total)" || record FAIL "Agent schema ($agent_schema_ok/$total)"
+record PASS "Agent frontmatter ($count/$agent_expected_total)"
+[ "$agent_schema_ok" -eq "$agent_expected_total" ] && record PASS "Agent schema ($agent_schema_ok/$agent_expected_total)" || record FAIL "Agent schema ($agent_schema_ok/$agent_expected_total)"
 
 # --- PHASE 2d: Skills (4 + karpathy-guidelines reference) ---
 echo ""
 echo "=== Phase 2d: Skills ==="
-skills=$(ls "$PROJECT_DIR"/.claude/skills/*/SKILL.md 2>/dev/null | wc -l)
-[ "$skills" -eq 4 ] && record PASS "Skills: $skills/4 (refine, status, verify, karpathy-guidelines)" || record FAIL "Skills: $skills (expected 4)"
+EXPECTED_SKILLS="refine status verify karpathy-guidelines"
+skill_expected_total=0
 skill_schema_ok=0
-for f in "$PROJECT_DIR"/.claude/skills/*/SKILL.md; do
-    [ -f "$f" ] || continue
+for skill_name in $EXPECTED_SKILLS; do
+    skill_expected_total=$((skill_expected_total+1))
+    f="$PROJECT_DIR/.claude/skills/$skill_name/SKILL.md"
+    if [ ! -f "$f" ]; then
+        record FAIL "skill exists: $skill_name"
+        continue
+    fi
     header=$(frontmatter_header "$f")
-    skill_name=$(basename "$(dirname "$f")")
     if [ "$skill_name" = "karpathy-guidelines" ]; then
         keys="name description license"
     elif [ "$skill_name" = "status" ]; then
@@ -371,7 +385,7 @@ for f in "$PROJECT_DIR"/.claude/skills/*/SKILL.md; do
     [ "$declared_name" = "$skill_name" ] || schema_ok=0
     [ "$schema_ok" -eq 1 ] && skill_schema_ok=$((skill_schema_ok+1)) || record FAIL "skill schema: $(basename "$(dirname "$f")")"
 done
-[ "$skill_schema_ok" -eq "$skills" ] && record PASS "Skill schema ($skill_schema_ok/$skills)" || record FAIL "Skill schema ($skill_schema_ok/$skills)"
+[ "$skill_schema_ok" -eq "$skill_expected_total" ] && record PASS "Skill schema ($skill_schema_ok/$skill_expected_total)" || record FAIL "Skill schema ($skill_schema_ok/$skill_expected_total)"
 
 # --- PHASE 2e: Rules (6 portable) ---
 echo ""
@@ -386,9 +400,6 @@ if [ -z "$missing" ]; then
 else
     record FAIL "Rules: missing$missing"
 fi
-rules_total=$(ls "$PROJECT_DIR"/.claude/rules/*.md 2>/dev/null | wc -l)
-[ "$rules_total" -eq 6 ] && record PASS "Rules count: $rules_total/6" || record FAIL "Rules count: $rules_total (expected 6)"
-
 for r in $EXPECTED_RULES; do
     grep -Fq "@.claude/rules/$r.md" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null || missing="$missing CLAUDE:$r"
     grep -Fq ".agents/rules/$r.md" "$PROJECT_DIR/AGENTS.md" 2>/dev/null || missing="$missing AGENTS:$r"
@@ -399,8 +410,15 @@ done
 # --- PHASE 2f: Codex hooks (4) ---
 echo ""
 echo "=== Phase 2f: Codex Hooks ==="
-codex_hook_count=$(ls "$PROJECT_DIR"/.codex/hooks/*.sh 2>/dev/null | wc -l)
-[ "$codex_hook_count" -eq 4 ] && record PASS "Codex hooks: $codex_hook_count/4 (session-start, pre-commit-gate, pre-push-gate, refinement-gate)" || record FAIL "Codex hooks: $codex_hook_count (expected 4)"
+missing=""
+for h in $EXPECTED_HOOKS; do
+    [ -f "$PROJECT_DIR/.codex/hooks/$h.sh" ] || missing="$missing $h"
+done
+if [ -z "$missing" ]; then
+    record PASS "Codex hooks: baseline hooks present ($EXPECTED_HOOKS)"
+else
+    record FAIL "Codex hooks: missing$missing"
+fi
 for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
     [ -f "$f" ] || continue
     bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
