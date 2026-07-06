@@ -47,7 +47,6 @@ yarn-error.log*
 .codex/state/.refine-output
 .codex/state/.refine-eval.json
 .codex/state/refinement/
-.codex/push-remote
 
 # -----------------------------------------------------------------------------
 # Misc

@@ -6,7 +6,7 @@
 # target repo, regardless of common wrappers (timeout/xargs/flock/sh -c/env -S/control
 # structures); deliberate obfuscation and assembled tokens are out of charter —
 # the container is a workspace boundary, not a trust boundary. Drift (Layer 2)
-# and declaration (Layer 3) use a light best-effort parse of the push target.
+# uses a light best-effort parse of the push target.
 
 set -u
 
@@ -177,7 +177,7 @@ if [ -n "$LEAK" ]; then
   exit 2
 fi
 
-# === LAYER 2 (drift, WARN) + LAYER 3 (declaration, OPT-IN) ===
+# === LAYER 2 (drift, WARN) ===
 while IFS= read -r _push; do
   _workdir=$(echo "$_push" | jq -r '.workdir')
   REPO_ROOT=$(git -C "$_workdir" rev-parse --show-toplevel 2>/dev/null || true)
@@ -185,9 +185,7 @@ while IFS= read -r _push; do
   PUSH_REMOTE=$(echo "$_push" | jq -r '.remote')
   [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
   [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE="origin"
-  DIRECT_URL=0
   if printf '%s\n' "$PUSH_REMOTE" | grep -Eq '^[A-Za-z][A-Za-z0-9+.-]*://|^[^/:@]+@[^/:]+:.+|^[^/:]+\.[^/:]+:.+|^[^/:]+:.*/.+'; then
-    DIRECT_URL=1
     ACTUAL_URL="$PUSH_REMOTE"
   else
     ACTUAL_URL=$(git -C "$REPO_ROOT" remote get-url --push --all "$PUSH_REMOTE" 2>/dev/null | head -1)
@@ -199,7 +197,6 @@ while IFS= read -r _push; do
   PUSH_REMOTE_SAFE=$(printf '%s' "$PUSH_REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
   [ -n "$PUSH_REMOTE_SAFE" ] || PUSH_REMOTE_SAFE="direct-url"
   BASELINE_FILE="$STATE_DIR/last-push-url.${PUSH_REMOTE_SAFE}"
-  DECL_FILE="$REPO_ROOT/.codex/push-remote"
   mkdir -p "$STATE_DIR"
 
   if [ -f "$BASELINE_FILE" ]; then
@@ -213,31 +210,6 @@ while IFS= read -r _push; do
   fi
   printf '%s\n' "$ACTUAL_URL" > "$BASELINE_FILE"
 
-  if [ -f "$DECL_FILE" ]; then
-    if [ "$DIRECT_URL" -eq 1 ]; then
-      EXPECTED=$(cut -d= -f2- "$DECL_FILE" 2>/dev/null)
-    else
-      EXPECTED=$(grep "^${PUSH_REMOTE}=" "$DECL_FILE" 2>/dev/null | cut -d= -f2-)
-    fi
-    if [ -n "$EXPECTED" ]; then
-      CLEAN_URL=$(printf '%s\n' "$ACTUAL_URL" | sed -E 's#(https?://)[^/@[:space:]]+@#\1#g')
-      MATCHED=0
-      while IFS= read -r _expected; do
-        [ -z "$_expected" ] && continue
-        if printf '%s\n' "$CLEAN_URL" | grep -qF "$_expected"; then
-          MATCHED=1
-          break
-        fi
-      done <<< "$EXPECTED"
-      if [ "$MATCHED" -ne 1 ]; then
-        echo "Push blocked: remote URL doesn't match declaration." >&2
-        echo "  Expected: $EXPECTED" >&2
-        echo "  Actual:   $CLEAN_URL" >&2
-        echo "  Source:   $DECL_FILE" >&2
-        exit 2
-      fi
-    fi
-  fi
 done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
 
 exit 0

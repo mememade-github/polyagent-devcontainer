@@ -1,6 +1,6 @@
 #!/bin/bash
 # PrePush gate (PreToolUse, matcher: Bash): block pushing inline credentials and
-# flag remote-URL drift / declaration mismatches.
+# flag remote-URL drift.
 #
 # Scope (deliberate): the credential HARD BLOCK catches credentials visible in
 # the raw command text plus every configured remote of the target repo, regardless
@@ -9,8 +9,8 @@
 # is a workspace boundary, not a trust boundary.
 # The gate therefore does NOT carry a large adversarial command parser: enforcing
 # "the command must be shaped so the gate can parse it" adds complexity without
-# adding credential safety. Drift (Layer 2) and declaration (Layer 3) use a light
-# best-effort parse of the push target.
+# adding credential safety. Drift (Layer 2) uses a light best-effort parse of the
+# push target.
 
 INPUT=$(cat)
 if ! command -v jq >/dev/null 2>&1; then
@@ -45,7 +45,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 # Light parse: locate each `git push`, resolving `git -C <path>` for the target
-# repo and the first positional as the remote (for the drift/declaration layers).
+# repo and the first positional as the remote (for the drift layer).
 parse_git_push() {
   python3 - "$COMMAND" "$PROJECT_DIR" <<'PY'
 import json, os, shlex, sys
@@ -195,7 +195,7 @@ if [ -n "$LEAK" ]; then
   exit 2
 fi
 
-# === LAYER 2 (drift, WARN) + LAYER 3 (declaration, OPT-IN) ===
+# === LAYER 2 (drift, WARN) ===
 while IFS= read -r _push; do
   _workdir=$(echo "$_push" | jq -r '.workdir')
   REPO_ROOT=$(git -C "$_workdir" rev-parse --show-toplevel 2>/dev/null || true)
@@ -203,9 +203,7 @@ while IFS= read -r _push; do
   PUSH_REMOTE=$(echo "$_push" | jq -r '.remote')
   [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
   [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE="origin"
-  DIRECT_URL=0
   if printf '%s\n' "$PUSH_REMOTE" | grep -Eq '^[A-Za-z][A-Za-z0-9+.-]*://|^[^/:@]+@[^/:]+:.+|^[^/:]+\.[^/:]+:.+|^[^/:]+:.*/.+'; then
-    DIRECT_URL=1
     ACTUAL_URL="$PUSH_REMOTE"
   else
     ACTUAL_URL=$(git -C "$REPO_ROOT" remote get-url --push --all "$PUSH_REMOTE" 2>/dev/null | head -1)
@@ -230,33 +228,6 @@ while IFS= read -r _push; do
     echo "$ACTUAL_URL" > "$BASELINE_FILE" || echo "WARN: baseline write failed: $BASELINE_FILE" >&2
   fi
 
-  DECL_FILE="$REPO_ROOT/.claude/.push-remote"
-  if [ -f "$DECL_FILE" ]; then
-    if [ "$DIRECT_URL" -eq 1 ]; then
-      EXPECTED=$(cut -d= -f2- "$DECL_FILE" 2>/dev/null)
-    else
-      EXPECTED=$(grep "^${PUSH_REMOTE}=" "$DECL_FILE" 2>/dev/null | cut -d= -f2-)
-    fi
-    if [ -n "$EXPECTED" ]; then
-      CLEAN_URL=$(printf '%s\n' "$ACTUAL_URL" | sed -E 's#(https?://)[^/@[:space:]]+@#\1#g')
-      MATCHED=0
-      while IFS= read -r _expected; do
-        [ -z "$_expected" ] && continue
-        if printf '%s\n' "$CLEAN_URL" | grep -qF "$_expected"; then
-          MATCHED=1
-          break
-        fi
-      done <<< "$EXPECTED"
-      if [ "$MATCHED" -ne 1 ]; then
-        echo "Push blocked: remote URL doesn't match declaration." >&2
-        echo "  Expected: $EXPECTED" >&2
-        echo "  Actual:   $CLEAN_URL" >&2
-        echo "  Source:   $DECL_FILE" >&2
-        echo "Fix: git remote set-url $PUSH_REMOTE <correct-url>" >&2
-        exit 2
-      fi
-    fi
-  fi
 done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
 
 exit 0
