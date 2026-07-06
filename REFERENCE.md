@@ -150,6 +150,10 @@ Current Codex supports in-process subagents and project
 skills for portable discovery; evaluator runs still use a fresh
 `codex exec --ephemeral` process to carry the exact Contract/diff-only input
 boundary in interactive and non-interactive flows.
+`.agents/skills/` is Codex's native repo skills root: Codex skill discovery
+consumes the mirror directly, so do not delete it as a mere convention. Mirrored
+`SKILL.md` frontmatter (`tools`, `model`, `maxTurns`, `color`) is Claude-host
+metadata that Codex ignores.
 
 ### Hooks
 
