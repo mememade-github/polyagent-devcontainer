@@ -48,12 +48,16 @@ seps = {"&&", "||", ";", "|", "&", "(", ")"}
 git_global_value = {"-C", "-c", "--git-dir", "--work-tree", "--namespace",
                     "--exec-path", "--config", "--config-env"}
 push_value_opts = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+force_long = {"--force", "--force-with-lease", "--force-if-includes"}
 
 def abspath(path, cwd):
     return os.path.abspath(path if os.path.isabs(path) else os.path.join(cwd, path))
 
 try:
-    toks = shlex.split(command, posix=True)
+    lex = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    lex.commenters = ""
+    toks = list(lex)
 except ValueError:
     print(json.dumps({"found": False, "invocations": [], "workdir": os.path.abspath(base_dir)}))
     sys.exit(0)
@@ -97,22 +101,41 @@ def push_of(seg, base):
             return None
         args = seg[j + 1:]
         remote = ""
+        force = False
+        positionals = []
         k = 0
         while k < len(args):
             a = args[k]
             if a == "--":
-                if k + 1 < len(args):
-                    remote = args[k + 1]
+                positionals.extend(args[k + 1:])
+                if any(p.startswith("+") for p in args[k + 1:]):
+                    force = True
                 break
+            if a in force_long or a.startswith("--force-with-lease="):
+                force = True
+                k += 1
+                continue
             if a in push_value_opts:
                 k += 2
                 continue
-            if a.startswith("-"):
+            if any(a.startswith(opt + "=") for opt in push_value_opts):
                 k += 1
                 continue
-            remote = a
-            break
-        return (os.path.abspath(cwd), remote)
+            if a.startswith("-"):
+                if not a.startswith("--") and "f" in a[1:]:
+                    force = True
+                k += 1
+                continue
+            if a.startswith("+"):
+                force = True
+            positionals.append(a)
+            k += 1
+        if positionals:
+            if positionals[0].startswith("+"):
+                remote = ""
+            else:
+                remote = positionals[0]
+        return (os.path.abspath(cwd), remote, force)
     return None
 
 invs = []
@@ -120,7 +143,7 @@ for seg in segments:
     r = push_of(seg, base_dir)
     if r is None:
         continue
-    invs.append({"workdir": r[0], "remote": r[1]})
+    invs.append({"workdir": r[0], "remote": r[1], "force": r[2]})
 
 print(json.dumps({
     "found": bool(invs),
@@ -177,6 +200,48 @@ if [ -n "$LEAK" ]; then
   echo "Fix: git remote set-url <remote> <url-without-credentials>; keep tokens and remote/url overrides out of the command." >&2
   exit 2
 fi
+
+# === LAYER 1b: destructive push (BLOCK unless single-use marker exists) ===
+safe_component() {
+  value=$(printf '%s' "$1" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
+  [ -n "$value" ] && printf '%s' "$value" || printf '%s' unnamed
+}
+allow_force_marker() {
+  local repo_root=$1 remote=$2 branch=$3
+  local remote_safe branch_safe marker expected
+  remote_safe=$(safe_component "$remote")
+  branch_safe=$(safe_component "$branch")
+  marker="$repo_root/.codex/state/allow-force-push.${remote_safe}.${branch_safe}"
+  expected=$(printf 'remote=%s\nbranch=%s\n' "$remote" "$branch")
+  if [ ! -f "$marker" ]; then
+    echo "Blocked: destructive git push requires explicit single-use approval." >&2
+    echo "Detected force push for remote '$remote' on branch '$branch'." >&2
+    echo "Narrower alternative: prefer --force-with-lease over --force when rewriting is unavoidable, and coordinate timing with collaborators." >&2
+    echo "To approve exactly once, create this marker with exact content, then retry:" >&2
+    echo "  mkdir -p '$(dirname "$marker")' && printf 'remote=%s\\nbranch=%s\\n' '$remote' '$branch' > '$marker'" >&2
+    return 1
+  fi
+  if [ "$(cat "$marker" 2>/dev/null)" != "$expected" ]; then
+    echo "Blocked: force-push approval marker is not scoped to remote '$remote' and branch '$branch'." >&2
+    echo "Expected marker content:" >&2
+    printf '%s' "$expected" | sed 's/^/  /' >&2
+    return 1
+  fi
+  rm -f "$marker"
+  return 0
+}
+while IFS= read -r _push; do
+  [ "$(echo "$_push" | jq -r '.force // false')" = "true" ] || continue
+  _workdir=$(echo "$_push" | jq -r '.workdir')
+  REPO_ROOT=$(git -C "$_workdir" rev-parse --show-toplevel 2>/dev/null || true)
+  [ -z "$REPO_ROOT" ] && continue
+  PUSH_REMOTE=$(echo "$_push" | jq -r '.remote')
+  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
+  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE="origin"
+  PUSH_BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+  PUSH_BRANCH=$(printf '%s\n' "$PUSH_BRANCH" | head -1)
+  allow_force_marker "$REPO_ROOT" "$PUSH_REMOTE" "$PUSH_BRANCH" || exit 2
+done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
 
 # === LAYER 2 (drift, WARN) ===
 while IFS= read -r _push; do

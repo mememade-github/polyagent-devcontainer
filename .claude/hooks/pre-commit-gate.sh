@@ -179,12 +179,14 @@ no_verify = all_ = False
 paths = []
 workdir = os.path.abspath(base_dir)
 first = True
+commit_count = 0
 for seg in segments:
     r = commit_of(seg, base_dir)
     if r is None:
         continue
     cwd, ca = r
     found = True
+    commit_count += 1
     if first:
         workdir = os.path.abspath(cwd)
         first = False
@@ -199,6 +201,7 @@ print(json.dumps({
     "all": all_,
     "paths": paths,
     "workdir": workdir,
+    "commit_count": commit_count,
 }))
 PY
 }
@@ -221,6 +224,12 @@ fi
 # Only intercept git commit commands (not git add, git status, etc.)
 if [ "$(echo "$COMMIT_INFO" | jq -r '.found // false')" != "true" ]; then
   exit 0
+fi
+
+if [ "$(echo "$COMMIT_INFO" | jq -r '.commit_count // 0')" -gt 1 ]; then
+  echo "Blocked: one Bash command contains multiple git commit invocations." >&2
+  echo "Run one commit at a time so the verification marker and secret scan bind to the exact target." >&2
+  exit 2
 fi
 
 # AUD-2026-029: block --no-verify and its short alias -n on git commit.
@@ -292,6 +301,33 @@ BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 MARKER="$ACTUAL_ROOT/.claude/.last-verification.$BRANCH_SAFE"
 MAX_AGE=600  # 10 minutes
 
+marker_value() {
+  sed -n "s/^$1=//p" "$MARKER" 2>/dev/null | head -1
+}
+
+tracked_worktree_hash() {
+  root=$1
+  (
+    cd "$root"
+    git ls-files -z |
+      LC_ALL=C sort -z |
+      while IFS= read -r -d '' rel; do
+        [ -n "$rel" ] || continue
+        if [ ! -e "$rel" ] && [ ! -L "$rel" ]; then
+          printf '%s\0missing\0' "$rel"
+        elif [ -L "$rel" ]; then
+          printf '%s\0symlink\0' "$rel"
+          readlink -z -- "$rel"
+        elif [ -f "$rel" ]; then
+          printf '%s\0file\0' "$rel"
+          sha256sum < "$rel" | cut -d ' ' -f 1 | tr '\n' '\0'
+        else
+          printf '%s\0other\0' "$rel"
+        fi
+      done
+  ) | sha256sum | cut -d ' ' -f 1
+}
+
 NEEDS_VERIFICATION=0
 
 if [ ! -f "$MARKER" ]; then
@@ -301,6 +337,21 @@ else
   if [ "$NEEDS_VERIFICATION" -eq 0 ]; then
     MARKER_AGE=$(( $(date +%s) - MARKER_MTIME ))
     if [ "$MARKER_AGE" -gt "$MAX_AGE" ]; then
+      NEEDS_VERIFICATION=1
+    fi
+  fi
+  if [ "$NEEDS_VERIFICATION" -eq 0 ]; then
+    MARKER_BRANCH=$(marker_value branch)
+    MARKER_HEAD=$(marker_value head)
+    MARKER_TREE=$(marker_value staged_tree)
+    MARKER_WORKTREE=$(marker_value tracked_worktree)
+    CURRENT_HEAD=$(git -C "$ACTUAL_ROOT" rev-parse --verify HEAD 2>/dev/null || echo "unborn")
+    CURRENT_TREE=$(git -C "$ACTUAL_ROOT" write-tree 2>/dev/null || true)
+    CURRENT_WORKTREE=$(tracked_worktree_hash "$ACTUAL_ROOT" 2>/dev/null || true)
+    if [ "$MARKER_BRANCH" != "$BRANCH" ] ||
+       [ "$MARKER_HEAD" != "$CURRENT_HEAD" ] ||
+       [ -z "$MARKER_TREE" ] || [ "$MARKER_TREE" != "$CURRENT_TREE" ] ||
+       [ -z "$MARKER_WORKTREE" ] || [ "$MARKER_WORKTREE" != "$CURRENT_WORKTREE" ]; then
       NEEDS_VERIFICATION=1
     fi
   fi
@@ -322,7 +373,7 @@ if [ "$NEEDS_VERIFICATION" -eq 1 ]; then
     echo "1. Python: ruff check src/ && mypy src/ --ignore-missing-imports" >&2
     echo "2. TypeScript: pnpm build" >&2
     echo "3. Or run: your project verification script (see project governance docs)" >&2
-    echo "Then create the marker: mkdir -p '$ACTUAL_ROOT/.claude' && touch '$MARKER'" >&2
+    echo "Then create a content-bound marker equivalent to scripts/meta/completion-checker.sh at: $MARKER" >&2
   fi
   exit 2
 fi
