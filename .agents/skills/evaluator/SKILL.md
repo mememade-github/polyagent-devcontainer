@@ -37,9 +37,9 @@ honor-system — and the structure differs by host:
   this compatibility fallback is not a security boundary. The helper invalidates
   the evaluation if HEAD, the index, or any tracked/untracked project-tree file
   changes, including guarded gitignored files, missing tracked files, file mode,
-  and symlink state. Gitignored high-churn generated paths such as `.codex/state`,
-  refinement attempts, dependency caches, and build outputs are excluded; the
-  authorized evaluator report path is also excluded.
+  and symlink state. For Evaluate, refine state such as `.codex/state/refinement-active`
+  and refinement attempts remains guarded; only the authorized evaluator report
+  path is excluded. Dependency caches and build outputs remain excluded.
 
 If neither isolation path is available, say so in the report; never self-evaluate
 in-context while claiming isolation.
@@ -81,6 +81,10 @@ Protocol:
 4. **Return** -- ONLY `{"score": <number>, "suggestion": "<one line>"}` to caller
 
 The returned `score` is the report's `contract_score` (same value, single metric).
+The helper rejects the result unless the final `score` is a number in `[0,1]`,
+the report has numeric `contract_score` equal to that final score, the report has
+`checks_total >= 1`, and at least one `findings[]` or `checks[]` entry carries
+non-empty `tool` and `evidence` strings.
 
 The full report goes to the file; Codex's final score is captured separately and
 emitted to stdout. The helper fails if the full report is absent or empty. This
@@ -137,10 +141,13 @@ answer from the repository.
 {
   "contract_score": 0.0,
   "checks_passed": 0,
-  "checks_total": 0,
+  "checks_total": 1,
   "findings": [
     {"check": "description", "tool": "command", "result": "pass", "evidence": "output excerpt"},
     {"check": "description", "tool": "command", "result": "fail", "evidence": "output excerpt"}
+  ],
+  "checks": [
+    {"check": "description", "tool": "command", "result": "pass", "evidence": "output excerpt"}
   ],
   "generated_checks": [
     {"name": "description", "command": "what was run", "result": "pass|fail"}
@@ -158,6 +165,8 @@ In review mode: `contract_score` = generated checks pass rate. In contract mode,
 
 - Every score is derived from tool execution results — no free-form judgment. (Choosing which checks to run and matching anchors is still LLM judgment; it is constrained by tool evidence and the fixed anchors, never replaced by opinion of overall quality.)
 - `contract_score` drives keep/discard in /refine (single metric)
+- The final returned `score` must equal `contract_score`
+- `checks_total` must be at least 1, and at least one finding/check must include non-empty `tool` and `evidence`
 - `findings` feed back to generator as improvement guidance
 - Check command fails to execute (timeout, crash) → treat as fail
 - All checks fail → contract_score = 0

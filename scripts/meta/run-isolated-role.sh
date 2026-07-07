@@ -32,12 +32,8 @@ if [ -n "$OUTPUT_FILE" ]; then
     esac
 fi
 
-IGNORED_FINGERPRINT_EXCLUDES=(
-    ':(exclude).codex/state/**'
+COMMON_FINGERPRINT_EXCLUDES=(
     ':(exclude).claude/.last-verification.*'
-    ':(exclude).claude/.refinement-active'
-    ':(exclude).claude/.refine-*'
-    ':(exclude).claude/agent-memory/refinement/**'
     ':(exclude)node_modules/**'
     ':(exclude).pnpm-store/**'
     ':(exclude).venv/**'
@@ -51,6 +47,16 @@ IGNORED_FINGERPRINT_EXCLUDES=(
     ':(exclude).ruff_cache/**'
     ':(exclude).mypy_cache/**'
 )
+ROLE_FINGERPRINT_EXCLUDES=("${COMMON_FINGERPRINT_EXCLUDES[@]}")
+if [ "$ROLE" != "evaluate" ]; then
+    ROLE_FINGERPRINT_EXCLUDES=(
+        ':(exclude).codex/state/**'
+        ':(exclude).claude/.refinement-active'
+        ':(exclude).claude/.refine-*'
+        ':(exclude).claude/agent-memory/refinement/**'
+        "${ROLE_FINGERPRINT_EXCLUDES[@]}"
+    )
+fi
 
 tree_fingerprint() {
     local root=$1 excluded=$2
@@ -58,7 +64,7 @@ tree_fingerprint() {
         cd "$root"
         {
             git ls-files -z --cached --others --exclude-standard
-            git ls-files -z --others -i --exclude-standard -- "${IGNORED_FINGERPRINT_EXCLUDES[@]}"
+            git ls-files -z --others -i --exclude-standard -- "${ROLE_FINGERPRINT_EXCLUDES[@]}"
         } |
             LC_ALL=C sort -zu |
             while IFS= read -r -d '' rel; do
@@ -93,6 +99,23 @@ repository_fingerprint() {
     printf '%s\n%s\n%s\n%s\n%s\n' "$head_ref" "$head_oid" "$index_entries" "$index_flags" "$tree"
 }
 
+normalize_json_file() {
+    local file=$1 label=$2 normalized
+    if jq -e . "$file" >/dev/null 2>&1; then
+        return 0
+    fi
+    normalized=$(mktemp)
+    sed 's/}}$/}/' "$file" > "$normalized"
+    if jq -e . "$normalized" >/dev/null 2>&1; then
+        cat "$normalized" > "$file"
+        rm -f "$normalized"
+        return 0
+    fi
+    rm -f "$normalized"
+    echo "ERROR: evaluator $label is not valid JSON." >&2
+    exit 1
+}
+
 if [ -n "$OUTPUT_FILE" ]; then
     mkdir -p "$(dirname "$OUTPUT_FILE")"
     [ "$ROLE" != "evaluate" ] || : > "$OUTPUT_FILE"
@@ -109,6 +132,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "$ROLE" = "evaluate" ]; then
+    # Evaluate is diff-scoped by design; starting outside the repo prevents AGENTS.md auto-load recursion.
     ISOLATED_ROOT=$(mktemp -d)
     RUN_ROOT="$ISOLATED_ROOT"
 fi
@@ -138,6 +162,8 @@ if [ -n "$OUTPUT_FILE" ]; then
     fi
 fi
 
+# Codex turn-budget truncation is accepted only if the child exits cleanly and
+# emits grounded JSON below; any nonzero truncation status fails closed here.
 CHILD_STATUS=0
 if [ "$ROLE" = "evaluate" ] && [ -n "$OUTPUT_FILE" ]; then
     "$CODEX_BIN" "${ARGS[@]}" - < "$PROMPT_FILE" >/dev/null || CHILD_STATUS=$?
@@ -162,6 +188,28 @@ if [ "$ROLE" = "evaluate" ] && [ -n "$OUTPUT_FILE" ]; then
     }
     [ -s "$FINAL_OUTPUT" ] || {
         echo "ERROR: evaluator did not return a final score." >&2
+        exit 1
+    }
+    normalize_json_file "$OUTPUT_FILE" "report"
+    normalize_json_file "$FINAL_OUTPUT" "final score"
+    jq -e '.score | type == "number" and . >= 0 and . <= 1' "$FINAL_OUTPUT" >/dev/null || {
+        echo "ERROR: evaluator final score must be a number in [0,1]." >&2
+        exit 1
+    }
+    jq -e '.contract_score | type == "number"' "$OUTPUT_FILE" >/dev/null || {
+        echo "ERROR: evaluator report missing numeric contract_score." >&2
+        exit 1
+    }
+    jq -e '.checks_total | type == "number" and . >= 1' "$OUTPUT_FILE" >/dev/null || {
+        echo "ERROR: evaluator report must include checks_total >= 1." >&2
+        exit 1
+    }
+    jq -e '[.findings[]?, .checks[]?] | any(((.tool // "") | type == "string" and length > 0) and ((.evidence // "") | type == "string" and length > 0))' "$OUTPUT_FILE" >/dev/null || {
+        echo "ERROR: evaluator report must include at least one finding/check with tool and evidence." >&2
+        exit 1
+    }
+    jq -e --slurpfile report "$OUTPUT_FILE" '.score == $report[0].contract_score' "$FINAL_OUTPUT" >/dev/null || {
+        echo "ERROR: evaluator final score does not match report contract_score." >&2
         exit 1
     }
     cat "$FINAL_OUTPUT"
