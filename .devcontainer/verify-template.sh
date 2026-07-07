@@ -1,1565 +1,310 @@
 #!/bin/bash
-# Template verification — defaults to /workspaces, override via PROJECT_DIR.
-# Designed for use both inside a polyagent-derived devcontainer (where /workspaces IS the
-# project) and from outside (where PROJECT_DIR points at the template directory).
-# Oracle rule: new checks must exercise behavior on a fixture/probe or cite the
-# exact regression they pin.
-PROJECT_DIR="${PROJECT_DIR:-/workspaces}"
-
-echo "=============================================="
-echo "  Template Full Verification"
-echo "  PROJECT_DIR: $PROJECT_DIR"
-echo "=============================================="
-echo ""
-
-PASS=0
-FAIL=0
+# =============================================================================
+# verify-template.sh — on-demand / CI acceptance suite for the polyagent
+# DevContainer template.
+#
+# NOT a per-commit gate. Pre-commit verification is the fast,
+# environment-independent scripts/meta/completion-checker.sh; this suite is
+# the deep proof that the template WORKS, run on demand and in CI.
+#
+# Sections:
+#   [1/7] environment presence      — missing essentials FAIL, missing
+#                                     optional tools SKIP
+#   [2/7] compose boot smoke        — ephemeral container, unique project
+#                                     name; SKIPs (never FAILs) when the
+#                                     checkout is not visible to the host
+#                                     docker daemon (fresh clone / CI / tmp)
+#   [3/7] gate behavior matrix      — allow + block fixtures against the REAL
+#                                     hook scripts, both vendors
+#   [4/7] writer round-trip         — completion-checker in a scratch clone:
+#                                     exit 0, markers appear, readers allow
+#   [5/7] mirror drift              — sync-agents-mirror --dry reports clean
+#   [6/7] leak scan + karpathy pair — existing hygiene oracles pass
+#   [7/7] shell syntax sweep        — bash -n over all tracked *.sh
+#
+# Oracle rule: every check exercises behavior on a fixture/probe or calls an
+# existing oracle script. No check asserts this suite's own internals.
+# Output: "PASS|FAIL|SKIP: label" lines + a final RESULT line; exit 1 on FAIL.
+# =============================================================================
+set -u
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+PASS=0; FAIL=0; SKIP=0
 record() {
     case "$1" in
         PASS) PASS=$((PASS+1)) ;;
-        SKIP) ;;
-        *) FAIL=$((FAIL+1)) ;;
+        SKIP) SKIP=$((SKIP+1)) ;;
+        *)    FAIL=$((FAIL+1)) ;;
     esac
     echo "$1: $2"
 }
-workspace_marker_ok() {
-    root=$1
-    [ -d "$root/.git" ] ||
-        [ -f "$root/AGENTS.md" ] ||
-        [ -f "$root/CLAUDE.md" ] ||
-        [ -f "$root/README.md" ] ||
-        [ -d "$root/.devcontainer" ]
-}
-resolve_host_workspace_path() {
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/polyagent-accept.XXXXXX") || { echo "FATAL: mktemp failed" >&2; exit 1; }
+trap 'rm -rf "$TMP"' EXIT
+
+echo "=============================================="
+echo "  Polyagent Template Acceptance Suite"
+echo "  PROJECT_DIR: $PROJECT_DIR"
+echo "=============================================="
+
+# --- [1/7] Environment presence ---
+echo ""
+echo "=== [1/7] Environment presence ==="
+for T in git jq; do
+    command -v "$T" >/dev/null 2>&1 && record PASS "essential: $T" || record FAIL "essential: $T missing"
+done
+git -C "$PROJECT_DIR" rev-parse --show-toplevel >/dev/null 2>&1 \
+    && record PASS "essential: PROJECT_DIR is a git checkout" \
+    || record FAIL "essential: PROJECT_DIR is not a git checkout: $PROJECT_DIR"
+if command -v docker >/dev/null 2>&1; then
+    docker info >/dev/null 2>&1 && record PASS "docker daemon reachable" || record SKIP "docker CLI present, daemon unreachable"
+else
+    record SKIP "docker not installed (compose smoke will skip)"
+fi
+if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+    { claude --version >/dev/null 2>&1 || "$HOME/.local/bin/claude" --version >/dev/null 2>&1; } \
+        && record PASS "claude CLI runs" || record FAIL "claude CLI present but broken"
+else
+    record SKIP "claude CLI not on this runner"
+fi
+CODEX="$HOME/.npm-global/bin/codex"
+command -v codex >/dev/null 2>&1 && CODEX=$(command -v codex)
+if [ -x "$CODEX" ]; then
+    SKIP_CODEX_UPDATE=1 "$CODEX" --version >/dev/null 2>&1 && record PASS "codex CLI runs" || record FAIL "codex CLI present but broken"
+else
+    record SKIP "codex CLI not on this runner"
+fi
+for T in node python3; do
+    if command -v "$T" >/dev/null 2>&1; then
+        "$T" --version >/dev/null 2>&1 && record PASS "$T runs" || record FAIL "$T present but broken"
+    else
+        record SKIP "$T not on this runner"
+    fi
+done
+UV="$HOME/.local/bin/uv"
+command -v uv >/dev/null 2>&1 && UV=$(command -v uv)
+if [ -x "$UV" ]; then
+    "$UV" --version >/dev/null 2>&1 && record PASS "uv runs" || record FAIL "uv present but broken"
+else
+    record SKIP "uv not on this runner"
+fi
+
+# --- [2/7] Compose boot smoke (ephemeral; never FAILs for environment reasons) ---
+echo ""
+echo "=== [2/7] Compose boot smoke ==="
+COMPOSE_DIR="$PROJECT_DIR/.devcontainer"
+if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+    record SKIP "compose smoke: docker daemon unavailable"
+elif ! docker compose version >/dev/null 2>&1; then
+    record SKIP "compose smoke: docker compose plugin unavailable"
+else
+    (cd "$COMPOSE_DIR" && docker compose config -q) >/dev/null 2>&1 \
+        && record PASS "compose config parses" || record FAIL "compose config invalid"
+    # Bind mounts are resolved by the HOST daemon, so the smoke can only run
+    # when we can name this checkout by a daemon-visible path. Otherwise SKIP:
+    # a temp/CI clone must never fail here (that was the old per-commit deadlock).
+    HOSTPATH=""
     if [ -n "${HOST_WORKSPACE_PATH:-}" ]; then
-        printf '%s\n' "$HOST_WORKSPACE_PATH"
-        return 0
-    fi
-    case "$PROJECT_DIR" in
-        /workspaces|/workspaces/*)
-            if [ -f /.dockerenv ] && command -v docker >/dev/null 2>&1; then
-                container_id=$(cat /etc/hostname 2>/dev/null || true)
-                host_root=$(docker inspect "$container_id" --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)
-                if [ -n "$host_root" ]; then
-                    printf '%s%s\n' "$host_root" "${PROJECT_DIR#/workspaces}"
-                    return 0
-                fi
-            fi
-            ;;
-    esac
-    printf '%s\n' "$PROJECT_DIR"
-}
-compose_run_probe() {
-    project=$1
-    host_workspace=$2
-    shift 2
-    (
-        cd "$PROJECT_DIR/.devcontainer" &&
-            COMPOSE_PROJECT_NAME="$project" HOST_WORKSPACE_PATH="$host_workspace" \
-            docker compose run --rm --no-deps \
-                -e SKIP_CLAUDE_UPDATE=1 -e SKIP_CODEX_UPDATE=1 \
-                --entrypoint bash polyagent-devcontainer -lc "$*"
-    )
-}
-compose_cleanup() {
-    project=$1
-    (
-        cd "$PROJECT_DIR/.devcontainer" &&
-            COMPOSE_PROJECT_NAME="$project" docker compose down -v --remove-orphans >/dev/null 2>&1 || true
-    )
-}
-frontmatter_header() {
-    awk 'BEGIN{n=0} {sub(/\r$/, "")} /^---$/{n++; if(n==2) exit; next} n==1{print}' "$1"
-}
-line_exact_present() {
-    expected=$1
-    file=$2
-    awk -v expected="$expected" '{sub(/\r$/, "")} $0 == expected {found=1} END{exit found ? 0 : 1}' "$file" 2>/dev/null
-}
-flat_frontmatter_valid() {
-    file=$1
-    expected_keys=$2
-    first_line=$(head -n 1 "$file" 2>/dev/null || true)
-    [ "${first_line%$'\r'}" = "---" ] || return 1
-    [ "$(awk '{sub(/\r$/, "")} /^---$/ {n++; if(n==2){print NR; exit}}' "$file" 2>/dev/null)" -gt 1 ] 2>/dev/null || return 1
-    header=$(frontmatter_header "$file")
-    actual_keys=$(printf '%s\n' "$header" | sed -n 's/^\([A-Za-z][A-Za-z0-9-]*\):.*/\1/p' | sort)
-    expected_sorted=$(printf '%s\n' $expected_keys | sort)
-    [ "$actual_keys" = "$expected_sorted" ] || return 1
-    while IFS= read -r line; do
-        printf '%s\n' "$line" | grep -qE '^[A-Za-z][A-Za-z0-9-]*:[[:space:]]+[^[:space:]].*$' || return 1
-        value=${line#*:}
-        value=$(printf '%s' "$value" | sed 's/[[:space:]]*#.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//')
-        [ -n "$value" ] && [ "$value" != '""' ] && [ "$value" != "''" ] && [ "$value" != "|" ] && [ "$value" != ">" ] || return 1
-	    done <<< "$header"
-}
-tracked_worktree_hash() {
-    root=$1
-    (
-        cd "$root"
-        git ls-files -z |
-            LC_ALL=C sort -z |
-            while IFS= read -r -d '' rel; do
-                [ -n "$rel" ] || continue
-                if [ ! -e "$rel" ] && [ ! -L "$rel" ]; then
-                    printf '%s\0missing\0' "$rel"
-                elif [ -L "$rel" ]; then
-                    printf '%s\0symlink\0' "$rel"
-                    readlink -z -- "$rel"
-                elif [ -f "$rel" ]; then
-                    printf '%s\0file\0' "$rel"
-                    sha256sum < "$rel" | cut -d ' ' -f 1 | tr '\n' '\0'
-                else
-                    printf '%s\0other\0' "$rel"
-                fi
-            done
-    ) | sha256sum | cut -d ' ' -f 1
-}
-write_verification_marker() {
-    root=$1
-    vendor=$2
-    branch=$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    branch=$(printf '%s\n' "$branch" | head -1)
-    branch_safe=$(echo "$branch" | tr '/' '-')
-    if [ "$vendor" = "codex" ]; then
-        state_dir="$root/.codex/state"
-        marker="$state_dir/last-verification.$branch_safe"
+        HOSTPATH="$HOST_WORKSPACE_PATH"
+    elif [ ! -f /.dockerenv ]; then
+        HOSTPATH="$PROJECT_DIR"   # not inside a container: daemon shares this filesystem view
     else
-        state_dir="$root/.claude"
-        marker="$state_dir/.last-verification.$branch_safe"
+        case "$PROJECT_DIR" in
+            /workspaces|/workspaces/*)   # translate via this container's own /workspaces mount
+                SRC=$(docker inspect "$(cat /etc/hostname 2>/dev/null)" --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)
+                [ -n "$SRC" ] && HOSTPATH="$SRC${PROJECT_DIR#/workspaces}" ;;
+        esac
     fi
-    mkdir -p "$state_dir"
-    staged_tree=$(git -C "$root" write-tree)
-    tracked_hash=$(tracked_worktree_hash "$root")
-    head_oid=$(git -C "$root" rev-parse --verify HEAD 2>/dev/null || echo "unborn")
-    {
-        echo "checker=polyagent-devcontainer completion-checker v1"
-        echo "branch=$branch"
-        echo "head=$head_oid"
-        echo "staged_tree=$staged_tree"
-        echo "tracked_worktree=$tracked_hash"
-        echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    } > "$marker"
+    if [ -z "$HOSTPATH" ]; then
+        record SKIP "compose smoke: checkout not visible to the host docker daemon (set HOST_WORKSPACE_PATH to enable)"
+    else
+        CP=polyagent-v3-accept
+        BOOT=$( (cd "$COMPOSE_DIR" && COMPOSE_PROJECT_NAME="$CP" HOST_WORKSPACE_PATH="$HOSTPATH" \
+            docker compose run --rm --no-deps -e SKIP_CLAUDE_UPDATE=1 -e SKIP_CODEX_UPDATE=1 \
+                --entrypoint bash polyagent-devcontainer -lc \
+                'test -f /workspaces/AGENTS.md && test -d /workspaces/.claude && { command -v claude >/dev/null || test -x "$HOME/.local/bin/claude"; } && { command -v codex >/dev/null || test -x "$HOME/.npm-global/bin/codex"; } && echo polyagent-boot-ok') 2>&1 )
+        case "$BOOT" in
+            *polyagent-boot-ok*) record PASS "compose boot: workspace mounted + both agent CLIs present" ;;
+            *)
+                record FAIL "compose boot: workspace mounted + both agent CLIs present"
+                printf '%s\n' "$BOOT" | tail -5 | sed 's/^/      compose: /' ;;
+        esac
+        (cd "$COMPOSE_DIR" && COMPOSE_PROJECT_NAME="$CP" docker compose down -v --remove-orphans) >/dev/null 2>&1
+    fi
+fi
+
+# --- [3/7] Gate behavior matrix (fixtures vs the real hook scripts) ---
+echo ""
+echo "=== [3/7] Gate behavior matrix ==="
+mkrepo() {   # fixture repo with a born `main` branch (plumbing only, no porcelain)
+    git init -q -b main "$1" &&
+    T=$(git -C "$1" mktree </dev/null) &&
+    C=$(git -C "$1" -c user.email=fixture@example.invalid -c user.name=fixture commit-tree "$T" -m seed) &&
+    git -C "$1" update-ref refs/heads/main "$C"
 }
+try() {   # try <want_rc> <label> <hook> <project_dir> <command>
+    jq -n --arg c "$5" '{tool_input:{command:$c}}' |
+        CLAUDE_PROJECT_DIR="$4" CODEX_PROJECT_DIR="$4" bash "$3" >/dev/null 2>&1
+    rc=$?
+    if [ "$rc" -eq "$1" ]; then record PASS "$2"; else record FAIL "$2 (want exit $1, got $rc)"; fi
+}
+R="$TMP/repo"; F="$TMP/foreign"; SC="$TMP/storedcred"
+if mkrepo "$R" >/dev/null 2>&1 && mkrepo "$F" >/dev/null 2>&1 && mkrepo "$SC" >/dev/null 2>&1; then
+    mkdir -p "$R/.claude" "$R/.codex/state"
+    CRED="ghp_""aaaaaaaaaaaaaaaaaaaaaaaaaa"   # fragment-built fake token; matches the gate's shape check only
+    for V in claude codex; do
+        if [ "$V" = claude ]; then
+            HOOKS="$PROJECT_DIR/.claude/hooks"
+            CM="$R/.claude/.last-verification.main"
+            FM="$R/.claude/.allow-force-push.origin.main"
+            RM="$R/.claude/.refinement-active"
+            RA="$R/.claude/agent-memory/refinement/attempts"
+            BM="$R/.claude/.stop-blocked-refinement.main"
+        else
+            HOOKS="$PROJECT_DIR/.codex/hooks"
+            CM="$R/.codex/state/last-verification.main"
+            FM="$R/.codex/state/allow-force-push.origin.main"
+            RM="$R/.codex/state/refinement-active"
+            RA="$R/.codex/state/refinement/attempts"
+            BM="$R/.codex/state/stop-blocked-refinement.main"
+        fi
+        PCG="$HOOKS/pre-commit-gate.sh"; PPG="$HOOKS/pre-push-gate.sh"
+        rm -f "$CM" "$FM"
+        try 2 "$V pre-commit: missing marker blocks commit"          "$PCG" "$R" 'git commit -m msg'
+        touch "$CM"   # empty touch file: existence + freshness is the whole marker contract
+        try 0 "$V pre-commit: empty fresh marker allows commit"      "$PCG" "$R" 'git commit -m msg'
+        try 2 "$V pre-commit: verify-bypass flag blocked in scope"   "$PCG" "$R" 'git commit --no-verify -m msg'
+        try 2 "$V pre-commit: clustered -n shorthand blocked"        "$PCG" "$R" 'git commit -nm msg'
+        try 0 "$V pre-commit: bypass text inside quotes ignored"     "$PCG" "$R" "git commit -m 'never use --no-verify'"
+        try 0 "$V pre-commit: out-of-scope repo commit allowed"      "$PCG" "$R" "git -C $F commit --no-verify -m x"
+        touch -d '25 hours ago' "$CM"
+        try 2 "$V pre-commit: stale (>24h) marker blocks commit"     "$PCG" "$R" 'git commit -m msg'
+        rm -f "$CM"
+        try 2 "$V pre-push: raw credential-shaped text blocked"      "$PPG" "$R" "curl -H token $CRED https://example.com"
+        try 0 "$V pre-push: plain push allowed"                      "$PPG" "$R" 'git push origin main'
+        try 0 "$V pre-push: force-with-lease allowed without marker" "$PPG" "$R" 'git push --force-with-lease origin main'
+        try 2 "$V pre-push: force push without marker blocked"       "$PPG" "$R" 'git push --force origin main'
+        mkdir -p "${FM%/*}"; touch "$FM"
+        try 0 "$V pre-push: force push with single-use marker allowed" "$PPG" "$R" 'git push --force origin main'
+        [ ! -f "$FM" ] && record PASS "$V pre-push: marker consumed on allow" || record FAIL "$V pre-push: marker not consumed"
+        try 2 "$V pre-push: second force push re-blocked"            "$PPG" "$R" 'git push --force origin main'
+        # Refinement gate (Stop hook): decision JSON, never a non-zero exit.
+        OUT=$(CLAUDE_PROJECT_DIR="$R" CODEX_PROJECT_DIR="$R" bash "$HOOKS/refinement-gate.sh" </dev/null 2>/dev/null); rc=$?
+        { [ "$rc" -eq 0 ] && [ -z "$OUT" ]; } \
+            && record PASS "$V refinement: no active loop, stop allowed" \
+            || record FAIL "$V refinement: no active loop (rc=$rc)"
+        printf '{"task_id":"t1","threshold":0.9,"max_iterations":5}' > "$RM"
+        mkdir -p "$RA"; printf '{"score":0.1}\n' > "$RA/t1.jsonl"
+        OUT=$(CLAUDE_PROJECT_DIR="$R" CODEX_PROJECT_DIR="$R" bash "$HOOKS/refinement-gate.sh" </dev/null 2>/dev/null); rc=$?
+        if [ "$rc" -eq 0 ] && printf '%s' "$OUT" | jq -er 'select(.decision=="block")' >/dev/null 2>&1; then
+            record PASS "$V refinement: active low-score loop emits block decision"
+        else
+            record FAIL "$V refinement: active low-score loop (rc=$rc)"
+        fi
+        rm -f "$RM" "$RA/t1.jsonl" "$BM"
+        # Session-start hook: context-only, valid JSON, exit 0.
+        OUT=$(printf '{"source":"startup"}' | CLAUDE_PROJECT_DIR="$R" CODEX_PROJECT_DIR="$R" bash "$HOOKS/session-start.sh" 2>/dev/null); rc=$?
+        if [ "$rc" -eq 0 ] && printf '%s' "$OUT" | jq -er '.hookSpecificOutput.additionalContext | length > 0' >/dev/null 2>&1; then
+            record PASS "$V session-start: context JSON emitted, exit 0"
+        else
+            record FAIL "$V session-start: context JSON (rc=$rc)"
+        fi
+    done
+    # Sanctioned variable-reference credential helper passes the stored-config scan;
+    # a literal token in stored config blocks.
+    git -C "$R" config credential.helper '!f(){ . "$HOME"/.tokens.env >/dev/null 2>&1; echo username=x-access-token; echo "password=${GITHUB_PAT}"; };f'
+    try 0 "claude pre-push: variable-reference helper allowed" "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" "$R" 'git push origin main'
+    try 0 "codex pre-push: variable-reference helper allowed"  "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" "$R" 'git push origin main'
+    git -C "$SC" config credential.helper "!f(){ echo password=$CRED; };f"
+    try 2 "claude pre-push: literal token in stored config blocked" "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" "$SC" 'git push origin main'
+    try 2 "codex pre-push: literal token in stored config blocked"  "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" "$SC" 'git push origin main'
+else
+    record FAIL "gate matrix: could not create fixture repos"
+fi
 
-# --- PHASE 1: Runtime ---
-echo "=== Phase 1: Runtime ==="
-if command -v claude >/dev/null 2>&1; then
-    claude --version > /dev/null 2>&1 && record PASS "claude CLI" || record FAIL "claude CLI"
-else
-    record SKIP "claude CLI unavailable"
-fi
-if command -v codex >/dev/null 2>&1 || [ -x /home/vscode/.npm-global/bin/codex ]; then
-    (codex --version > /dev/null 2>&1 || /home/vscode/.npm-global/bin/codex --version > /dev/null 2>&1) \
-        && record PASS "codex CLI" || record FAIL "codex CLI"
-else
-    record SKIP "codex CLI unavailable"
-fi
-if command -v node >/dev/null 2>&1; then
-    node --version > /dev/null 2>&1 && record PASS "node ($(node --version))" || record FAIL "node"
-else
-    record SKIP "node unavailable"
-fi
-if [ -x /home/vscode/.local/bin/uv ]; then
-    /home/vscode/.local/bin/uv --version > /dev/null 2>&1 && record PASS "uv" || record FAIL "uv"
-else
-    record SKIP "uv unavailable"
-fi
-if command -v python3 >/dev/null 2>&1; then
-    python3 --version > /dev/null 2>&1 && record PASS "python3 ($(python3 --version 2>&1))" || record FAIL "python3"
-else
-    record SKIP "python3 unavailable"
-fi
-
-# --- PHASE 1a: Workspace mount and persistence ---
+# --- [4/7] Writer round-trip (scratch clone = the fresh-checkout case) ---
 echo ""
-echo "=== Phase 1a: Workspace Mount + Persistence ==="
-workspace_marker_ok "$PROJECT_DIR" && record PASS "workspace marker: PROJECT_DIR recognizable" || record FAIL "workspace marker: PROJECT_DIR recognizable"
-if grep -Fq 'SKIP_CODEX_UPDATE=1 codex --version' "$PROJECT_DIR/.devcontainer/docker-compose.yml" 2>/dev/null &&
-    grep -Fq 'test -f /workspaces/AGENTS.md' "$PROJECT_DIR/.devcontainer/docker-compose.yml" 2>/dev/null; then
-    record PASS "docker-compose healthcheck: CLI + workspace marker"
-else
-    record FAIL "docker-compose healthcheck: CLI + workspace marker"
-fi
-if grep -Fq 'workspace_marker_ok "$WS"' "$PROJECT_DIR/.devcontainer/setup-env.sh" 2>/dev/null &&
-    grep -Fq 'ERROR: /workspaces has no project marker' "$PROJECT_DIR/.devcontainer/setup-env.sh" 2>/dev/null; then
-    record PASS "setup-env: missing workspace marker is explicit"
-else
-    record FAIL "setup-env: missing workspace marker is explicit"
-fi
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    HOST_PROJECT_DIR=$(resolve_host_workspace_path)
-    COMPOSE_PROJECT="polyagent-verify-$$"
-    WORKSPACE_PROBE=$(compose_run_probe "$COMPOSE_PROJECT" "$HOST_PROJECT_DIR" 'test -d /workspaces/.git && test -f /workspaces/AGENTS.md && test -f /workspaces/.devcontainer/verify-template.sh && echo workspace-ok' 2>&1 || true)
-    if printf '%s' "$WORKSPACE_PROBE" | grep -Fq 'workspace-ok'; then
-        record PASS "compose runtime: /workspaces contains template repo"
+echo "=== [4/7] Writer round-trip in a scratch clone ==="
+CLONE="$TMP/clone"
+if git clone -q --no-hardlinks "$PROJECT_DIR" "$CLONE" 2>/dev/null; then
+    # Overlay the working tree's tracked-file state so the clone reflects the
+    # checkout under test, not just its last commit.
+    git -C "$PROJECT_DIR" ls-files -z | while IFS= read -r -d '' f; do
+        if [ -f "$PROJECT_DIR/$f" ]; then
+            case "$f" in */*) mkdir -p "$CLONE/${f%/*}" ;; esac
+            cp -p "$PROJECT_DIR/$f" "$CLONE/$f"
+        elif [ ! -e "$PROJECT_DIR/$f" ]; then
+            rm -f "$CLONE/$f"
+        fi
+    done
+    # Normalize the generated mirror in the fixture only: drift on the real
+    # tree is section [5/7]'s check; here it would only shadow writer mechanics.
+    bash "$CLONE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1
+    BR=$(git -C "$CLONE" rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-')
+    CMK="$CLONE/.claude/.last-verification.$BR"
+    XMK="$CLONE/.codex/state/last-verification.$BR"
+    try 2 "round-trip: reader blocks before the checker has run" "$CLONE/.claude/hooks/pre-commit-gate.sh" "$CLONE" 'git commit -m msg'
+    CHK=$( (cd "$CLONE" && bash scripts/meta/completion-checker.sh) 2>&1 ); rc=$?
+    if [ "$rc" -eq 0 ]; then
+        record PASS "round-trip: completion-checker exits 0 in a scratch clone"
     else
-        record FAIL "compose runtime: /workspaces contains template repo"
-        printf '%s\n' "$WORKSPACE_PROBE" | tail -20 | sed 's/^/      compose: /'
-        [ -n "${HOST_WORKSPACE_PATH:-}" ] || echo "      hint: this checkout may not be visible to the host Docker daemon; set HOST_WORKSPACE_PATH to the host filesystem path (README Troubleshooting; .claude/rules/devcontainer-patterns.md)"
+        record FAIL "round-trip: completion-checker failed in a scratch clone"
+        printf '%s\n' "$CHK" | tail -5 | sed 's/^/      checker: /'
     fi
-    PERSIST_PROJECT="polyagent-persist-$$"
-    PERSIST_WRITE=$(compose_run_probe "$PERSIST_PROJECT" "$HOST_PROJECT_DIR" 'printf persisted > "$HOME/.codex/verify-persistence" && echo wrote' 2>&1 || true)
-    PERSIST_READ=$(compose_run_probe "$PERSIST_PROJECT" "$HOST_PROJECT_DIR" 'grep -qx persisted "$HOME/.codex/verify-persistence" && echo persistence-ok' 2>&1 || true)
-    if printf '%s' "$PERSIST_WRITE" | grep -Fq 'wrote' && printf '%s' "$PERSIST_READ" | grep -Fq 'persistence-ok'; then
-        record PASS "compose runtime: codex-config named volume persists across containers"
-    else
-        record FAIL "compose runtime: codex-config named volume persists across containers"
-        printf '%s\n' "$PERSIST_WRITE" "$PERSIST_READ" | tail -20 | sed 's/^/      compose: /'
-    fi
-    compose_cleanup "$COMPOSE_PROJECT"
-    compose_cleanup "$PERSIST_PROJECT"
-elif command -v docker >/dev/null 2>&1; then
-    record SKIP "compose runtime: docker daemon unavailable"
+    { [ -f "$CMK" ] && [ -f "$XMK" ]; } \
+        && record PASS "round-trip: both vendor markers written" \
+        || record FAIL "round-trip: markers missing after checker"
+    try 0 "round-trip: claude reader allows after checker" "$CLONE/.claude/hooks/pre-commit-gate.sh" "$CLONE" 'git commit -m msg'
+    try 0 "round-trip: codex reader allows after checker"  "$CLONE/.codex/hooks/pre-commit-gate.sh" "$CLONE" 'git commit -m msg'
 else
-    record SKIP "compose runtime: docker CLI unavailable"
+    record FAIL "round-trip: could not clone PROJECT_DIR"
 fi
 
-# --- PHASE 1b: setup-env.sh lifecycle integrity ---
+# --- [5/7] Mirror drift ---
 echo ""
-echo "=== Phase 1b: setup-env.sh lifecycle ==="
-SETUP="$PROJECT_DIR/.devcontainer/setup-env.sh"
-# Regression pin: avoids direct codex update by keeping package-based updates.
-grep -q '@openai/codex@latest' "$PROJECT_DIR/.devcontainer/codex-launcher.sh" 2>/dev/null && record PASS "codex-launcher: Codex update via prefix npm (not codex update)" || record FAIL "codex-launcher: Codex update mechanism"
-# Regression pin: no persistent npm prefix mutation.
-grep -Fq 'npm install -g --prefix "${HOME}/.npm-global" @openai/codex' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record PASS "Dockerfile: Codex install uses explicit npm prefix" || record FAIL "Dockerfile: Codex install prefix"
-grep -Fq 'npm config set prefix' "$PROJECT_DIR/.devcontainer/Dockerfile" 2>/dev/null && record FAIL "Dockerfile: persistent npm prefix mutation" || record PASS "Dockerfile: no persistent npm prefix mutation"
-LAUNCHER="$PROJECT_DIR/.devcontainer/codex-launcher.sh"
-[ -f "$LAUNCHER" ] && record PASS "codex-launcher: exists" || record FAIL "codex-launcher: exists"
-bash -n "$LAUNCHER" 2>/dev/null && record PASS "codex-launcher: syntax" || record FAIL "codex-launcher: syntax"
-# Regression pin: avoids direct codex update.
-grep -nE '^[^#]*\bcodex[[:space:]]+update\b' "$LAUNCHER" >/dev/null 2>&1 && record FAIL "codex-launcher: avoids direct codex update" || record PASS "codex-launcher: avoids direct codex update"
-# Regression pin: stale persistent npm prefix claim.
-grep -Fq "set npm's global prefix" "$PROJECT_DIR/REFERENCE.md" 2>/dev/null && record FAIL "REFERENCE: stale persistent npm prefix claim" || record PASS "REFERENCE: no stale persistent npm prefix claim"
-# Regression pin: tracked config must not be copied into persistent user config.
-if grep -Fq 'cp "$WORKSPACE_CODEX_CONFIG" "$USER_CODEX_CONFIG"' "$SETUP" 2>/dev/null; then
-    record FAIL "setup-env: project config copied into persistent user config"
+echo "=== [5/7] Mirror drift ==="
+DRY=$(bash "$PROJECT_DIR/scripts/sync-agents-mirror.sh" --dry 2>&1)
+if [ $? -eq 0 ] && printf '%s\n' "$DRY" | grep -q '^Dry run complete\. 0 change(s) detected\.$'; then
+    record PASS "sync-agents-mirror --dry: clean"
 else
-    record PASS "setup-env: project config loaded directly, not copied"
+    record FAIL "sync-agents-mirror --dry: drift or error (run: bash scripts/sync-agents-mirror.sh)"
+    printf '%s\n' "$DRY" | tail -5 | sed 's/^/      dry: /'
 fi
 
-# --- PHASE 1c: Codex config hygiene ---
+# --- [6/7] Leak scan + behavioral-core pair ---
 echo ""
-echo "=== Phase 1c: Codex config hygiene ==="
-CODEX_CONFIG="$PROJECT_DIR/.codex/config.toml"
-line_exact_present 'hooks = true' "$CODEX_CONFIG" && ! grep -q 'codex_hooks' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: modern hooks feature flag" || record FAIL "Codex config: hooks feature flag"
-line_exact_present 'approval_policy = "on-request"' "$CODEX_CONFIG" && ! grep -qE '^ask_for_approval[[:space:]]*=' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: current approval_policy key" || record FAIL "Codex config: obsolete approval key"
-! grep -Eq 'model_availability_nux|model_migrations|^\[tui\.|^\[notice\.' "$CODEX_CONFIG" 2>/dev/null && record PASS "Codex config: no runtime-state blocks" || record FAIL "Codex config: runtime-state block leaked"
-STRICT_HOME=$(mktemp -d)
-cp "$CODEX_CONFIG" "$STRICT_HOME/config.toml"
-CODEX_CMD=$(command -v codex 2>/dev/null || true)
-[ -n "$CODEX_CMD" ] || [ ! -x /home/vscode/.npm-global/bin/codex ] || CODEX_CMD=/home/vscode/.npm-global/bin/codex
-if [ -z "$CODEX_CMD" ]; then
-    record SKIP "Codex config: strict parser unavailable (codex CLI missing)"
+echo "=== [6/7] Leak scan + karpathy pair ==="
+# Same pattern and scope as completion-checker.sh's internal-leak grep (kept in sync).
+LEAK='products/[A-Za-z0-9._/-]*[A-Z][A-Z0-9_]*_ROOT|gitlab[.]local|cp[0-9]{3}[.]|172[.]10[.]'
+HITS=$(git -C "$PROJECT_DIR" grep -n -I -i -E "$LEAK" -- ':!.devcontainer/verify-template.sh' ':!scripts/meta/completion-checker.sh' 2>/dev/null || true)
+if [ -z "$HITS" ]; then
+    record PASS "internal-leak grep: tracked files clean"
 else
-    STRICT_OUTPUT=$(CODEX_HOME="$STRICT_HOME" "$CODEX_CMD" exec --strict-config --ephemeral -c model_provider='"__config_probe__"' "configuration probe" 2>&1 || true)
-    if ! printf '%s' "$STRICT_OUTPUT" | grep -Eiq 'unknown configuration field|invalid .*field'; then
-        record PASS "Codex config: strict parser accepts tracked schema"
-    else
-        record FAIL "Codex config: strict parser rejected tracked schema"
-    fi
+    record FAIL "internal-leak grep: pattern hits in tracked files"
+    printf '%s\n' "$HITS" | head -5 | sed 's/^/      leak: /'
 fi
-rm -r "$STRICT_HOME"
-USER_CODEX_CONFIG="${HOME}/.codex/config.toml"
-if [ -L "$USER_CODEX_CONFIG" ] && [ "$(readlink "$USER_CODEX_CONFIG")" = "$CODEX_CONFIG" ]; then
-    record FAIL "Codex user config: legacy symlink still points at tracked config"
-else
-    record PASS "Codex user config: no tracked-config symlink"
-fi
-
-# --- PHASE 1d: Governance regression guards ---
-echo ""
-echo "=== Phase 1d: Governance regression guards ==="
-CODEX_PRECOMMIT="$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"
-CLAUDE_PRECOMMIT="$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh"
-# Regression pin: 9p/drvfs filemode makes +x unreliable; the hook must test -f and invoke the checker via bash.
-grep -Fq '[ -f "$CHECKER" ]' "$CODEX_PRECOMMIT" 2>/dev/null && record PASS "Codex pre-commit: checker may be 0644" || record FAIL "Codex pre-commit: checker exec contract"
-# Regression pin: the gate must never write the marker itself; only completion-checker.sh writes it, avoiding self-satisfaction.
-if grep -Fq 'MARKER=' "$CODEX_PRECOMMIT" 2>/dev/null && ! grep -Fq 'touch "$MARKER"' "$CODEX_PRECOMMIT" 2>/dev/null; then record PASS "Codex pre-commit: marker read-only (checker writes it)"; else record FAIL "Codex pre-commit: marker read-only contract"; fi
-if [ -e "$PROJECT_DIR/.cursor" ]; then
-    record FAIL "scope-membership: .cursor removed"
-else
-    record PASS "scope-membership: .cursor removed"
-fi
-if [ -d "$PROJECT_DIR/variants" ]; then
-    record FAIL "scope-membership: stale variants/ removed"
-else
-    record PASS "scope-membership: stale variants/ removed"
-fi
-grep -Fq '.vscode/' "$PROJECT_DIR/PROJECT.md" 2>/dev/null && record PASS "scope-membership: .vscode documented as editor settings" || record FAIL "scope-membership: .vscode documentation"
-
-# --- PHASE 1e: secret-pattern false-positive regression (audit-discipline §2) ---
-# This guard exercises BOTH axes against BOTH live hook patterns: a real sk- key is
-# still detected, AND the repo's own `task-YYYYMMDD-description` convention is
-# NOT flagged (the bare sk- run over-matched any "...sk-<20+ word/hyphen chars>").
-# Fixtures are fragment-built / boundary-safe so this file never trips the gate it
-# tests.
-echo ""
-echo "=== Phase 1e: Secret-pattern false-positive regression ==="
-_sk_key="sk-proj-$(printf '%s' 'T3BlbkFJabcdefghij0123456789')"
-_task_path="wip/task-YYYYMMDD-description/README.md"
-_claude_secret_line=$(grep -m1 '^SECRET_PATTERNS=' "$CLAUDE_PRECOMMIT" 2>/dev/null)
-_codex_secret_line=$(grep -m1 '^SECRET_PATTERNS=' "$CODEX_PRECOMMIT" 2>/dev/null)
-[ -n "$_claude_secret_line" ] && [ "$_claude_secret_line" = "$_codex_secret_line" ] && record PASS "secret-pattern: Claude/Codex pattern parity" || record FAIL "secret-pattern: Claude/Codex pattern parity"
-for _hook_spec in "Claude:$_claude_secret_line" "Codex:$_codex_secret_line"; do
-    _hook_name=${_hook_spec%%:*}
-    _secret_line=${_hook_spec#*:}
-    _secret_pattern=${_secret_line#SECRET_PATTERNS=}
-    _secret_pattern=${_secret_pattern#\'}
-    _secret_pattern=${_secret_pattern%\'}
-    if [ -z "$_secret_line" ] || [ "$_secret_pattern" = "$_secret_line" ]; then
-        record FAIL "$_hook_name secret-pattern: live pattern parse"
-        continue
-    fi
-    printf '%s' "$_sk_key" | grep -qE "$_secret_pattern" && record PASS "$_hook_name secret-pattern: detects real sk- key (positive)" || record FAIL "$_hook_name secret-pattern: missed real sk- key"
-    printf '%s' "$_task_path" | grep -qE "$_secret_pattern" && record FAIL "$_hook_name secret-pattern: FALSE POSITIVE on task-YYYYMMDD-description" || record PASS "$_hook_name secret-pattern: no FP on hyphenated identifier (regression)"
-done
-
-# --- PHASE 1f: gap-closure regression pins (positive + regression axes) ---
-echo ""
-echo "=== Phase 1f: Gap-closure Regression Pins ==="
-_license_holder_line='Copyright (c) 2026 the polyagent-devcontainer authors'
-grep -Fxq "$_license_holder_line" "$PROJECT_DIR/LICENSE" 2>/dev/null && record PASS "LICENSE holder: neutral holder present (positive)" || record FAIL "LICENSE holder: neutral holder missing"
-LICENSE_HOLDER_FIXTURE=$(mktemp)
-printf '%s\n%s\n' 'MIT License' 'Copyright (c) 2026 Somebody Else' > "$LICENSE_HOLDER_FIXTURE"
-grep -Fxq "$_license_holder_line" "$LICENSE_HOLDER_FIXTURE" && record FAIL "LICENSE holder: non-neutral holder accepted" || record PASS "LICENSE holder: non-neutral holder rejected (regression)"
-rm -f "$LICENSE_HOLDER_FIXTURE"
-head -n 1 "$PROJECT_DIR/LICENSE" 2>/dev/null | grep -Fxq 'MIT License' && record PASS "LICENSE holder: MIT header preserved (regression)" || record FAIL "LICENSE holder: MIT header changed"
-
-git -C "$PROJECT_DIR" check-attr eol -- README.md 2>/dev/null | grep -q 'eol: lf' && record PASS "gitattributes: Markdown pinned LF (positive)" || record FAIL "gitattributes: Markdown LF pin missing"
-git -C "$PROJECT_DIR" check-attr eol -- .codex/config.toml 2>/dev/null | grep -q 'eol: lf' && record PASS "gitattributes: TOML pinned LF (positive)" || record FAIL "gitattributes: TOML LF pin missing"
-git -C "$PROJECT_DIR" check-attr eol -- .devcontainer/docker-compose.yml 2>/dev/null | grep -q 'eol: unspecified' && record PASS "gitattributes: YAML remains parser-tolerant (regression)" || record FAIL "gitattributes: YAML unexpectedly pinned"
-
-CRLF_FRONTMATTER=$(mktemp)
-printf '%s\r\n%s\r\n%s\r\n%s\r\n' '---' 'name: probe' 'description: ok' '---' > "$CRLF_FRONTMATTER"
-flat_frontmatter_valid "$CRLF_FRONTMATTER" "name description" && record PASS "frontmatter oracle: CRLF delimiters accepted (regression)" || record FAIL "frontmatter oracle: CRLF delimiters rejected"
-printf '%s\r\n%s\r\n' '---' 'name: probe' > "$CRLF_FRONTMATTER"
-flat_frontmatter_valid "$CRLF_FRONTMATTER" "name" && record FAIL "frontmatter oracle: missing closing delimiter accepted" || record PASS "frontmatter oracle: malformed delimiter rejected (positive)"
-rm -f "$CRLF_FRONTMATTER"
-
-CRLF_CONFIG=$(mktemp)
-printf '%s\r\n%s\r\n' 'hooks = true' 'approval_policy = "on-request"' > "$CRLF_CONFIG"
-if line_exact_present 'hooks = true' "$CRLF_CONFIG" && line_exact_present 'approval_policy = "on-request"' "$CRLF_CONFIG"; then
-    record PASS "Codex config oracle: CRLF exact lines accepted (regression)"
-else
-    record FAIL "Codex config oracle: CRLF exact lines rejected"
-fi
-printf '%s\r\n' 'hooks = false' > "$CRLF_CONFIG"
-line_exact_present 'hooks = true' "$CRLF_CONFIG" && record FAIL "Codex config oracle: hooks=false accepted" || record PASS "Codex config oracle: hooks=false rejected (positive)"
-rm -f "$CRLF_CONFIG"
-
-if [ -n "${CODEX_CMD:-}" ]; then
-    STRICT_BAD_HOME=$(mktemp -d)
-    cp "$CODEX_CONFIG" "$STRICT_BAD_HOME/config.toml"
-    printf '\nunknown_gap_probe = true\n' >> "$STRICT_BAD_HOME/config.toml"
-    STRICT_BAD_OUTPUT=$(CODEX_HOME="$STRICT_BAD_HOME" "$CODEX_CMD" exec --strict-config --ephemeral -c model_provider='"__config_probe__"' "configuration probe" 2>&1 || true)
-    if printf '%s' "$STRICT_BAD_OUTPUT" | grep -Eiq 'unknown configuration field|invalid .*field'; then
-        record PASS "Codex config oracle: real unknown key rejected (positive)"
-    else
-        record FAIL "Codex config oracle: real unknown key accepted"
-    fi
-    rm -r "$STRICT_BAD_HOME"
-else
-    record SKIP "Codex config oracle: unknown-key probe skipped (codex CLI missing)"
-fi
-
-SKIP_FAIL_BEFORE=$FAIL
-record SKIP "record probe: SKIP is non-failing"
-if [ "$FAIL" -eq "$SKIP_FAIL_BEFORE" ]; then
-    record PASS "record(): SKIP does not increment FAIL (regression)"
-else
-    record FAIL "record(): SKIP increments FAIL"
-fi
-grep -Fq 'record SKIP "compose runtime: docker daemon unavailable"' "$PROJECT_DIR/.devcontainer/verify-template.sh" 2>/dev/null && record PASS "docker oracle: absent daemon degrades to SKIP (positive)" || record FAIL "docker oracle: absent daemon still hard-fails"
-
-# --- PHASE 2: Config files ---
-echo ""
-echo "=== Phase 2: Config Files ==="
-[ -f "$PROJECT_DIR/.claude/settings.json" ] && record PASS "settings.json exists" || record FAIL "settings.json"
-jq -e . "$PROJECT_DIR/.claude/settings.json" >/dev/null 2>&1 && record PASS "settings.json valid JSON" || record FAIL "settings.json invalid JSON"
-grep -q '"SessionStart"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "SessionStart hook registered" || record FAIL "SessionStart hook"
-grep -q '"Stop"' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null && record PASS "Stop hook registered" || record FAIL "Stop hook"
-if jq -e '[.hooks.PreToolUse[]?.hooks[]? | select((.command // "") | contains("pre-commit-gate.sh") or contains("pre-push-gate.sh")) | has("if")] | any | not' "$PROJECT_DIR/.claude/settings.json" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: git gates run on all Bash commands"
-else
-    record FAIL "Claude PreToolUse: git gates still have narrow if filters"
-fi
-[ -f "$PROJECT_DIR/.codex/config.toml" ] && record PASS ".codex/config.toml exists" || record FAIL ".codex/config.toml"
-[ -f "$PROJECT_DIR/.codex/hooks.json" ] && record PASS ".codex/hooks.json exists" || record FAIL ".codex/hooks.json"
-jq -e . "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1 && record PASS "hooks.json valid JSON" || record FAIL "hooks.json invalid JSON"
-CODEX_HOOK_SCHEMA='
-  (.hooks | type == "object") and
-  ((.hooks | keys | sort) == ["PreToolUse", "SessionStart", "Stop"]) and
-  ([.hooks | to_entries[] | .value[]] | all(
-    (.hooks | type == "array") and
-    (.hooks | length > 0) and
-    (.hooks | all(
-      (. | type == "object") and
-      .type == "command" and
-      (.command | type == "string") and
-      (.command | length > 0) and
-      ((.timeout // 600) | type == "number")
-    ))
-  )) and
-  (.hooks.PreToolUse | all(.matcher == "Bash"))
-'
-if jq -e "$CODEX_HOOK_SCHEMA" "$PROJECT_DIR/.codex/hooks.json" >/dev/null 2>&1; then
-    record PASS "hooks.json current Codex nested schema"
-else
-    record FAIL "hooks.json unsupported Codex schema"
-fi
-LEGACY_HOOKS='{"hooks":{"Stop":[{"command":"true","timeout":10}]}}'
-if printf '%s' "$LEGACY_HOOKS" | jq -e "$CODEX_HOOK_SCHEMA" >/dev/null 2>&1; then
-    record FAIL "hooks.json schema guard accepted legacy direct command"
-else
-    record PASS "hooks.json schema guard rejects legacy direct command"
-fi
-[ -f "$PROJECT_DIR/AGENTS.md" ] && record PASS "AGENTS.md exists" || record FAIL "AGENTS.md"
-NON_EXEC_755=$(git -C "$PROJECT_DIR" ls-files -s 2>/dev/null | awk '$1 == "100755" && $4 !~ /^(\.claude\/hooks\/.*\.sh|\.codex\/hooks\/.*\.sh|\.devcontainer\/entrypoint\.sh|\.devcontainer\/setup-env\.sh|\.devcontainer\/verify-template\.sh|scripts\/sync-agents-mirror\.sh|scripts\/meta\/run-isolated-role\.sh)$/ { print $4 }')
-if [ -z "$NON_EXEC_755" ]; then
-    record PASS "file modes: executable bit limited to executable scripts"
-else
-    record FAIL "file modes: unexpected executable bit"
-    printf '%s\n' "$NON_EXEC_755" | sed 's/^/      mode: /'
-fi
-if [ -f "$PROJECT_DIR/LICENSE" ] && grep -Fq "MIT License" "$PROJECT_DIR/LICENSE" 2>/dev/null; then
-    record PASS "OSS license: MIT LICENSE present"
-else
-    record FAIL "OSS license: MIT LICENSE present"
-fi
-grep -Fq "Licensed under the MIT License" "$PROJECT_DIR/README.md" 2>/dev/null && record PASS "README: MIT license declared" || record FAIL "README: MIT license declared"
-INTERNAL_REF_PATTERN='products/[A-Za-z0-9._/-]*[A-Z][A-Z0-9_]*_ROOT|gitlab[.]local|cp[0-9]{3}[.]|172[.]10[.]'
-INTERNAL_REF_HITS=$(git -C "$PROJECT_DIR" grep -n -i -E "$INTERNAL_REF_PATTERN" -- ':!.devcontainer/verify-template.sh' 2>/dev/null || true)
-if [ -z "$INTERNAL_REF_HITS" ]; then
-    record PASS "OSS hygiene: tracked files contain no internal topology refs"
-else
-    record FAIL "OSS hygiene: tracked files contain internal topology refs"
-    printf '%s\n' "$INTERNAL_REF_HITS" | sed 's/^/      internal-ref: /'
-fi
-
-# --- PHASE 2a: Karpathy alignment ---
-echo ""
-echo "=== Phase 2a: Karpathy Alignment ==="
-grep -q "behavioral-core" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null && record PASS "CLAUDE.md -> behavioral-core import" || record FAIL "CLAUDE.md -> behavioral-core import"
-grep -q "behavioral-core" "$PROJECT_DIR/AGENTS.md" 2>/dev/null && record PASS "AGENTS.md -> behavioral-core import" || record FAIL "AGENTS.md -> behavioral-core import"
-[ -f "$PROJECT_DIR/.claude/rules/behavioral-core.md" ] && record PASS ".claude/rules/behavioral-core.md exists" || record FAIL ".claude/rules/behavioral-core.md"
-[ -f "$PROJECT_DIR/.agents/rules/behavioral-core.md" ] && record PASS ".agents/rules/behavioral-core.md (mirror) exists" || record FAIL ".agents/rules/behavioral-core.md (mirror)"
 if bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$PROJECT_DIR" >/dev/null 2>&1; then
-    record PASS "karpathy: repo bc/SKILL pair consistent"
+    record PASS "karpathy pair: behavioral-core.md and skill body match"
 else
-    record FAIL "karpathy: repo bc/SKILL pair consistent"
+    record FAIL "karpathy pair: mismatch (run scripts/meta/karpathy-consistency-check.sh)"
 fi
 
-# --- PHASE 2b: Hooks syntax ---
+# --- [7/7] Shell syntax sweep ---
 echo ""
-echo "=== Phase 2b: Hook Syntax (Claude side) ==="
-EXPECTED_HOOKS="session-start pre-commit-gate pre-push-gate refinement-gate"
-missing=""
-for h in $EXPECTED_HOOKS; do
-    [ -f "$PROJECT_DIR/.claude/hooks/$h.sh" ] || missing="$missing $h"
-done
-if [ -z "$missing" ]; then
-    record PASS "Claude hooks: baseline hooks present ($EXPECTED_HOOKS)"
-else
-    record FAIL "Claude hooks: missing$missing"
-fi
-for f in "$PROJECT_DIR"/.claude/hooks/*.sh; do
-    [ -f "$f" ] || continue
-    bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
-done
-
-# --- PHASE 2c: Agents ---
-echo ""
-echo "=== Phase 2c: Agents ==="
-count=0
-agent_expected_total=0
-agent_schema_ok=0
-EXPECTED_AGENTS="evaluator wip-manager"
-for agent in $EXPECTED_AGENTS; do
-    agent_expected_total=$((agent_expected_total+1))
-    f="$PROJECT_DIR/.claude/agents/$agent.md"
-    if [ ! -f "$f" ]; then
-        record FAIL "agent exists: $agent"
-        continue
-    fi
-    name=$(basename "$f")
-    head -1 "$f" 2>/dev/null | grep -q "^---" && count=$((count+1)) || record FAIL "frontmatter: $name"
-    schema_ok=1
-    header=$(frontmatter_header "$f")
-    flat_frontmatter_valid "$f" "name description tools model maxTurns color" || schema_ok=0
-    declared_name=$(printf '%s\n' "$header" | sed -n 's/^name:[[:space:]]*//p')
-    [ "$declared_name" = "${name%.md}" ] || schema_ok=0
-    [ "$schema_ok" -eq 1 ] && agent_schema_ok=$((agent_schema_ok+1)) || record FAIL "agent schema: $name"
-done
-record PASS "Agent frontmatter ($count/$agent_expected_total)"
-[ "$agent_schema_ok" -eq "$agent_expected_total" ] && record PASS "Agent schema ($agent_schema_ok/$agent_expected_total)" || record FAIL "Agent schema ($agent_schema_ok/$agent_expected_total)"
-
-# --- PHASE 2d: Skills (4 + karpathy-guidelines reference) ---
-echo ""
-echo "=== Phase 2d: Skills ==="
-EXPECTED_SKILLS="refine status verify karpathy-guidelines"
-skill_expected_total=0
-skill_schema_ok=0
-for skill_name in $EXPECTED_SKILLS; do
-    skill_expected_total=$((skill_expected_total+1))
-    f="$PROJECT_DIR/.claude/skills/$skill_name/SKILL.md"
-    if [ ! -f "$f" ]; then
-        record FAIL "skill exists: $skill_name"
-        continue
-    fi
-    header=$(frontmatter_header "$f")
-    if [ "$skill_name" = "karpathy-guidelines" ]; then
-        keys="name description license"
-    elif [ "$skill_name" = "status" ]; then
-        keys="name description user-invocable allowed-tools"
-    else
-        keys="name description argument-hint user-invocable allowed-tools"
-    fi
-    schema_ok=1
-    flat_frontmatter_valid "$f" "$keys" || schema_ok=0
-    declared_name=$(printf '%s\n' "$header" | sed -n 's/^name:[[:space:]]*//p')
-    [ "$declared_name" = "$skill_name" ] || schema_ok=0
-    [ "$schema_ok" -eq 1 ] && skill_schema_ok=$((skill_schema_ok+1)) || record FAIL "skill schema: $(basename "$(dirname "$f")")"
-done
-[ "$skill_schema_ok" -eq "$skill_expected_total" ] && record PASS "Skill schema ($skill_schema_ok/$skill_expected_total)" || record FAIL "Skill schema ($skill_schema_ok/$skill_expected_total)"
-
-# --- PHASE 2e: Rules (6 portable) ---
-echo ""
-echo "=== Phase 2e: Rules ==="
-EXPECTED_RULES="audit-discipline behavioral-core commit-discipline destructive-ops-discipline anchor-discipline devcontainer-patterns"
-missing=""
-for r in $EXPECTED_RULES; do
-    [ -f "$PROJECT_DIR/.claude/rules/$r.md" ] || missing="$missing $r"
-done
-if [ -z "$missing" ]; then
-    record PASS "Rules: all 6 portable rules present ($EXPECTED_RULES)"
-else
-    record FAIL "Rules: missing$missing"
-fi
-for r in $EXPECTED_RULES; do
-    grep -Fq "@.claude/rules/$r.md" "$PROJECT_DIR/CLAUDE.md" 2>/dev/null || missing="$missing CLAUDE:$r"
-    grep -Fq ".agents/rules/$r.md" "$PROJECT_DIR/AGENTS.md" 2>/dev/null || missing="$missing AGENTS:$r"
-    cmp -s "$PROJECT_DIR/.claude/rules/$r.md" "$PROJECT_DIR/.agents/rules/$r.md" || missing="$missing MIRROR:$r"
-done
-[ -z "$missing" ] && record PASS "Rules: imported, loaded, and mirrored by name" || record FAIL "Rules parity:$missing"
-
-# --- PHASE 2f: Codex hooks (4) ---
-echo ""
-echo "=== Phase 2f: Codex Hooks ==="
-missing=""
-for h in $EXPECTED_HOOKS; do
-    [ -f "$PROJECT_DIR/.codex/hooks/$h.sh" ] || missing="$missing $h"
-done
-if [ -z "$missing" ]; then
-    record PASS "Codex hooks: baseline hooks present ($EXPECTED_HOOKS)"
-else
-    record FAIL "Codex hooks: missing$missing"
-fi
-for f in "$PROJECT_DIR"/.codex/hooks/*.sh; do
-    [ -f "$f" ] || continue
-    bash -n "$f" 2>/dev/null && record PASS "$(basename $f)" || record FAIL "$(basename $f)"
-done
-CODEX_SESSION_OUTPUT=$(cd "$PROJECT_DIR/.codex" && printf '{"source":"startup"}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/session-start.sh")
-if printf '%s' "$CODEX_SESSION_OUTPUT" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart" and (.hookSpecificOutput.additionalContext | contains("Git branch:"))' >/dev/null 2>&1; then
-    record PASS "Codex SessionStart: emits project context from subdirectory"
-else
-    record FAIL "Codex SessionStart: runtime context output"
-fi
-if printf '{"tool_input":{"command":"git commit --no-verify -m probe"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: --no-verify bypass accepted"
-else
-    record PASS "Codex PreToolUse: --no-verify bypass blocked"
-fi
-HOOK_FIXTURE=$(mktemp -d)
-git -C "$HOOK_FIXTURE" init -q
-git -C "$HOOK_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
-HOOK_BRANCH=$(git -C "$HOOK_FIXTURE" rev-parse --abbrev-ref HEAD)
-mkdir -p "$HOOK_FIXTURE/.codex/state" "$HOOK_FIXTURE/.claude"
-write_verification_marker "$HOOK_FIXTURE" codex
-write_verification_marker "$HOOK_FIXTURE" claude
-if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: git -C commit -n bypass accepted"
-else
-    record PASS "Codex PreToolUse: git -C commit -n bypass blocked"
-fi
-# A commit that shlex cannot tokenize (trailing backslash) must fail closed, not
-# slip through the not-found path with an unparsed -n.
-if jq -n --arg c 'git commit -n -m x\' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: trailing-backslash shlex-fail -n bypass accepted"
-else
-    record PASS "Codex PreToolUse: trailing-backslash shlex-fail -n bypass blocked"
-fi
-# Scope note: the pre-commit gate deliberately covers only the COMMON accidental
-# --no-verify/-n bypass on a top-level `git commit` (see the gate header). It does
-# NOT chase exotic shell evasions (wrapper prefixes, flock -c, variable expansion,
-# compound/control/brace-group nesting, env -S) — an agent that owns the shell can
-# always skip a self-imposed gate, so those adversarial probes were removed. The
-# load-bearing enforcement is the fail-closed verification marker, tested below.
-# Non-git wrapped commands must still pass through untouched:
-for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
-    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-        record PASS "Codex PreToolUse: $wrapper non-git command allowed"
-    else
-        record FAIL "Codex PreToolUse: $wrapper non-git command blocked"
-    fi
-done
-if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: flock -c non-git command allowed"
-else
-    record FAIL "Codex PreToolUse: flock -c non-git command blocked"
-fi
-if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: timeout non-git command allowed"
-else
-    record FAIL "Codex PreToolUse: timeout non-git command blocked"
-fi
-if printf '{"tool_input":{"command":"g\\"i\\"t commit --no-verify -m probe"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: quoted git commit bypass accepted"
-else
-    record PASS "Codex PreToolUse: quoted git commit bypass blocked"
-fi
-# Backslash-split subcommand (git com\mit) must not skip the gate at the
-# prefilter: bash strips the backslash at execution, so the gate must still see
-# a commit.
-if jq -n --arg c 'git com\mit --no-verify -m probe' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-commit: backslash-split commit accepted"
-else
-    record PASS "Codex pre-commit: backslash-split commit blocked"
-fi
-NONREPO_FIXTURE=$(mktemp -d)
-CHECKER_FIXTURE=$(mktemp -d)
-git -C "$CHECKER_FIXTURE" init -q
-git -C "$CHECKER_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
-CHECKER_BRANCH=$(git -C "$CHECKER_FIXTURE" rev-parse --abbrev-ref HEAD)
-mkdir -p "$CHECKER_FIXTURE/scripts/meta"
-cat > "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" <<EOF
-#!/bin/bash
-printf '%s\n' "\${CLAUDE_PROJECT_DIR:-\${CODEX_PROJECT_DIR:-}}" > "$CHECKER_FIXTURE/seen-root"
-exit 0
-EOF
-# Fail-closed contract: stale marker in the target root must block within the
-# PreToolUse timeout budget (timeout 5 mirrors settings.json/hooks.json), print
-# guidance naming the TARGET root's checker (not the session root's), and must
-# NOT execute the checker in-hook (fixture checker records seen-root if run).
-CODEX_STALE_ERR=$(jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" timeout 5 bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
-CODEX_STALE_RC=$?
-if [ "$CODEX_STALE_RC" -eq 2 ] &&
-   printf '%s' "$CODEX_STALE_ERR" | grep -Fq "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" &&
-   [ ! -f "$CHECKER_FIXTURE/seen-root" ]; then
-    record PASS "Codex PreToolUse: stale marker fails closed with target-root guidance"
-else
-    record FAIL "Codex PreToolUse: stale marker fail-closed contract"
-fi
-CLAUDE_STALE_ERR=$(jq -n --arg c "git -C $CHECKER_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" timeout 5 bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
-CLAUDE_STALE_RC=$?
-if [ "$CLAUDE_STALE_RC" -eq 2 ] &&
-   printf '%s' "$CLAUDE_STALE_ERR" | grep -Fq "$CHECKER_FIXTURE/scripts/meta/completion-checker.sh" &&
-   [ ! -f "$CHECKER_FIXTURE/seen-root" ] &&
-   [ ! -f "$CHECKER_FIXTURE/.claude/.last-verification.$CHECKER_BRANCH" ]; then
-    record PASS "Claude PreToolUse: stale marker fails closed with target-root guidance"
-else
-    record FAIL "Claude PreToolUse: stale marker fail-closed contract"
-fi
-# Static tripwire: reintroducing in-hook checker execution reverts the gate to
-# a run that cannot finish inside the hook timeout budget.
-if grep -Fq 'bash "$CHECKER"' "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" || grep -Fq 'bash "$CHECKER"' "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh"; then
-    record FAIL "pre-commit gates: in-hook checker execution present (exceeds hook timeout budget)"
-else
-    record PASS "pre-commit gates: no in-hook checker execution"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m a && git -C $HOOK_FIXTURE commit -m b" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: compound git commit command accepted"
-else
-    record PASS "Codex PreToolUse: compound git commit command blocked (positive)"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m a && git -C $HOOK_FIXTURE commit -m b" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude PreToolUse: compound git commit command accepted"
-else
-    record PASS "Claude PreToolUse: compound git commit command blocked (positive)"
-fi
-MARKER_BIND_FIXTURE=$(mktemp -d)
-git -C "$MARKER_BIND_FIXTURE" init -q
-printf 'original\n' > "$MARKER_BIND_FIXTURE/tracked.txt"
-git -C "$MARKER_BIND_FIXTURE" add tracked.txt
-git -C "$MARKER_BIND_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -qm fixture
-write_verification_marker "$MARKER_BIND_FIXTURE" codex
-write_verification_marker "$MARKER_BIND_FIXTURE" claude
-if jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
-   jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit --amend --no-edit" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
-   jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1 &&
-   jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit --amend --no-edit" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "pre-commit gates: content-bound marker allows immediate and amend commits (regression)"
-else
-    record FAIL "pre-commit gates: content-bound marker false positive"
-fi
-printf 'changed\n' > "$MARKER_BIND_FIXTURE/tracked.txt"
-git -C "$MARKER_BIND_FIXTURE" add tracked.txt
-CODEX_STALE_BIND_RC=$(jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; echo $?)
-CLAUDE_STALE_BIND_RC=$(jq -n --arg c "git -C $MARKER_BIND_FIXTURE commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; echo $?)
-if [ "$CODEX_STALE_BIND_RC" -eq 2 ] && [ "$CLAUDE_STALE_BIND_RC" -eq 2 ]; then
-    record PASS "pre-commit gates: staged tracked change invalidates marker (positive)"
-else
-    record FAIL "pre-commit gates: staged tracked change accepted with stale marker"
-fi
-rm -r "$MARKER_BIND_FIXTURE"
-if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: git -C commit allowed after fresh verification"
-else
-    record FAIL "Codex PreToolUse: git -C commit false positive after fresh verification"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"fix: handle {id}\"" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: brace literal in commit message allowed"
-else
-    record FAIL "Codex PreToolUse: brace literal in commit message false positive"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"handle empty {} object\"" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: empty-brace literal in commit message allowed"
-else
-    record FAIL "Codex PreToolUse: empty-brace literal in commit message false positive"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: brace pathspec allowed"
-else
-    record FAIL "Codex PreToolUse: brace pathspec false positive"
-fi
-# A no-space `&&` between the commit and a following `git log -n 5` must be
-# segmented, not mis-read so the log's -n reads as the commit's --no-verify.
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m x&&git log -n 5" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: no-space && before git log -n allowed"
-else
-    record FAIL "Codex PreToolUse: no-space && before git log -n false positive"
-fi
-CODEX_FORCE_RC=$(jq -n --arg c "git -C $HOOK_FIXTURE push --force origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; echo $?)
-if [ "$CODEX_FORCE_RC" -eq 2 ]; then
-    record PASS "Codex pre-push: force push blocked without marker (positive)"
-else
-    record FAIL "Codex pre-push: force push accepted without marker"
-fi
-printf 'remote=origin\nbranch=%s\n' "$HOOK_BRANCH" > "$HOOK_FIXTURE/.codex/state/allow-force-push.origin.$HOOK_BRANCH"
-if jq -n --arg c "git -C $HOOK_FIXTURE push --force origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1 &&
-   [ ! -f "$HOOK_FIXTURE/.codex/state/allow-force-push.origin.$HOOK_BRANCH" ]; then
-    record PASS "Codex pre-push: exact force marker consumed once (regression)"
-else
-    record FAIL "Codex pre-push: exact force marker not honored/consumed"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE push origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex pre-push: plain push still allowed (regression)"
-else
-    record FAIL "Codex pre-push: plain push blocked by force gate"
-fi
-if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: inline credential URL accepted"
-else
-    record PASS "Codex pre-push: inline credential URL blocked"
-fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
-    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-        record FAIL "Codex pre-push: $wrapper git push wrapper credential accepted"
-    else
-        record PASS "Codex pre-push: $wrapper git push wrapper credential blocked"
-    fi
-done
-for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
-    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-        record PASS "Codex pre-push: $wrapper non-git command allowed"
-    else
-        record FAIL "Codex pre-push: $wrapper non-git command blocked"
-    fi
-done
-if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: flock -c git push wrapper credential accepted"
-else
-    record PASS "Codex pre-push: flock -c git push wrapper credential blocked"
-fi
-if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex pre-push: flock -c non-git command allowed"
-else
-    record FAIL "Codex pre-push: flock -c non-git command blocked"
-fi
-if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex pre-push: timeout non-git command allowed"
-else
-    record FAIL "Codex pre-push: timeout non-git command blocked"
-fi
-if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: variable-expanded credential URL accepted"
-else
-    record PASS "Codex pre-push: variable-expanded credential URL blocked"
-fi
-if jq -n --arg c "for r in a b; do echo x; done; git -C $HOOK_FIXTURE push https://example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex pre-push: preceding shell loop does not false-positive"
-else
-    record FAIL "Codex pre-push: preceding shell loop false positive"
-fi
-if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: transient include.path accepted"
-else
-    record PASS "Codex pre-push: transient include.path blocked"
-fi
-# Credential-carrying config with no `@` (http.extraHeader Authorization), whether
-# via -c or injected through GIT_CONFIG_* env vars, must still HARD BLOCK on a push.
-if jq -n --arg c "git -c http.extraHeader='Authorization: Basic dXNlcjpwdw==' push origin main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: http.extraHeader auth injection accepted"
-else
-    record PASS "Codex pre-push: http.extraHeader auth injection blocked"
-fi
-if jq -n --arg c "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0='Authorization: Basic dXNlcjpwdw==' git push origin main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: GIT_CONFIG env auth injection accepted"
-else
-    record PASS "Codex pre-push: GIT_CONFIG env auth injection blocked"
-fi
-# Layer 1 is compound-safe only if a non-repo FIRST target cannot short-circuit
-# the scan before the credentialed later target is inspected.
-if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main; git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: non-repo-first compound credential accepted"
-else
-    record PASS "Codex pre-push: non-repo-first compound credential blocked"
-fi
-# env -S re-splits and execs its payload; interposed git global options (-C, -c)
-# must not defeat the raw guard's git..push/commit match.
-if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main'" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: env -S interposed-option push accepted"
-else
-    record PASS "Codex pre-push: env -S interposed-option push blocked"
-fi
-# Quote-split git/push words (g"i"t, pu"sh") and a separator inside a quoted -c
-# value must not slip a credentialed push past the pre-filter; the raw credential
-# scan still runs on the reassembled command.
-if jq -n --arg c 'g"i"t push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: quote-split git word credential accepted"
-else
-    record PASS "Codex pre-push: quote-split git word credential blocked"
-fi
-# Backslash-split push word (git p\ush) must not slip a credentialed push past
-# the prefilter: bash strips the backslash at execution, so Layer 1 must run.
-if jq -n --arg c 'git p\ush https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: backslash-split push credential accepted"
-else
-    record PASS "Codex pre-push: backslash-split push credential blocked"
-fi
-if jq -n --arg c 'git pu"sh" https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: quote-split push word credential accepted"
-else
-    record PASS "Codex pre-push: quote-split push word credential blocked"
-fi
-if jq -n --arg c 'git -c foo.bar="!f(){ echo x; }" push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex pre-push: separator-in-option-value credential accepted"
-else
-    record PASS "Codex pre-push: separator-in-option-value credential blocked"
-fi
-if printf '{"tool_input":{"command":"git -C %s commit -n -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude PreToolUse: git -C commit -n bypass accepted"
-else
-    record PASS "Claude PreToolUse: git -C commit -n bypass blocked"
-fi
-# A commit that shlex cannot tokenize (trailing backslash) must fail closed, not
-# slip through the not-found path with an unparsed -n.
-if jq -n --arg c 'git commit -n -m x\' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude PreToolUse: trailing-backslash shlex-fail -n bypass accepted"
-else
-    record PASS "Claude PreToolUse: trailing-backslash shlex-fail -n bypass blocked"
-fi
-# Backslash-split subcommand (git com\mit) must not skip the gate at the
-# prefilter: bash strips the backslash at execution, so the gate must still see
-# a commit.
-if jq -n --arg c 'git com\mit --no-verify -m probe' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-commit: backslash-split commit accepted"
-else
-    record PASS "Claude pre-commit: backslash-split commit blocked"
-fi
-# Scope note: like the Codex twin, the Claude pre-commit gate covers only the
-# common accidental --no-verify/-n bypass on a top-level `git commit`; exotic
-# shell-evasion probes (wrappers, flock -c, variable expansion, compound/control/
-# brace-group nesting, env -S) were removed — the fail-closed marker is the
-# load-bearing enforcement. Non-git wrapped commands must still pass through:
-for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
-    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-        record PASS "Claude PreToolUse: $wrapper non-git command allowed"
-    else
-        record FAIL "Claude PreToolUse: $wrapper non-git command blocked"
-    fi
-done
-if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: flock -c non-git command allowed"
-else
-    record FAIL "Claude PreToolUse: flock -c non-git command blocked"
-fi
-if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: timeout non-git command allowed"
-else
-    record FAIL "Claude PreToolUse: timeout non-git command blocked"
-fi
-if printf '{"tool_input":{"command":"git -C %s commit -m probe"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: git -C commit allowed after fresh verification"
-else
-    record FAIL "Claude PreToolUse: git -C commit false positive after fresh verification"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"fix: handle {id}\"" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: brace literal in commit message allowed"
-else
-    record FAIL "Claude PreToolUse: brace literal in commit message false positive"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m \"handle empty {} object\"" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: empty-brace literal in commit message allowed"
-else
-    record FAIL "Claude PreToolUse: empty-brace literal in commit message false positive"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m wip -- file-{a,b}.txt" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: brace pathspec allowed"
-else
-    record FAIL "Claude PreToolUse: brace pathspec false positive"
-fi
-# A no-space `&&` between the commit and a following `git log -n 5` must be
-# segmented, not mis-read so the log's -n reads as the commit's --no-verify.
-if jq -n --arg c "git -C $HOOK_FIXTURE commit -m x&&git log -n 5" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: no-space && before git log -n allowed"
-else
-    record FAIL "Claude PreToolUse: no-space && before git log -n false positive"
-fi
-CLAUDE_FORCE_RC=$(jq -n --arg c "git -C $HOOK_FIXTURE push --force origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; echo $?)
-if [ "$CLAUDE_FORCE_RC" -eq 2 ]; then
-    record PASS "Claude pre-push: force push blocked without marker (positive)"
-else
-    record FAIL "Claude pre-push: force push accepted without marker"
-fi
-printf 'remote=origin\nbranch=%s\n' "$HOOK_BRANCH" > "$HOOK_FIXTURE/.claude/.allow-force-push.origin.$HOOK_BRANCH"
-if jq -n --arg c "git -C $HOOK_FIXTURE push --force origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1 &&
-   [ ! -f "$HOOK_FIXTURE/.claude/.allow-force-push.origin.$HOOK_BRANCH" ]; then
-    record PASS "Claude pre-push: exact force marker consumed once (regression)"
-else
-    record FAIL "Claude pre-push: exact force marker not honored/consumed"
-fi
-if jq -n --arg c "git -C $HOOK_FIXTURE push origin $HOOK_BRANCH" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude pre-push: plain push still allowed (regression)"
-else
-    record FAIL "Claude pre-push: plain push blocked by force gate"
-fi
-if printf '{"tool_input":{"command":"git -C %s push https://oauth2:TOK@example.invalid/x.git main"}}' "$HOOK_FIXTURE" | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: inline credential URL accepted"
-else
-    record PASS "Claude pre-push: inline credential URL blocked"
-fi
-for wrapper in "timeout 60" "nice -n 10" "nohup" "setsid -w" "stdbuf -oL" "ionice -c 2 -n 7" "chrt -i 0" "xargs" "flock $HOOK_FIXTURE/hook.lock"; do
-    if jq -n --arg c "$wrapper git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-        record FAIL "Claude pre-push: $wrapper git push wrapper credential accepted"
-    else
-        record PASS "Claude pre-push: $wrapper git push wrapper credential blocked"
-    fi
-done
-for wrapper in "xargs echo" "flock $HOOK_FIXTURE/hook.lock echo"; do
-    if jq -n --arg c "$wrapper hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-        record PASS "Claude pre-push: $wrapper non-git command allowed"
-    else
-        record FAIL "Claude pre-push: $wrapper non-git command blocked"
-    fi
-done
-if jq -n --arg c "flock -c 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: flock -c git push wrapper credential accepted"
-else
-    record PASS "Claude pre-push: flock -c git push wrapper credential blocked"
-fi
-if jq -n --arg c "flock -c 'echo hook-regression' $HOOK_FIXTURE/hook.lock" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude pre-push: flock -c non-git command allowed"
-else
-    record FAIL "Claude pre-push: flock -c non-git command blocked"
-fi
-if jq -n --arg c "timeout 60 echo hook-regression" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude pre-push: timeout non-git command allowed"
-else
-    record FAIL "Claude pre-push: timeout non-git command blocked"
-fi
-if printf '{"tool_input":{"command":"R=https://oauth2:TOK@example.invalid/x.git; git push $R main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: variable-expanded credential URL accepted"
-else
-    record PASS "Claude pre-push: variable-expanded credential URL blocked"
-fi
-if jq -n --arg c "for r in a b; do echo x; done; git -C $HOOK_FIXTURE push https://example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude pre-push: preceding shell loop does not false-positive"
-else
-    record FAIL "Claude pre-push: preceding shell loop false positive"
-fi
-if printf '{"tool_input":{"command":"git -c include.path=/tmp/evil.gitconfig push origin main"}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: transient include.path accepted"
-else
-    record PASS "Claude pre-push: transient include.path blocked"
-fi
-# Credential-carrying config with no `@` (http.extraHeader Authorization), whether
-# via -c or injected through GIT_CONFIG_* env vars, must still HARD BLOCK on a push.
-if jq -n --arg c "git -c http.extraHeader='Authorization: Basic dXNlcjpwdw==' push origin main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: http.extraHeader auth injection accepted"
-else
-    record PASS "Claude pre-push: http.extraHeader auth injection blocked"
-fi
-if jq -n --arg c "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0='Authorization: Basic dXNlcjpwdw==' git push origin main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$HOOK_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: GIT_CONFIG env auth injection accepted"
-else
-    record PASS "Claude pre-push: GIT_CONFIG env auth injection blocked"
-fi
-# Layer 1 is compound-safe only if a non-repo FIRST target cannot short-circuit
-# the scan before the credentialed later target is inspected.
-if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main; git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: non-repo-first compound credential accepted"
-else
-    record PASS "Claude pre-push: non-repo-first compound credential blocked"
-fi
-if jq -n --arg c "git -C $NONREPO_FIXTURE push origin main" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude pre-push: lone non-repo push allowed"
-else
-    record FAIL "Claude pre-push: lone non-repo push blocked"
-fi
-# env -S re-splits and execs its payload; interposed git global options (-C, -c)
-# must not defeat the raw guard's git..push/commit match.
-if jq -n --arg c "env -S 'git -C $HOOK_FIXTURE push https://oauth2:TOK@example.invalid/x.git main'" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: env -S interposed-option push accepted"
-else
-    record PASS "Claude pre-push: env -S interposed-option push blocked"
-fi
-# Quote-split git/push words (g"i"t, pu"sh") and a separator inside a quoted -c
-# value must not slip a credentialed push past the pre-filter; the raw credential
-# scan still runs on the reassembled command.
-if jq -n --arg c 'g"i"t push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: quote-split git word credential accepted"
-else
-    record PASS "Claude pre-push: quote-split git word credential blocked"
-fi
-# Backslash-split push word (git p\ush) must not slip a credentialed push past
-# the prefilter: bash strips the backslash at execution, so Layer 1 must run.
-if jq -n --arg c 'git p\ush https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: backslash-split push credential accepted"
-else
-    record PASS "Claude pre-push: backslash-split push credential blocked"
-fi
-if jq -n --arg c 'git pu"sh" https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: quote-split push word credential accepted"
-else
-    record PASS "Claude pre-push: quote-split push word credential blocked"
-fi
-if jq -n --arg c 'git -c foo.bar="!f(){ echo x; }" push https://oauth2:TOK@example.invalid/x.git main' '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Claude pre-push: separator-in-option-value credential accepted"
-else
-    record PASS "Claude pre-push: separator-in-option-value credential blocked"
-fi
-NO_JQ_PATH=$(mktemp -d)
-if printf '{"tool_input":{"command":"git commit -m probe"}}' | PATH="$NO_JQ_PATH" CODEX_PROJECT_DIR="$HOOK_FIXTURE" /bin/bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record FAIL "Codex PreToolUse: missing jq accepted"
-else
-    record PASS "Codex PreToolUse: missing jq fails closed"
-fi
-rm -r "$NO_JQ_PATH" "$HOOK_FIXTURE" "$CHECKER_FIXTURE" "$NONREPO_FIXTURE"
-# Linked-worktree marker contract: the gate, completion-checker, and
-# session-start must all resolve the SAME per-worktree marker locus, or a
-# worktree commit deadlocks (gate demands a marker no checker call can write).
-WT_FIXTURE=$(mktemp -d)
-WT_DIR=$(mktemp -d)
-rmdir "$WT_DIR"
-git -C "$WT_FIXTURE" init -q
-mkdir -p "$WT_FIXTURE/.devcontainer" "$WT_FIXTURE/scripts/meta"
-printf '#!/bin/bash\nexit 0\n' > "$WT_FIXTURE/.devcontainer/verify-template.sh"
-printf '#!/bin/bash\nexit 0\n' > "$WT_FIXTURE/scripts/meta/completion-checker.sh"
-printf '.claude/.last-verification*\n.codex/state/last-verification*\n' > "$WT_FIXTURE/.gitignore"
-git -C "$WT_FIXTURE" add -A
-git -C "$WT_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -qm fixture
-git -C "$WT_FIXTURE" worktree add -q -b wt-probe "$WT_DIR"
-if CLAUDE_PROJECT_DIR="$WT_DIR" bash "$PROJECT_DIR/scripts/meta/completion-checker.sh" >/dev/null 2>&1 &&
-   [ -f "$WT_DIR/.claude/.last-verification.wt-probe" ] &&
-   jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Claude PreToolUse: worktree commit allowed after checker run in that worktree"
-else
-    record FAIL "Claude PreToolUse: worktree marker deadlock (checker writes where the gate does not look)"
-fi
-mkdir -p "$WT_DIR/.codex/state"
-write_verification_marker "$WT_DIR" codex
-if jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: worktree commit allowed with per-worktree marker"
-else
-    record FAIL "Codex PreToolUse: worktree per-worktree marker regression"
-fi
-touch "$WT_DIR/.claude/.last-verification.dead-branch-probe"
-printf '{"source":"startup"}' | CLAUDE_PROJECT_DIR="$WT_DIR" bash "$PROJECT_DIR/.claude/hooks/session-start.sh" >/dev/null 2>&1
-if [ ! -f "$WT_DIR/.claude/.last-verification.dead-branch-probe" ] &&
-   [ -f "$WT_DIR/.claude/.last-verification.wt-probe" ]; then
-    record PASS "Claude SessionStart: worktree stale-marker cleanup scoped to that worktree"
-else
-    record FAIL "Claude SessionStart: worktree marker cleanup ignores the worktree"
-fi
-rm "$WT_DIR/.claude/.last-verification.wt-probe"
-WT_STALE_ERR=$(jq -n --arg c "git -C $WT_DIR commit -m probe" '{tool_input:{command:$c}}' | CLAUDE_PROJECT_DIR="$PROJECT_DIR" timeout 5 bash "$PROJECT_DIR/.claude/hooks/pre-commit-gate.sh" 2>&1 >/dev/null)
-WT_STALE_RC=$?
-if [ "$WT_STALE_RC" -eq 2 ] && printf '%s' "$WT_STALE_ERR" | grep -Fq "CLAUDE_PROJECT_DIR=\"$WT_DIR\""; then
-    record PASS "Claude PreToolUse: worktree stale guidance names the worktree root"
-else
-    record FAIL "Claude PreToolUse: worktree stale guidance points outside the worktree"
-fi
-git -C "$WT_FIXTURE" worktree remove --force "$WT_DIR" >/dev/null 2>&1
-rm -r "$WT_FIXTURE"
-if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-commit-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex PreToolUse: unrelated Bash command allowed"
-else
-    record FAIL "Codex PreToolUse: unrelated Bash command blocked"
-fi
-if printf '{"tool_input":{"command":"echo hook-regression"}}' | CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" >/dev/null 2>&1; then
-    record PASS "Codex pre-push: unrelated Bash command allowed"
-else
-    record FAIL "Codex pre-push: unrelated Bash command blocked"
-fi
-if CODEX_PROJECT_DIR="$PROJECT_DIR" bash "$PROJECT_DIR/.codex/hooks/refinement-gate.sh" </dev/null >/dev/null 2>&1; then
-    record PASS "Codex Stop: no active refinement exits cleanly"
-else
-    record FAIL "Codex Stop: no-marker regression"
-fi
-REFINE_FIXTURE=$(mktemp -d)
-git -C "$REFINE_FIXTURE" init -q
-mkdir -p "$REFINE_FIXTURE/.codex/state/refinement/attempts" "$REFINE_FIXTURE/.claude/agent-memory/refinement/attempts"
-printf '{"task_id":"strict","threshold":"1.2.3","max_iterations":"bad"}\n' > "$REFINE_FIXTURE/.codex/state/refinement-active"
-printf '{"score":0.9}\n' > "$REFINE_FIXTURE/.codex/state/refinement/attempts/strict.jsonl"
-CODEX_REFINE_OUTPUT=$(CODEX_PROJECT_DIR="$REFINE_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/refinement-gate.sh" </dev/null 2>&1 || true)
-if [ -z "$CODEX_REFINE_OUTPUT" ]; then
-    record PASS "Codex Stop: invalid numeric fields reset safely"
-else
-    record FAIL "Codex Stop: invalid numeric fields caused block output"
-fi
-printf '{"task_id":"strict","threshold":"1.2.3","max_iterations":"bad"}\n' > "$REFINE_FIXTURE/.claude/.refinement-active"
-printf '{"score":0.9}\n' > "$REFINE_FIXTURE/.claude/agent-memory/refinement/attempts/strict.jsonl"
-CLAUDE_REFINE_OUTPUT=$(CLAUDE_PROJECT_DIR="$REFINE_FIXTURE" bash "$PROJECT_DIR/.claude/hooks/refinement-gate.sh" </dev/null 2>&1 || true)
-if [ -z "$CLAUDE_REFINE_OUTPUT" ]; then
-    record PASS "Claude Stop: invalid numeric fields reset safely"
-else
-    record FAIL "Claude Stop: invalid numeric fields caused block output"
-fi
-rm -r "$REFINE_FIXTURE"
-
-# Marker filenames keep dots from branch names (only '/' maps to '-'), so the
-# cleanup must strip the fixed prefix, not split on the last dot.
-DOTBR_FIXTURE=$(mktemp -d)
-git -C "$DOTBR_FIXTURE" init -q
-git -C "$DOTBR_FIXTURE" -c user.name=verify -c user.email=verify@example.invalid commit -q --allow-empty -m init
-git -C "$DOTBR_FIXTURE" branch -m release-1.2
-mkdir -p "$DOTBR_FIXTURE/.codex/state"
-touch "$DOTBR_FIXTURE/.codex/state/last-verification.release-1.2" "$DOTBR_FIXTURE/.codex/state/last-verification.gone-branch"
-printf '{"source":"startup"}' | CODEX_PROJECT_DIR="$DOTBR_FIXTURE" bash "$PROJECT_DIR/.codex/hooks/session-start.sh" >/dev/null 2>&1
-if [ -f "$DOTBR_FIXTURE/.codex/state/last-verification.release-1.2" ]; then
-    record PASS "Codex session-start: dotted-branch marker preserved"
-else
-    record FAIL "Codex session-start: dotted-branch marker deleted"
-fi
-if [ ! -f "$DOTBR_FIXTURE/.codex/state/last-verification.gone-branch" ]; then
-    record PASS "Codex session-start: gone-branch marker cleaned"
-else
-    record FAIL "Codex session-start: gone-branch marker retained"
-fi
-rm -r "$DOTBR_FIXTURE"
-
-# --- PHASE 2g: Mirror integrity ---
-echo ""
-echo "=== Phase 2g: Mirror Integrity ==="
-[ -d "$PROJECT_DIR/.agents/skills/evaluator" ] && record PASS ".agents/skills/evaluator (agent->skill mirror)" || record FAIL ".agents/skills/evaluator missing"
-[ -d "$PROJECT_DIR/.agents/skills/wip-manager" ] && record PASS ".agents/skills/wip-manager (agent->skill mirror)" || record FAIL ".agents/skills/wip-manager missing"
-[ -x "$PROJECT_DIR/scripts/sync-agents-mirror.sh" ] && record PASS "sync-agents-mirror.sh executable" || record FAIL "sync-agents-mirror.sh"
-[ -x "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" ] && record PASS "run-isolated-role.sh executable" || record FAIL "run-isolated-role.sh"
-if SYNC_REAL_DRY=$(bash "$PROJECT_DIR/scripts/sync-agents-mirror.sh" --dry 2>&1) && printf '%s' "$SYNC_REAL_DRY" | grep -Fq '0 change(s) detected.'; then
-    record PASS "sync dry-run: actual .agents mirror has no drift"
-else
-    record FAIL "sync dry-run: actual .agents mirror drift detected"
-fi
-
-SYNC_FIXTURE=$(mktemp -d)
-mkdir -p "$SYNC_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$SYNC_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$SYNC_FIXTURE/scripts/"
-touch "$SYNC_FIXTURE/.agents/skills/refine/nested-orphan.txt"
-mkdir -p "$SYNC_FIXTURE/.agents/unexpected"
-touch "$SYNC_FIXTURE/.agents/unexpected/top-level-orphan.txt"
-SYNC_DRY=$(bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
-if printf '%s' "$SYNC_DRY" | grep -Fq 'nested-orphan.txt' && printf '%s' "$SYNC_DRY" | grep -Fq 'unexpected'; then
-    record PASS "sync dry-run: nested and top-level orphans detected"
-else
-    record FAIL "sync dry-run: orphan coverage incomplete"
-fi
-if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --check >/dev/null 2>&1; then
-    record FAIL "sync: unknown argument rejected"
-else
-    record PASS "sync: unknown argument rejected"
-fi
-if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry --check >/dev/null 2>&1; then
-    record FAIL "sync: trailing argument rejected"
-else
-    record PASS "sync: trailing argument rejected"
-fi
-ln -s /tmp "$SYNC_FIXTURE/.agents/unsafe-link"
-if bash "$SYNC_FIXTURE/scripts/sync-agents-mirror.sh" --dry >/dev/null 2>&1; then
-    record FAIL "sync: destination symlink accepted"
-else
-    record PASS "sync: destination symlink rejected"
-fi
-rm -r "$SYNC_FIXTURE"
-
-# Coupling-guard contract: bare $CLAUDE_PROJECT_DIR expansions (end-of-word or
-# end-of-line included) are rejected; backticked prose mentions and the
-# vendor-neutral ${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-...}} fallback pass.
-LEAK_FIXTURE=$(mktemp -d)
-mkdir -p "$LEAK_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$LEAK_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$LEAK_FIXTURE/scripts/"
-printf 'cd $CLAUDE_PROJECT_DIR\n' > "$LEAK_FIXTURE/.claude/rules/leak-probe.md"
-LEAK_DRY=$(bash "$LEAK_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
-if printf '%s' "$LEAK_DRY" | grep -Fq 'bare $CLAUDE_PROJECT_DIR expansion'; then
-    record PASS "sync: bare end-of-word \$CLAUDE_PROJECT_DIR rejected"
-else
-    record FAIL "sync: bare end-of-word \$CLAUDE_PROJECT_DIR accepted"
-fi
-printf 'see `$CLAUDE_PROJECT_DIR` and "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-.}}"\n' > "$LEAK_FIXTURE/.claude/rules/leak-probe.md"
-LEAK_DRY=$(bash "$LEAK_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
-if printf '%s' "$LEAK_DRY" | grep -Fq 'bare $CLAUDE_PROJECT_DIR expansion'; then
-    record FAIL "sync: backticked prose or vendor fallback rejected"
-else
-    record PASS "sync: backticked prose and vendor fallback allowed"
-fi
-rm -r "$LEAK_FIXTURE"
-
-PREMUT_FIXTURE=$(mktemp -d)
-mkdir -p "$PREMUT_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$PREMUT_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$PREMUT_FIXTURE/scripts/"
-ln -s /tmp "$PREMUT_FIXTURE/.claude/skills/unsafe-link"
-if bash "$PREMUT_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 || [ -e "$PREMUT_FIXTURE/.agents" ]; then
-    record FAIL "sync: source symlink mutated destination"
-else
-    record PASS "sync: source symlink rejected pre-mutation"
-fi
-rm -r "$PREMUT_FIXTURE"
-
-TYPE_FIXTURE=$(mktemp -d)
-mkdir -p "$TYPE_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$TYPE_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$TYPE_FIXTURE/scripts/"
-rm -r "$TYPE_FIXTURE/.agents/skills/refine"
-printf 'conflict\n' > "$TYPE_FIXTURE/.agents/skills/refine"
-if bash "$TYPE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 && [ -d "$TYPE_FIXTURE/.agents/skills/refine" ] && bash "$TYPE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
-    record PASS "sync: file/directory conflict reconciled"
-else
-    record FAIL "sync: file/directory conflict"
-fi
-rm -r "$TYPE_FIXTURE"
-
-ROOT_TYPE_FIXTURE=$(mktemp -d)
-mkdir -p "$ROOT_TYPE_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$ROOT_TYPE_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$ROOT_TYPE_FIXTURE/scripts/"
-printf 'conflict\n' > "$ROOT_TYPE_FIXTURE/.agents"
-if bash "$ROOT_TYPE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 && [ -d "$ROOT_TYPE_FIXTURE/.agents/skills" ] && bash "$ROOT_TYPE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
-    record PASS "sync: root file/directory conflict reconciled"
-else
-    record FAIL "sync: root file/directory conflict"
-fi
-rm -r "$ROOT_TYPE_FIXTURE"
-
-MODE_FIXTURE=$(mktemp -d)
-mkdir -p "$MODE_FIXTURE/scripts"
-cp -R "$PROJECT_DIR/.claude" "$PROJECT_DIR/.agents" "$MODE_FIXTURE/"
-cp "$PROJECT_DIR/scripts/sync-agents-mirror.sh" "$MODE_FIXTURE/scripts/"
-chmod 755 "$MODE_FIXTURE/.claude/skills/refine/SKILL.md"
-chmod 644 "$MODE_FIXTURE/.agents/skills/refine/SKILL.md"
-MODE_DRY=$(bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 || true)
-if printf '%s' "$MODE_DRY" | grep -Fq 'Mode differs:'; then
-    record PASS "sync dry-run: file-mode drift detected"
-else
-    record FAIL "sync dry-run: file-mode drift missed"
-fi
-if bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" >/dev/null 2>&1 &&
-    [ "$(stat -c '%a' "$MODE_FIXTURE/.agents/skills/refine/SKILL.md")" = "755" ] &&
-    bash "$MODE_FIXTURE/scripts/sync-agents-mirror.sh" --dry 2>&1 | grep -Fq '0 change(s)'; then
-    record PASS "sync: file-mode parity restored"
-else
-    record FAIL "sync: file-mode parity not restored"
-fi
-rm -r "$MODE_FIXTURE"
-
-ROLE_FIXTURE=$(mktemp -d)
-ROLE_BIN_DIR=$(mktemp -d)
-ROLE_LOG_FILE=$(mktemp)
-mkdir -p "$ROLE_FIXTURE/.codex/state" "$ROLE_FIXTURE/products/app" "$ROLE_FIXTURE/scripts/meta"
-cp "$PROJECT_DIR/scripts/meta/run-isolated-role.sh" "$ROLE_FIXTURE/scripts/meta/"
-cat > "$ROLE_FIXTURE/fake-codex" <<'EOF'
-#!/bin/bash
-printf '%s\n' "$*" >> "$ROLE_LOG"
-FINAL_OUTPUT=""
-while [ "$#" -gt 0 ]; do
-    if [ "$1" = "-o" ]; then
-        shift
-        FINAL_OUTPUT=$1
-    fi
-    shift
-done
-[ -z "${ROLE_REPORT:-}" ] || printf '{"contract_score":1,"checks_passed":1,"checks_total":1,"findings":[{"check":"fixture","tool":"fake-codex","result":"pass","evidence":"full report survives"}]}\n' > "$ROLE_REPORT"
-[ -z "$FINAL_OUTPUT" ] || printf '{"score":1,"suggestion":"ok"}\n' > "$FINAL_OUTPUT"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_FIXTURE/fake-codex"
-printf '.codex/state/\nignored-mutation\nproducts/\n' > "$ROLE_FIXTURE/.gitignore"
-printf 'contract and diff only\n' > "$ROLE_FIXTURE/prompt"
-printf 'tracked\n' > "$ROLE_FIXTURE/tracked.txt"
-printf 'target a\n' > "$ROLE_FIXTURE/target-a"
-printf 'target b\n' > "$ROLE_FIXTURE/target-b"
-printf 'baseline\n' > "$ROLE_FIXTURE/products/app/ignored.txt"
-ln -s target-a "$ROLE_FIXTURE/tracked-link"
-git -C "$ROLE_FIXTURE" init -q
-git -C "$ROLE_FIXTURE" add -A
-git -C "$ROLE_FIXTURE" -c user.name=audit -c user.email=audit@example.invalid commit -qm fixture
-if ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null; then
-    record PASS "Codex audit role: no-mutation path accepted"
-else
-    record FAIL "Codex audit role: no-mutation path rejected"
-fi
-ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" modify "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null
-eval_score=$(ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json")
-role_count=$(grep -c 'exec --ephemeral' "$ROLE_LOG_FILE" 2>/dev/null || true)
-[ "$role_count" -eq 3 ] && record PASS "Codex roles: three ephemeral process invocations" || record FAIL "Codex roles: isolation invocation count $role_count/3"
-if grep -Fq -- '--ignore-user-config --disable hooks' "$ROLE_LOG_FILE"; then
-    record PASS "Codex roles: user config ignored and hooks disabled"
-else
-    record FAIL "Codex roles: child automation config isolation"
-fi
-evaluate_line=$(grep -F -- '--skip-git-repo-check' "$ROLE_LOG_FILE" | tail -1)
-if printf '%s' "$evaluate_line" | grep -Fq -- '--skip-git-repo-check' && ! printf '%s' "$evaluate_line" | grep -Fq -- "-C $ROLE_FIXTURE"; then
-    record PASS "Codex evaluator: repository rules not auto-loaded"
-else
-    record FAIL "Codex evaluator: recursive rules-loading risk"
-fi
-git -C "$ROLE_FIXTURE" check-ignore -q .codex/state/.refine-eval.json && record PASS "Codex evaluator output: gitignored" || record FAIL "Codex evaluator output: tracked risk"
-if grep -Fq '"full report survives"' "$ROLE_FIXTURE/.codex/state/.refine-eval.json" && [ "$eval_score" = '{"score":1,"suggestion":"ok"}' ]; then
-    record PASS "Codex evaluator: full report preserved and final score emitted separately"
-else
-    record FAIL "Codex evaluator: report/final-score separation"
-fi
-if ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1; then
-    record FAIL "Codex evaluator: missing full report accepted"
-else
-    record PASS "Codex evaluator: missing full report rejected"
-fi
-
-cat > "$ROLE_BIN_DIR/fake-ungrounded-evaluator" <<'EOF'
-#!/bin/bash
-FINAL_OUTPUT=""
-while [ "$#" -gt 0 ]; do
-    if [ "$1" = "-o" ]; then
-        shift
-        FINAL_OUTPUT=$1
-    fi
-    shift
-done
-printf '{"contract_score":1,"checks_total":1,"findings":[]}\n' > "$ROLE_REPORT"
-[ -z "$FINAL_OUTPUT" ] || printf '{"score":1,"suggestion":"ungrounded"}\n' > "$FINAL_OUTPUT"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-ungrounded-evaluator"
-if ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" CODEX_BIN="$ROLE_BIN_DIR/fake-ungrounded-evaluator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1; then
-    record FAIL "Codex evaluator: ungrounded score accepted"
-else
-    record PASS "Codex evaluator: ungrounded score rejected (positive)"
-fi
-
-cat > "$ROLE_BIN_DIR/fake-mismatch-evaluator" <<'EOF'
-#!/bin/bash
-FINAL_OUTPUT=""
-while [ "$#" -gt 0 ]; do
-    if [ "$1" = "-o" ]; then
-        shift
-        FINAL_OUTPUT=$1
-    fi
-    shift
-done
-printf '{"contract_score":0.2,"checks_total":1,"findings":[{"tool":"fake","evidence":"grounded"}]}\n' > "$ROLE_REPORT"
-[ -z "$FINAL_OUTPUT" ] || printf '{"score":1,"suggestion":"mismatch"}\n' > "$FINAL_OUTPUT"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-mismatch-evaluator"
-if ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" CODEX_BIN="$ROLE_BIN_DIR/fake-mismatch-evaluator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1; then
-    record FAIL "Codex evaluator: score mismatch accepted"
-else
-    record PASS "Codex evaluator: score mismatch rejected (positive)"
-fi
-
-printf '{"task_id":"guarded"}\n' > "$ROLE_FIXTURE/.codex/state/refinement-active"
-cat > "$ROLE_BIN_DIR/fake-refine-state-mutator" <<'EOF'
-#!/bin/bash
-FINAL_OUTPUT=""
-while [ "$#" -gt 0 ]; do
-    if [ "$1" = "-o" ]; then
-        shift
-        FINAL_OUTPUT=$1
-    fi
-    shift
-done
-rm -f "$ROLE_PROJECT/.codex/state/refinement-active"
-printf '{"contract_score":1,"checks_total":1,"findings":[{"tool":"fake","evidence":"grounded"}]}\n' > "$ROLE_REPORT"
-[ -z "$FINAL_OUTPUT" ] || printf '{"score":1,"suggestion":"tamper"}\n' > "$FINAL_OUTPUT"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-refine-state-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" CODEX_BIN="$ROLE_BIN_DIR/fake-refine-state-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1; then
-    record FAIL "Codex evaluator: refine-state mutation accepted"
-else
-    record PASS "Codex evaluator: refine-state mutation detected (positive)"
-fi
-rm -f "$ROLE_FIXTURE/.codex/state/refinement-active"
-
-ROLE_WORKTREE=$(mktemp -d)
-rmdir "$ROLE_WORKTREE"
-if git -C "$ROLE_FIXTURE" worktree add -q --detach "$ROLE_WORKTREE" HEAD &&
-    ROLE_LOG="$ROLE_LOG_FILE" CODEX_BIN="$ROLE_FIXTURE/fake-codex" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_WORKTREE" "$ROLE_FIXTURE/prompt" >/dev/null; then
-    record PASS "Codex audit role: linked worktree accepted"
-else
-    record FAIL "Codex audit role: linked worktree rejected"
-fi
-git -C "$ROLE_FIXTURE" worktree remove "$ROLE_WORKTREE" >/dev/null 2>&1
-
-# Host (non-container) sandbox contract: exercised via a fixture copy whose
-# /.dockerenv check is redirected to an absent path, since this container
-# cannot leave the bypass branch. The evaluator must get a writable report
-# path (workspace-write + report dir); audit must stay read-only.
-sed 's|-f /\.dockerenv |-f /.dockerenv-hostsim-absent |' \
-    "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" > "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh"
-HOSTSIM_LOG=$(mktemp)
-ROLE_REPORT="$ROLE_FIXTURE/.codex/state/.refine-eval.json" ROLE_LOG="$HOSTSIM_LOG" CODEX_BIN="$ROLE_FIXTURE/fake-codex" \
-    bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" evaluate "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" "$ROLE_FIXTURE/.codex/state/.refine-eval.json" >/dev/null 2>&1
-hostsim_eval_line=$(tail -1 "$HOSTSIM_LOG" 2>/dev/null)
-if grep -Fq 'dockerenv-hostsim-absent' "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" &&
-   printf '%s' "$hostsim_eval_line" | grep -Fq -- '--sandbox workspace-write' &&
-   printf '%s' "$hostsim_eval_line" | grep -Fq -- "--add-dir $ROLE_FIXTURE/.codex/state" &&
-   ! printf '%s' "$hostsim_eval_line" | grep -Fq -- '--dangerously-bypass-approvals-and-sandbox'; then
-    record PASS "Codex evaluator (host): report directory writable under sandbox"
-else
-    record FAIL "Codex evaluator (host): read-only sandbox contradicts required report write"
-fi
-ROLE_LOG="$HOSTSIM_LOG" CODEX_BIN="$ROLE_FIXTURE/fake-codex" \
-    bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1
-hostsim_audit_line=$(tail -1 "$HOSTSIM_LOG" 2>/dev/null)
-if printf '%s' "$hostsim_audit_line" | grep -Fq -- '--sandbox read-only' &&
-   ! printf '%s' "$hostsim_audit_line" | grep -Fq -- '--add-dir'; then
-    record PASS "Codex audit (host): read-only sandbox retained"
-else
-    record FAIL "Codex audit (host): sandbox loosened beyond the evaluate report path"
-fi
-rm -f "$HOSTSIM_LOG" "$ROLE_FIXTURE/scripts/meta/run-isolated-role-hostsim.sh"
-
-cat > "$ROLE_BIN_DIR/fake-visible-mutator" <<'EOF'
-#!/bin/bash
-touch "$ROLE_PROJECT/visible-mutation"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-visible-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-visible-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: visible mutation not detected"
-else
-    record PASS "Codex audit role: visible mutation detected"
-fi
-rm -f "$ROLE_FIXTURE/visible-mutation"
-
-cat > "$ROLE_BIN_DIR/fake-commit-mutator" <<'EOF'
-#!/bin/bash
-printf 'committed mutation\n' >> "$ROLE_PROJECT/tracked.txt"
-git -C "$ROLE_PROJECT" add tracked.txt
-git -C "$ROLE_PROJECT" -c user.name=audit -c user.email=audit@example.invalid commit -qm mutation
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-commit-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-commit-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: clean-status commit not detected"
-else
-    record PASS "Codex audit role: clean-status commit detected"
-fi
-
-cat > "$ROLE_BIN_DIR/fake-ignored-mutator" <<'EOF'
-#!/bin/bash
-printf 'ignored mutation\n' > "$ROLE_PROJECT/ignored-mutation"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-ignored-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-ignored-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: ignored mutation not detected"
-else
-    record PASS "Codex audit role: ignored mutation detected"
-fi
-rm -f "$ROLE_FIXTURE/ignored-mutation"
-
-cat > "$ROLE_BIN_DIR/fake-products-mutator" <<'EOF'
-#!/bin/bash
-printf 'products mutation\n' > "$ROLE_PROJECT/products/app/ignored.txt"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-products-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-products-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: ignored products/ mutation not detected"
-else
-    record PASS "Codex audit role: ignored products/ mutation detected"
-fi
-
-cat > "$ROLE_BIN_DIR/fake-skip-worktree-mutator" <<'EOF'
-#!/bin/bash
-git -C "$ROLE_PROJECT" update-index --skip-worktree tracked.txt
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-skip-worktree-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-skip-worktree-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: skip-worktree mutation not detected"
-else
-    record PASS "Codex audit role: skip-worktree mutation detected"
-fi
-git -C "$ROLE_FIXTURE" update-index --no-skip-worktree tracked.txt
-
-cat > "$ROLE_BIN_DIR/fake-assume-unchanged-mutator" <<'EOF'
-#!/bin/bash
-git -C "$ROLE_PROJECT" update-index --assume-unchanged tracked.txt
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-assume-unchanged-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-assume-unchanged-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: assume-unchanged mutation not detected"
-else
-    record PASS "Codex audit role: assume-unchanged mutation detected"
-fi
-git -C "$ROLE_FIXTURE" update-index --no-assume-unchanged tracked.txt
-
-cat > "$ROLE_BIN_DIR/fake-mode-mutator" <<'EOF'
-#!/bin/bash
-chmod 755 "$ROLE_PROJECT/tracked.txt"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-mode-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-mode-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: file-mode mutation not detected"
-else
-    record PASS "Codex audit role: file-mode mutation detected"
-fi
-chmod 644 "$ROLE_FIXTURE/tracked.txt"
-
-cat > "$ROLE_BIN_DIR/fake-symlink-mutator" <<'EOF'
-#!/bin/bash
-ln -sfn target-b "$ROLE_PROJECT/tracked-link"
-cat >/dev/null
-EOF
-chmod +x "$ROLE_BIN_DIR/fake-symlink-mutator"
-if ROLE_PROJECT="$ROLE_FIXTURE" CODEX_BIN="$ROLE_BIN_DIR/fake-symlink-mutator" bash "$ROLE_FIXTURE/scripts/meta/run-isolated-role.sh" audit "$ROLE_FIXTURE" "$ROLE_FIXTURE/prompt" >/dev/null 2>&1; then
-    record FAIL "Codex audit role: symlink mutation not detected"
-else
-    record PASS "Codex audit role: symlink mutation detected"
-fi
-ln -sfn target-a "$ROLE_FIXTURE/tracked-link"
-
-rm -r "$ROLE_FIXTURE"
-rm -r "$ROLE_BIN_DIR"
-rm -f "$ROLE_LOG_FILE"
-
-grep -Fq 'pushed only if explicitly requested' "$PROJECT_DIR/.claude/agents/wip-manager.md" 2>/dev/null && record PASS "wip-manager: local-only completion supported" || record FAIL "wip-manager: push incorrectly required"
-if grep -Fq 'preserve-extras' "$PROJECT_DIR/CLAUDE.md" 2>/dev/null; then
-    record FAIL "docs: stale preserve-extras claim"
-else
-    record PASS "docs: exact-mirror claim aligned"
+echo "=== [7/7] Shell syntax sweep ==="
+SH_BAD=""; SH_N=0
+while IFS= read -r -d '' f; do
+    SH_N=$((SH_N+1))
+    bash -n "$PROJECT_DIR/$f" 2>/dev/null || SH_BAD="$SH_BAD $f"
+done < <(git -C "$PROJECT_DIR" ls-files -z -- '*.sh')
+if [ -z "$SH_BAD" ]; then
+    record PASS "bash -n: $SH_N tracked shell scripts parse"
+else
+    record FAIL "bash -n failures:$SH_BAD"
 fi
 
 # --- Summary ---
 echo ""
 echo "=============================================="
-echo "  RESULT: $PASS PASS / $FAIL FAIL"
+echo "  RESULT: $PASS PASS / $FAIL FAIL / $SKIP SKIP"
 echo "=============================================="
-[ "$FAIL" -eq 0 ] && echo "  ALL PASS" || { echo "  FAILURES DETECTED"; exit 1; }
+[ "$FAIL" -eq 0 ] && exit 0
+exit 1
