@@ -167,6 +167,15 @@ Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`,
 `refinement-gate.sh`. Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 `Write`; these commit/push gates intentionally inspect `Bash` commands.
 
+All gates are advisory policy tripwires (see §Privilege boundary), not a
+security sandbox. A gate blocks (exit 2) only on a positive match — a
+`--no-verify`/`-n` commit bypass, a secret pattern in staged content, an
+inline credential or credential-bearing stored git config on a push, a force
+push, or a missing/stale verification marker. On any parse failure, internal
+error, or unrecognized command shape the gate exits 0 (fail-open). The
+verification marker is per-branch and considered fresh for 24 hours from its
+mtime; `scripts/meta/completion-checker.sh` writes it (see §Verification).
+
 Codex loads `.codex/config.toml` directly after the project is trusted. Project
 command hooks also require review in `/hooks`, and changed definitions are
 skipped until reviewed again. Use `--dangerously-bypass-hook-trust` only in
@@ -180,6 +189,20 @@ automation that independently vets the hook source.
 | /status | Workspace status |
 | /verify | Pre-commit verification |
 | karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md` + `EXAMPLES.md`) |
+
+## Verification
+
+Two tiers, split by cost:
+
+| Tier | Command | When |
+|------|---------|------|
+| Fast checks | `bash scripts/meta/completion-checker.sh` | Before each commit — writes the per-branch marker the pre-commit gate reads |
+| Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand and in CI, not per commit — full template integrity, including docker-backed checks |
+
+`completion-checker.sh` is environment-independent: it works in fresh clones,
+CI, and temp checkouts, and does not require docker or a canonical checkout
+path. The acceptance suite is the deep oracle; run it after structural changes
+to the template (hooks, mirror, devcontainer) and before releases.
 
 ## Polyagent parity
 
@@ -232,4 +255,4 @@ codex --version
 
 ---
 
-*Last updated: 2026-07-03*
+*Last updated: 2026-07-07*

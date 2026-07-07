@@ -67,12 +67,11 @@ Claude and Codex `refinement-gate.sh` markers exactly.
   non-interactive runs.
 - In a DevContainer where bubblewrap is unavailable, the child may use
   `--dangerously-bypass-approvals-and-sandbox`. This is a compatibility fallback,
-  not a security boundary: the helper rejects Audit/Evaluate if HEAD, the index,
-  or any tracked/untracked project-tree file changes, including guarded
-  gitignored files, missing tracked files, file mode, and symlink state.
-  Gitignored high-churn generated paths such as `.codex/state`, refinement attempts,
-  dependency caches, and build outputs are excluded. The single authorized
-  output file is excluded from that comparison.
+  not a security boundary. What the helper does enforce, fail-closed: Evaluate
+  requires an output file (in-repo outputs must be gitignored); the report must
+  be valid JSON with `checks_total >= 1`; and the evaluator's final message must
+  be valid JSON with a `score` in [0,1]. A missing, stale, or malformed report
+  fails the run.
 
 ## Step 0c: Pre-flight
 

@@ -1,8 +1,6 @@
 # CLAUDE.md — Project Workspace
 
-Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below).
-
-The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`) so the evaluator agent and explicit invocations can reference them as a handle. Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
+Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below), also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`) so the evaluator agent and explicit invocations can reference it as a handle. Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 ## Identity
 
@@ -24,17 +22,9 @@ The same 4 rules are also exposed as a skill at [`.claude/skills/karpathy-guidel
 │   ├── skills/                     # 4 skills (refine, status, verify, karpathy-guidelines)
 │   └── rules/                      # Standard rules + project/ subdirectory
 ├── .agents/                        # Codex agent assets (mirror of .claude/, generated)
-├── .codex/                         # Codex CLI configuration
-│   ├── config.toml                 # Sandbox, approval policy
-│   ├── hooks.json                  # Event hooks
-│   ├── hooks/                      # 4 hook scripts
-│   └── state/                      # Runtime markers (gitignored)
-├── scripts/
-│   ├── meta/                       # completion-checker, karpathy-consistency-check, run-isolated-role, lib/detect-root
-│   ├── git/                        # git-status
-│   └── sync-agents-mirror.sh       # .claude/ → .agents/ exact generated mirror
-├── .vscode/                        # Editor settings (launch.json, settings.json) — tracked, not a vendor
-└── .devcontainer/                  # Container configuration
+├── .codex/                         # Codex CLI configuration (config.toml, hooks.json, hooks/, state/)
+├── scripts/                        # meta/ (completion-checker, …), git/, sync-agents-mirror.sh
+└── .devcontainer/                  # Container configuration + verify-template.sh acceptance suite
 ```
 
 ## Core principle: INTEGRITY
@@ -45,20 +35,20 @@ Every claim must be verified by execution before statement. Don't say "tests pas
 
 `rm -rf`, `mv`/`cp` overwriting existing files, `git push --force`, `git reset --hard`, `DROP`/`DELETE` on databases — never run without explicit user approval.
 
+## Trust model: advisory gates
+
+The hooks are a **policy tripwire, not a security sandbox** (see REFERENCE.md §Privilege boundary). Gate semantics, identical for both vendors:
+
+- **Positive-match blocks only** — a gate blocks (exit 2) only on a positively identified violation: a `--no-verify`/`-n` commit bypass, a secret pattern in staged content or push configuration, a force push, or a missing/stale verification marker.
+- **Fail-open on ambiguity** — on any parse failure, internal error, or unrecognized command shape, the gate allows (exit 0). It never fails closed on its own uncertainty.
+- **Marker = existence + age** — `completion-checker.sh` writes a per-branch marker file; the pre-commit gate accepts it if it exists and is younger than 24 hours. No content fingerprinting.
+
 ## Automated workflow (mandatory)
 
-The blocking hooks enforce only the pre-commit and pre-push gates; SessionStart
-injects context. Change evaluation, WIP handling, and role delegation remain
-agent-governance rules rather than hook-enforced guarantees.
-
 1. **Session start**: hook reports current branch, active WIP tasks, environment. If WIP tasks exist, read the WIP `README.md` and resume immediately. Otherwise wait for user instruction. Always check auto memory (`MEMORY.md`) for known issues.
-2. **Change evaluation**:
-   - *Meaningful changes* → use `/refine` (modify → evaluate → keep/discard loop). When a scorer (`.refine/score.sh`) is present, the pre-commit hook emits a non-blocking WARNING for multi-file commits without an active `/refine` marker (the template ships no scorer, so this stays dormant until you add one).
-   - *Trivial changes* (typo, single config line) → direct edit.
-   - Never self-evaluate. Delegate to the **evaluator** agent.
-3. **Pre-commit gate**: `pre-commit-gate.sh` blocks agent-issued `git commit` commands unless verification ran recently (fresh marker). When stale it fails closed and prints the exact `completion-checker.sh` command to run. All checks must pass; no `--no-verify`. The base template ships zero native git hooks, so this is a policy tripwire; real bypass prevention applies only in derived repos that add native hooks, with the broader privilege boundary documented in REFERENCE.md §Privilege boundary.
-4. **Multi-session tasks**: tasks likely to span sessions create a WIP via the **wip-manager** agent at `wip/task-YYYYMMDD-description/README.md`. Auto-resumed on next session start. Delete when complete.
-5. **Agent delegation**: `evaluator` after changes (1-pass review; within `/refine`); `wip-manager` when work spans sessions.
+2. **Change evaluation**: *meaningful changes* → `/refine` (modify → evaluate → keep/discard loop); *trivial changes* (typo, single config line) → direct edit. Never self-evaluate — delegate to the **evaluator** agent.
+3. **Pre-commit verification**: run `scripts/meta/completion-checker.sh` before committing — fast and environment-independent (works in fresh clones, CI, and temp checkouts); it writes the marker the pre-commit gate checks. All checks must pass; `--no-verify` is never permitted. The full docker-backed acceptance suite `.devcontainer/verify-template.sh` runs on demand and in CI, not per commit.
+4. **Multi-session tasks**: create a WIP via the **wip-manager** agent at `wip/task-YYYYMMDD-description/README.md`. Auto-resumed on next session start. Delete when complete.
 
 ## Coding rules
 
@@ -72,12 +62,7 @@ agent-governance rules rather than hook-enforced guarantees.
 
 ## Polyagent parity
 
-| Vendor | Source of truth | Mirror |
-|--------|-----------------|--------|
-| Claude Code | `CLAUDE.md`, `.claude/` | — |
-| Codex CLI | (mirror) | `AGENTS.md`, `.agents/`, `.codex/` |
-
-Sync after editing `.claude/`:
+`.claude/` is the ground truth; `.agents/` and `.codex/` are the Codex mirror. Sync after editing `.claude/`:
 
 ```bash
 bash scripts/sync-agents-mirror.sh         # update mirror
@@ -92,8 +77,7 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 
 ## Environment
 
-- **Claude Code**: native binary (`~/.local/bin/claude`, auto-updated).
-- **Codex CLI**: npm global (`~/.npm-global/bin/codex`).
+- **Claude Code**: native binary (`~/.local/bin/claude`, auto-updated). **Codex CLI**: npm global (`~/.npm-global/bin/codex`).
 - **Node.js**: Node 22 LTS installed for Codex CLI. Additional version installed if `PROJECT_NODE_VERSION` is set.
 - **Persistent volumes**: `~/.claude`, `~/.codex`, `/commandhistory`.
 - **9p mount**: `core.filemode=false` (auto-applied by `postStartCommand`).
@@ -101,14 +85,6 @@ bash scripts/sync-agents-mirror.sh --dry   # diff only
 ## Extended reference
 
 @.claude/rules/behavioral-core.md
-@.claude/rules/audit-discipline.md
-@.claude/rules/commit-discipline.md
-@.claude/rules/destructive-ops-discipline.md
-@.claude/rules/anchor-discipline.md
 @.claude/rules/devcontainer-patterns.md
 @PROJECT.md
 @REFERENCE.md
-
----
-
-*Last updated: 2026-07-03*
