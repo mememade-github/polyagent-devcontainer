@@ -1,281 +1,80 @@
 #!/bin/bash
-# PreToolUse hook: git push safety gate for Codex harness
+# PreToolUse hook: git push safety gate for the Codex harness — a policy
+# tripwire, not a security sandbox (mirror of the Claude gate). Positive-match
+# blocks only (exit 2); anything else — parse ambiguity, non-push commands,
+# missing tools, internal errors — exits 0 (fail-open by design; the container
+# is a workspace boundary, not a trust boundary).
 #
-# Scope (deliberate, mirror of the Claude gate): the credential HARD BLOCK catches
-# credentials visible in the raw command text plus every configured remote of the
-# target repo, regardless of common wrappers (timeout/xargs/flock/sh -c/env -S/control
-# structures); deliberate obfuscation and assembled tokens are out of charter —
-# the container is a workspace boundary, not a trust boundary. Drift (Layer 2)
-# uses a light best-effort parse of the push target.
+# Blocks:
+#  1. Clear plain force push (--force / -f / +refspec) without a scoped
+#     single-use approval marker in the target repo root
+#     (.codex/state/allow-force-push.<remote>.<branch>), consumed on allow.
+#     Decision: --force-with-lease passes WITHOUT a marker — it is the
+#     narrower alternative and fails
+#     instead of clobbering remote work it has not seen.
+#  2. Credential-looking secret in the raw command text of ANY command.
+#     Accepted cost: token-shaped fixture/doc text inline in a command also
+#     blocks — keep such strings in files.
+#  3. Stored-config credential visible from the resolved target repo:
+#     remote/url/credential config values carrying a literal token or
+#     user:pass@. A helper value that only references a shell variable
+#     (e.g. "password=${GITHUB_PAT}") is the sanctioned pattern and passes.
+set -uf
 
-set -u
+INPUT=$(cat) || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+command -v git >/dev/null 2>&1 || exit 0
+COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
+[ -n "$COMMAND" ] || exit 0
 
-INPUT=$(cat)
-if ! command -v jq >/dev/null 2>&1; then
-  echo "Blocked: jq is required to parse hook input safely." >&2
-  exit 2
-fi
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
-[ -z "$COMMAND" ] && exit 0
-PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
-
-# Cheap pre-filter: proceed only for commands that could be a git push. Strip
-# quotes/backticks/backslashes so quote-obfuscated (g"i"t) and backslash-split
-# (git p\ush) words both reduce to their executed form before the word test.
-# Layer 1 scans the raw command, so wrapping is caught regardless.
-# The shlex parser below unescapes backslashes, so the strip view must not
-# under-match. Custom push aliases stay out of charter — the container is a
-# workspace boundary, not a trust one.
-STRIPPED=$(printf '%s' "$COMMAND" | tr -d '\042\047\140\\')
-if ! printf '%s' "$STRIPPED" | grep -qw git; then
-  exit 0
-fi
-if ! printf '%s' "$STRIPPED" | grep -qw push; then
-  exit 0
-fi
-
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "Blocked: python3 is required to parse git push commands safely." >&2
-  exit 2
-fi
-
-parse_git_push() {
-  python3 - "$COMMAND" "$PROJECT_DIR" <<'PY'
-import json, os, shlex, sys
-
-command, base_dir = sys.argv[1], sys.argv[2]
-seps = {"&&", "||", ";", "|", "&", "(", ")"}
-git_global_value = {"-C", "-c", "--git-dir", "--work-tree", "--namespace",
-                    "--exec-path", "--config", "--config-env"}
-push_value_opts = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
-force_long = {"--force", "--force-with-lease", "--force-if-includes"}
-
-def abspath(path, cwd):
-    return os.path.abspath(path if os.path.isabs(path) else os.path.join(cwd, path))
-
-try:
-    lex = shlex.shlex(command, posix=True, punctuation_chars=True)
-    lex.whitespace_split = True
-    lex.commenters = ""
-    toks = list(lex)
-except ValueError:
-    print(json.dumps({"found": False, "invocations": [], "workdir": os.path.abspath(base_dir)}))
-    sys.exit(0)
-
-segments, cur = [], []
-for t in toks:
-    if t in seps:
-        if cur:
-            segments.append(cur)
-            cur = []
-    else:
-        cur.append(t)
-if cur:
-    segments.append(cur)
-
-def push_of(seg, base):
-    n = len(seg)
-    if n == 0 or seg[0] != "git":
-        return None
-    cwd = base
-    j = 1
-    while j < n:
-        t = seg[j]
-        if t == "-C":
-            if j + 1 >= n:
-                return None
-            cwd = abspath(seg[j + 1], cwd)
-            j += 2
-            continue
-        if t.startswith("-C") and len(t) > 2:
-            cwd = abspath(t[2:], cwd)
-            j += 1
-            continue
-        if t in git_global_value:
-            j += 2
-            continue
-        if t.startswith("-"):
-            j += 1
-            continue
-        if t != "push":
-            return None
-        args = seg[j + 1:]
-        remote = ""
-        force = False
-        positionals = []
-        k = 0
-        while k < len(args):
-            a = args[k]
-            if a == "--":
-                positionals.extend(args[k + 1:])
-                if any(p.startswith("+") for p in args[k + 1:]):
-                    force = True
-                break
-            if a in force_long or a.startswith("--force-with-lease="):
-                force = True
-                k += 1
-                continue
-            if a in push_value_opts:
-                k += 2
-                continue
-            if any(a.startswith(opt + "=") for opt in push_value_opts):
-                k += 1
-                continue
-            if a.startswith("-"):
-                if not a.startswith("--") and "f" in a[1:]:
-                    force = True
-                k += 1
-                continue
-            if a.startswith("+"):
-                force = True
-            positionals.append(a)
-            k += 1
-        if positionals:
-            if positionals[0].startswith("+"):
-                remote = ""
-            else:
-                remote = positionals[0]
-        return (os.path.abspath(cwd), remote, force)
-    return None
-
-invs = []
-for seg in segments:
-    r = push_of(seg, base_dir)
-    if r is None:
-        continue
-    invs.append({"workdir": r[0], "remote": r[1], "force": r[2]})
-
-print(json.dumps({
-    "found": bool(invs),
-    "invocations": invs,
-    "workdir": invs[0]["workdir"] if invs else os.path.abspath(base_dir),
-}))
-PY
-}
-
-if ! PUSH_INFO=$(parse_git_push); then
-  echo "Blocked: unable to parse git push command safely." >&2
-  exit 2
-fi
-
-# === LAYER 1: credential residue (HARD BLOCK) ===
-CRED_RE='github_pat_[A-Za-z0-9_]+@|ghp_[A-Za-z0-9]+@|glpat-[A-Za-z0-9_]+@|ghs_[A-Za-z0-9]+@|oauth2:[^@[:space:]]+@|https?://[^/@[:space:]]+@'
-CONFIG_REMOTE_STORED_RE='^(remote\..*\.(url|pushurl)|url\..*\.(insteadof|pushinsteadof)|credential\..*)[[:space:]]'
-# git -c / --config-env overrides that can inject a credential or redirect the push
-# target: remote/url redirect, auth-carrying http.extraHeader (no `@` for CRED_RE),
-# or a config include pulling in a credentialed remote the scans below never see.
-CONFIG_OVERRIDE_RE='(^|[[:space:]])(-c|--config|--config-env)(=|[[:space:]])+(config-env:)?(remote\.[^=[:space:]]*\.(url|pushurl)|url\.[^=[:space:]]*\.(insteadof|pushinsteadof)|credential\.|include\.|includeif\.|http\.[^=[:space:]]*extraheader)'
-# Same override keys injected via GIT_CONFIG_* env vars (parity with the -c form).
-GIT_CONFIG_ENV_RE='(^|[[:space:]])GIT_CONFIG(_[A-Z0-9]+)*='
-LEAK=""
+# Block 2: credential-looking secret in the raw command text.
+CRED_RE='ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{16,}|oauth2:[^@[:space:]]+@|x-access-token:[^@[:space:]]+@|[A-Za-z][A-Za-z0-9+.-]*://[^/@:[:space:]]+:[^/@[:space:]]+@'
 if printf '%s' "$COMMAND" | grep -Eq "$CRED_RE"; then
-  LEAK="command: $(printf '%s' "$COMMAND" | grep -oE "$CRED_RE" | head -1)"
-fi
-if printf '%s' "$COMMAND" | grep -Eiq "$CONFIG_OVERRIDE_RE"; then
-  LEAK="$LEAK
-command: remote/url/credential/include/http.extraHeader config override on a push"
-fi
-if printf '%s' "$COMMAND" | grep -Eq "$GIT_CONFIG_ENV_RE"; then
-  LEAK="$LEAK
-command: GIT_CONFIG_* env config override on a push"
-fi
-scan_stored_config() {
-  local root hit
-  root=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0
-  hit=$(git -C "$root" config --get-regexp '.*' 2>/dev/null | grep -Ei "$CONFIG_REMOTE_STORED_RE" | grep -E "$CRED_RE" || true)
-  [ -n "$hit" ] && printf '%s stored-config: %s' "$root" "$hit"
-}
-_s=$(scan_stored_config "$PROJECT_DIR")
-[ -n "$_s" ] && LEAK="$LEAK
-$_s"
-while IFS= read -r _push; do
-  _workdir=$(echo "$_push" | jq -r '.workdir')
-  _s=$(scan_stored_config "$_workdir")
-  [ -n "$_s" ] && LEAK="$LEAK
-$_s"
-done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
-if [ -n "$LEAK" ]; then
-  echo "Blocked: credential, config override (remote/url/credential/include/http.extraHeader), or GIT_CONFIG env injection detected in the command." >&2
-  echo "$LEAK" | sed -E 's#(https?://)[^/@[:space:]]+@#\1***@#g' | sed -E 's/(oauth2:|github_pat_|ghp_|glpat-|ghs_)[^@]*@/***@/g' | sed 's/^/  /' >&2
-  echo "Fix: git remote set-url <remote> <url-without-credentials>; keep tokens and remote/url overrides out of the command." >&2
+  echo "Blocked: credential-looking secret in the command text." >&2
+  echo "Keep tokens in gitignored files; supply them via a credential helper at call time." >&2
   exit 2
 fi
 
-# === LAYER 1b: destructive push (BLOCK unless single-use marker exists) ===
-safe_component() {
-  value=$(printf '%s' "$1" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
-  [ -n "$value" ] && printf '%s' "$value" || printf '%s' unnamed
-}
-allow_force_marker() {
-  local repo_root=$1 remote=$2 branch=$3
-  local remote_safe branch_safe marker expected
-  remote_safe=$(safe_component "$remote")
-  branch_safe=$(safe_component "$branch")
-  marker="$repo_root/.codex/state/allow-force-push.${remote_safe}.${branch_safe}"
-  expected=$(printf 'remote=%s\nbranch=%s\n' "$remote" "$branch")
-  if [ ! -f "$marker" ]; then
-    echo "Blocked: destructive git push requires explicit single-use approval." >&2
-    echo "Detected force push for remote '$remote' on branch '$branch'." >&2
-    echo "Narrower alternative: prefer --force-with-lease over --force when rewriting is unavoidable, and coordinate timing with collaborators." >&2
-    echo "To approve exactly once, create this marker with exact content, then retry:" >&2
-    echo "  mkdir -p '$(dirname "$marker")' && printf 'remote=%s\\nbranch=%s\\n' '$remote' '$branch' > '$marker'" >&2
-    return 1
-  fi
-  if [ "$(cat "$marker" 2>/dev/null)" != "$expected" ]; then
-    echo "Blocked: force-push approval marker is not scoped to remote '$remote' and branch '$branch'." >&2
-    echo "Expected marker content:" >&2
-    printf '%s' "$expected" | sed 's/^/  /' >&2
-    return 1
-  fi
-  rm -f "$marker"
-  return 0
-}
-while IFS= read -r _push; do
-  [ "$(echo "$_push" | jq -r '.force // false')" = "true" ] || continue
-  _workdir=$(echo "$_push" | jq -r '.workdir')
-  REPO_ROOT=$(git -C "$_workdir" rev-parse --show-toplevel 2>/dev/null || true)
-  [ -z "$REPO_ROOT" ] && continue
-  PUSH_REMOTE=$(echo "$_push" | jq -r '.remote')
-  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
-  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE="origin"
-  PUSH_BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-  PUSH_BRANCH=$(printf '%s\n' "$PUSH_BRANCH" | head -1)
-  allow_force_marker "$REPO_ROOT" "$PUSH_REMOTE" "$PUSH_BRANCH" || exit 2
-done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
+# Everything below applies only to a clear `git ... push` in command position
+# (start or after ; | & ( or whitespace) in a quote-stripped view: quoted spans
+# are removed first, so force-looking text inside string arguments never matches.
+QUOTELESS=$(printf '%s' "$COMMAND" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
+printf '%s' "$QUOTELESS" | grep -Eq '(^|[;&|([:space:]])git[[:space:]]([^;|&]*[[:space:]])?push([[:space:];|&)]|$)' || exit 0
 
-# === LAYER 2 (drift, WARN) ===
-while IFS= read -r _push; do
-  _workdir=$(echo "$_push" | jq -r '.workdir')
-  REPO_ROOT=$(git -C "$_workdir" rev-parse --show-toplevel 2>/dev/null || true)
-  [ -z "$REPO_ROOT" ] && continue
-  PUSH_REMOTE=$(echo "$_push" | jq -r '.remote')
-  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
-  [ -z "$PUSH_REMOTE" ] && PUSH_REMOTE="origin"
-  if printf '%s\n' "$PUSH_REMOTE" | grep -Eq '^[A-Za-z][A-Za-z0-9+.-]*://|^[^/:@]+@[^/:]+:.+|^[^/:]+\.[^/:]+:.+|^[^/:]+:.*/.+'; then
-    ACTUAL_URL="$PUSH_REMOTE"
-  else
-    ACTUAL_URL=$(git -C "$REPO_ROOT" remote get-url --push --all "$PUSH_REMOTE" 2>/dev/null | head -1)
-    [ -z "$ACTUAL_URL" ] && ACTUAL_URL=$(git -C "$REPO_ROOT" config "remote.${PUSH_REMOTE}.url" 2>/dev/null)
-  fi
-  [ -z "$ACTUAL_URL" ] && continue
+# Resolve the target repo: honor a clear `git -C <path>`, else the session dir.
+TARGET_DIR=$(printf '%s' "$COMMAND" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p' | head -1)
+TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)') TARGET_DIR=$PWD ;; '$CODEX_PROJECT_DIR'|'${CODEX_PROJECT_DIR}') TARGET_DIR="${CODEX_PROJECT_DIR:-.}" ;; esac
+[ -n "$TARGET_DIR" ] || TARGET_DIR="${CODEX_PROJECT_DIR:-.}"
+REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
 
-  STATE_DIR="$REPO_ROOT/.codex/state"
-  PUSH_REMOTE_SAFE=$(printf '%s' "$PUSH_REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
-  [ -n "$PUSH_REMOTE_SAFE" ] || PUSH_REMOTE_SAFE="direct-url"
-  BASELINE_FILE="$STATE_DIR/last-push-url.${PUSH_REMOTE_SAFE}"
-  mkdir -p "$STATE_DIR"
+# Block 3: stored-config credential (remote URLs, credential-helper values).
+STORED=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null | grep -E "$CRED_RE" || true)
+if [ -n "$STORED" ]; then
+  echo "Blocked: git config visible from $REPO_ROOT stores a literal credential in:" >&2
+  printf '%s\n' "$STORED" | awk '{print "  " $1}' | sort -u >&2
+  echo "Fix: keep remote URLs clean; let a credential helper read the token from a gitignored file (variable-reference helper values pass)." >&2
+  exit 2
+fi
 
-  if [ -f "$BASELINE_FILE" ]; then
-    BASELINE_URL=$(cat "$BASELINE_FILE" 2>/dev/null)
-    if [ -n "$BASELINE_URL" ] && [ "$ACTUAL_URL" != "$BASELINE_URL" ]; then
-      echo "Warning: remote '$PUSH_REMOTE' URL changed since last push." >&2
-      echo "  Previous: $BASELINE_URL" >&2
-      echo "  Current:  $ACTUAL_URL" >&2
-      echo "If intentional, no action needed — this URL is now recorded as the baseline (recorded at gate time, before the push runs)." >&2
-    fi
-  fi
-  printf '%s\n' "$ACTUAL_URL" > "$BASELINE_FILE"
+# Block 1: clear plain force push requires a scoped single-use marker.
+TAIL=$(printf '%s' "$QUOTELESS" | tr '\n' ';' | sed -E 's/.*\bpush\b//; s/[;|&()].*//')
+printf '%s' "$TAIL" | grep -Eq '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' || exit 0
 
-done < <(echo "$PUSH_INFO" | jq -c '.invocations[]')
-
-exit 0
+REMOTE=""
+for w in $TAIL; do case "$w" in -*|+*) ;; *) REMOTE="$w"; break ;; esac; done
+[ -n "$REMOTE" ] || REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
+[ -n "$REMOTE" ] || REMOTE=origin
+BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+[ -n "$BRANCH" ] || BRANCH=unknown
+R=$(printf '%s' "$REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
+B=$(printf '%s' "$BRANCH" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
+MARKER="$REPO_ROOT/.codex/state/allow-force-push.${R:-unnamed}.${B:-unnamed}"
+if [ -f "$MARKER" ]; then
+  rm -f "$MARKER"
+  exit 0
+fi
+echo "Blocked: force push requires explicit single-use approval (remote '$REMOTE', branch '$BRANCH')." >&2
+echo "Narrower alternative: --force-with-lease passes without a marker." >&2
+echo "To approve exactly once, create the marker file and retry:" >&2
+echo "  mkdir -p '$REPO_ROOT/.codex/state' && touch '$MARKER'" >&2
+exit 2

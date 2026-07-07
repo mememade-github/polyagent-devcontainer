@@ -28,7 +28,7 @@ yarn-error.log*
 # Claude Code (runtime markers — never committed)
 # -----------------------------------------------------------------------------
 .claude/.last-verification*
-.claude/.last-push-url*
+.claude/.allow-force-push*
 .claude/.stop-blocked*
 .claude/.refinement-active
 .claude/.refine-output
@@ -41,7 +41,7 @@ yarn-error.log*
 # Codex CLI (runtime markers — never committed; keep only .gitkeep)
 # -----------------------------------------------------------------------------
 .codex/state/last-verification*
-.codex/state/last-push-url*
+.codex/state/allow-force-push*
 .codex/state/stop-blocked*
 .codex/state/refinement-active
 .codex/state/.refine-output
