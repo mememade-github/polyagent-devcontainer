@@ -4,7 +4,7 @@
 
 ## Behavioral foundation
 
-Karpathy 4-rule: [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md) (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution). Load explicitly with the `Read` tool at session start. Skill mirror: [`.agents/skills/karpathy-guidelines/`](.agents/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`). Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
+Karpathy 4-rule: [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md) (Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution). Load explicitly with the `Read` tool at session start. Skill mirror: [`.agents/skills/karpathy-guidelines/`](.agents/skills/karpathy-guidelines/) (`SKILL.md`). Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 ## Identity
 

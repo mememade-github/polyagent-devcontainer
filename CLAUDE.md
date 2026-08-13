@@ -1,6 +1,6 @@
 # CLAUDE.md — Project Workspace
 
-Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below), also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md` + `EXAMPLES.md`) so the evaluator agent and explicit invocations can reference it as a handle. Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
+Behavioral foundation: [`.claude/rules/behavioral-core.md`](.claude/rules/behavioral-core.md) (Karpathy 4 rules — auto-imported below), also exposed as a skill at [`.claude/skills/karpathy-guidelines/`](.claude/skills/karpathy-guidelines/) (`SKILL.md`) so the evaluator agent and explicit invocations can reference it as a handle. Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 ## Identity
 

@@ -188,7 +188,7 @@ automation that independently vets the hook source.
 | /refine | Autonomous iterative refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |
-| karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md` + `EXAMPLES.md`) |
+| karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md`) |
 
 ## Verification
 
