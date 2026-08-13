@@ -2,9 +2,7 @@
 # =============================================================================
 # lib/detect-root.sh — worktree-aware workspace-root detection (sourced helper)
 # =============================================================================
-# Shared by karpathy-consistency-check.sh and the multi-project ROOT
-# completion-checker.sh so the root-resolution logic is defined ONCE and cannot
-# drift independently between the two oracles.
+# Sourced by karpathy-consistency-check.sh.
 #
 # Usage (from a script in scripts/meta/):
 #   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,8 +20,8 @@
 # is a checkout of ROOT itself, not a receiver; resolving ROOT to a worktree
 # path would make the oracle measure that transient checkout instead of the
 # real workspace. Rejecting worktree paths from (1)/(2)
-# lets (3) resolve the real workspace root. NOTE: the ROOT completion-checker
-# passes its own ROOT_DIR as $1, so BOTH the arg and env branches must be guarded.
+# lets (3) resolve the real workspace root. NOTE: callers may pass ROOT as $1,
+# so BOTH the arg and env branches must be guarded.
 #
 # This file is meant to be SOURCED (no side effects beyond defining detect_root
 # and one namespaced variable); it deliberately does not set shell options so it

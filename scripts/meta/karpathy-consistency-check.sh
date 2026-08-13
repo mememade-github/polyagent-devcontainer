@@ -5,12 +5,6 @@
 # Closes AUD-2026-018: automates the behavioral-core.md <-> karpathy SKILL.md
 # consistency comparison that the source-of-truth blockquote requires.
 #
-# Why a dedicated checker (not sync-audit): behavioral-core.md and the karpathy
-# SKILL.md are NOT in scripts/meta/portable-manifest.sh (they are auto-imported
-# doctrine, not manifest-tracked portable artifacts), so sync-audit.sh never
-# compares them. A PASS from sync-audit is therefore not evidence about this
-# pair. This script is the primary oracle for the pair.
-#
 # Usage:
 #   bash scripts/meta/karpathy-consistency-check.sh [ROOT]
 #
