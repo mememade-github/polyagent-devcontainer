@@ -19,10 +19,9 @@
 #   5. three levels up from this lib   (scripts/meta/lib -> ROOT)
 #
 # Why the worktree guard: a transient worktree under .../.claude/worktrees/<name>
-# is a checkout of ROOT itself, not a receiver. Callers exclude
-# '*/.claude/worktrees/*' from their find enumerators; if ROOT resolved to a
-# worktree path that exclusion would empty the file list (false FAIL) and block
-# every commit made from inside a worktree. Rejecting worktree paths from (1)/(2)
+# is a checkout of ROOT itself, not a receiver; resolving ROOT to a worktree
+# path would make the oracle measure that transient checkout instead of the
+# real workspace. Rejecting worktree paths from (1)/(2)
 # lets (3) resolve the real workspace root. NOTE: the ROOT completion-checker
 # passes its own ROOT_DIR as $1, so BOTH the arg and env branches must be guarded.
 #

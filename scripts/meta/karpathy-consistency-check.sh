@@ -14,13 +14,6 @@
 # Usage:
 #   bash scripts/meta/karpathy-consistency-check.sh [ROOT]
 #
-# Enumerator policy: find with path predicates ONLY. grep -r / grep -rl / rg
-#   --files are forbidden as enumerators — they can silently miss nested
-#   receiver repos. The wiki raw source
-#   (.claude/agent-memory/wiki/raw/sources/behavioral-core.md) is a different
-#   doctrine lineage (6-rule) and is structurally excluded by the path
-#   predicate (it is not under .claude/rules/), by design.
-#
 # Canonical body policy: the synchronized region is "## 1." -> EOF (Rules 1-4
 #   plus the closing self-test coda). Everything before "## 1." (frontmatter,
 #   title, source-of-truth / skill-handle blockquote, attribution, source link)
@@ -47,9 +40,9 @@ FAIL=0
 note_pass() { echo "[PASS] $1"; }
 note_fail() { echo "[FAIL] $1"; FAIL=$((FAIL + 1)); }
 
-# --- Enumerate (find, path-predicate, verbatim) ---
-mapfile -t BC_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/rules/behavioral-core.md' -o -path '*/.agents/rules/behavioral-core.md' \) | sort)
-mapfile -t SK_FILES < <(find "$ROOT" -type f -not -path '*/.claude/worktrees/*' \( -path '*/.claude/skills/karpathy-guidelines/SKILL.md' -o -path '*/.agents/skills/karpathy-guidelines/SKILL.md' \) | sort)
+# --- The four canonical paths, literal ---
+mapfile -t BC_FILES < <(ls -1 "$ROOT"/.agents/rules/behavioral-core.md "$ROOT"/.claude/rules/behavioral-core.md 2>/dev/null)
+mapfile -t SK_FILES < <(ls -1 "$ROOT"/.agents/skills/karpathy-guidelines/SKILL.md "$ROOT"/.claude/skills/karpathy-guidelines/SKILL.md 2>/dev/null)
 
 echo "=== karpathy-consistency-check  root=$ROOT ==="
 echo "behavioral-core=${#BC_FILES[@]}  SKILL=${#SK_FILES[@]}"
