@@ -24,7 +24,7 @@ if [ -d "$ACTUAL_ROOT/wip" ]; then
       CONTEXT="${CONTEXT}  - $(basename "$d")\n"
       [ -f "$d/README.md" ] && CONTEXT="${CONTEXT}$(head -5 "$d/README.md" | sed 's/^/    /')\n"
     done
-    CONTEXT="${CONTEXT}\nAUTO_RESUME: WIP tasks detected. Per CLAUDE.md Automated Workflow step 1, read the WIP README.md and resume work immediately.\n"
+    CONTEXT="${CONTEXT}\nAUTO_RESUME: WIP tasks detected. Per CLAUDE.md Automated workflow, read the WIP README.md and resume work immediately.\n"
   fi
 fi
 

@@ -27,8 +27,7 @@ bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel
 
 ## For a specific product
 
-1. Read the pre-commit verification section of CLAUDE.md / AGENTS.md and
-   REFERENCE.md §Verification for project-specific commands.
+1. Read CLAUDE.md / AGENTS.md governance and REFERENCE.md §Verification for project-specific commands.
 2. Detect project type from files:
    - `pyproject.toml` → Python: `ruff check src/ && mypy src/ --ignore-missing-imports`
    - `package.json` → TypeScript: `pnpm build`
