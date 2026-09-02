@@ -14,6 +14,7 @@ The container and its host-mounted `docker.sock` are not a security sandbox (see
 ## Automated workflow
 
 - At session start, check `MEMORY.md`; if the hook reports WIP, read each WIP `README.md` and resume the first actionable item. Otherwise wait for user instruction.
+- The request or approved plan sets scope. Keep changes surgical; report unrelated issues. Commit tests only when requested or customary here; keep scratch checks outside the repository.
 - Get explicit approval before `rm -rf`, overwriting `mv`/`cp`, `git push --force`, `git reset --hard`, or database `DROP`/`DELETE`.
 - Fix root causes — diagnose across infra/config/deploy/code; no workarounds.
 - Explicit failure — every operation must succeed or fail visibly.
