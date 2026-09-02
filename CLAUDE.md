@@ -5,7 +5,7 @@
 - Workspace: `/workspaces/`; environment: Ubuntu 22.04 DevContainer, user `vscode`.
 - `.claude/` is ground truth; `.agents/` is its generated Codex mirror, and `.codex/` holds Codex-specific configuration.
 - Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
-- [PROJECT.md](PROJECT.md) and [REFERENCE.md](REFERENCE.md) supply product context, commands, configuration, and troubleshooting.
+- [PROJECT.md](PROJECT.md) supplies product context. Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
 
 ## Trust model: advisory gates
 
@@ -32,4 +32,3 @@ The imported rules derive from [forrestchang/andrej-karpathy-skills](https://git
 @.claude/rules/behavioral-core.md
 @.claude/rules/devcontainer-patterns.md
 @PROJECT.md
-@REFERENCE.md

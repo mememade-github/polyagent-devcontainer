@@ -6,7 +6,7 @@
 - In this DevContainer, bubblewrap cannot create user namespaces; Codex shell execution uses `--dangerously-bypass-approvals-and-sandbox` as a compatibility fallback, not a security boundary.
 - `.claude/` is ground truth; `.agents/` is its byte-faithful generated mirror, and `.codex/` holds Codex-specific configuration.
 - Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
-- Codex does not follow `@import`. At session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md), [`.agents/rules/devcontainer-patterns.md`](.agents/rules/devcontainer-patterns.md), [PROJECT.md](PROJECT.md), and [REFERENCE.md](REFERENCE.md).
+- Codex does not follow `@import`. At session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md), [`.agents/rules/devcontainer-patterns.md`](.agents/rules/devcontainer-patterns.md), and [PROJECT.md](PROJECT.md). Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
 
 ## Trust model: advisory gates
 
