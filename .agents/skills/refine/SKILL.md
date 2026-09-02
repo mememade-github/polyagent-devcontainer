@@ -8,11 +8,7 @@ allowed-tools: Bash, Read, Write, Edit, Grep, Glob, Agent
 
 # /refine — Autonomous Exploratory Improvement Loop
 
-Thin orchestrator: the main agent drives a modify→evaluate→keep/discard loop;
-all heavy work (audit, modify, evaluate) runs in **fresh subagents** per
-iteration so the orchestrator context stays minimal. **Exploratory, not
-corrective** — each iteration rediscovers the highest-priority remaining gap and
-improves it; the loop converges as gaps resolve, not by retrying one fix.
+Run a modify → evaluate → keep/discard loop. Audit, Modify, and Evaluate use fresh contexts so evidence and scoring remain isolated. Each iteration addresses the highest-priority remaining gap.
 
 ## Arguments
 
@@ -132,8 +128,6 @@ infra to find the TRUE root cause (code adapting to an infra limit is a
 workaround, not a fix); flag any **regression** (a previously-passing check now
 failing) as highest priority; select ONE gap cluster (1–3 related gaps). Returns
 a Gap Report: `PRIORITY_GAP / EVIDENCE / ROOT_CAUSE / REGRESSION / REMAINING`.
-
-This separation forces evidence-before-modification and prevents 0→1.0 bulk jumps.
 
 ## Step 4: Modify (fresh subagent — focused)
 
