@@ -18,6 +18,7 @@ Codex command hooks run only after project trust and `/hooks` review; changed ho
 
 - At session start, check `MEMORY.md`; if the hook reports WIP, read each WIP `README.md` and resume the first actionable item. Otherwise wait for user instruction.
 - The request or approved plan sets scope. Keep changes surgical; report unrelated issues. Commit tests only when requested or customary here; keep scratch checks outside the repository.
+- Every claim must be verified by execution; this does not expand the request's check scope or repository-defined tier timing.
 - Ground progress and completion claims in tool results from this session. State failed or skipped checks plainly.
 - Get explicit approval before `rm -rf`, overwriting `mv`/`cp`, `git push --force`, `git reset --hard`, or database `DROP`/`DELETE`.
 - Fix root causes — diagnose across infra/config/deploy/code; no workarounds.
