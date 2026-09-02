@@ -60,7 +60,7 @@ REFERENCE.md, .devcontainer/.env, and
 .claude/rules/project/. Verify with .devcontainer/verify-template.sh.
 ```
 
-Files **not** to edit by hand: `.claude/settings.json`, `.codex/hooks.json`, `.devcontainer/Dockerfile`, agent frontmatter.
+During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts; customize the six update targets named before “Verify with” in the prompt above, while `.devcontainer/verify-template.sh` is the verification command rather than an update target.
 
 ## Vendor parity sync
 
