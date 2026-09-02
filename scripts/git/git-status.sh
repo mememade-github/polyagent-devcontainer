@@ -22,8 +22,7 @@ cd "$REPO"
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 DIRTY=$(git status --porcelain 2>/dev/null | wc -l)
 LAST_COMMIT=$(git log --oneline -1 2>/dev/null || echo "(no commits)")
-# Distinguish "no upstream" from "0 unpushed" (status SKILL §2: report no-upstream
-# explicitly rather than treating it as zero).
+# Distinguish "no upstream" from "0 unpushed"; report it explicitly.
 if UPSTREAM=$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null); then
     UNPUSHED=$(git log --oneline @{u}..HEAD 2>/dev/null | wc -l)
 else
