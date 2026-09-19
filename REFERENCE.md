@@ -170,12 +170,13 @@ Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`,
 
 All gates are advisory policy tripwires (see §Privilege boundary), not a
 security sandbox. A gate blocks (exit 2) only on a positive match — a
-`--no-verify`/`-n` commit bypass, a secret pattern in staged content, an
-inline credential or credential-bearing stored git config on a push, a force
+`--no-verify`/`-n` commit bypass, a credential pattern in raw command text,
+credential-bearing stored git config on a push, a force
 push, or a missing/stale verification marker. On any parse failure, internal
 error, or unrecognized command shape the gate exits 0 (fail-open). The
 verification marker is per-branch and considered fresh for 24 hours from its
 mtime; `scripts/meta/completion-checker.sh` writes it (see §Verification).
+These gates do not scan staged file contents.
 
 Codex loads `.codex/config.toml` directly after the project is trusted. Project
 command hooks also require review in `/hooks`, and changed definitions are
