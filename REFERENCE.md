@@ -32,7 +32,7 @@ All user-tunable values live in `.devcontainer/.env`. The tracked file is
 | `IMAGE_NAME` | `polyagent-devcontainer` | docker-compose.yml | Image name |
 | `IMAGE_TAG` | `latest` | docker-compose.yml | Image tag |
 | `TZ` | `UTC` | docker-compose.yml | Timezone |
-| `TYPESAFE_API_KEY` | *(empty)* | docker-compose.yml environment | Optional TypeSafe key; store only in `.devcontainer/.env`; recreate the container after setting it |
+| `TYPESAFE_API_KEY` | *(empty)* | `.devcontainer/.env` | Optional TypeSafe key; store only in `.devcontainer/.env`; load it in the command before a request |
 | `DNS_PRIMARY` | `8.8.8.8` | docker-compose.yml dns | First DNS resolver; set to your network's DNS server if internal hostnames must resolve |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
 | `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | HOST path for cross-namespace bind mounts (see `.claude/rules/devcontainer-patterns.md`) |
@@ -196,8 +196,8 @@ automation that independently vets the hook source.
 ### TypeSafe (optional)
 
 Store `TYPESAFE_API_KEY` only in `.devcontainer/.env` (gitignored).
-`docker-compose.yml` passes it into the container, so recreate the container
-after setting it. The `typesafe-ai` skill reads the live TypeSafe documentation
+Load it in the command before a request, for example `set -a; . .devcontainer/.env; set +a`.
+The `typesafe-ai` skill reads the live TypeSafe documentation
 for API and SDK usage, so this file carries no request shapes or SDK commands.
 
 ## Verification
