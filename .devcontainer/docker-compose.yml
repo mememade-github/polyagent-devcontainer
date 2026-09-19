@@ -43,6 +43,7 @@ services:
 
     environment:
       - TZ=${TZ:-UTC}
+      - TYPESAFE_API_KEY=${TYPESAFE_API_KEY:-}
 
     stdin_open: true
     tty: true
