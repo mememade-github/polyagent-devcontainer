@@ -8,7 +8,7 @@
 
 Workspace-scoped environment for running Claude Code and Codex CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 4 hooks · 4 skills (refine, status, verify, karpathy-guidelines).
+Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, karpathy-guidelines, typesafe-ai).
 
 ## Tech Stack
 
@@ -41,4 +41,4 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/` one-way
 
 ---
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-09-19*

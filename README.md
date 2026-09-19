@@ -45,8 +45,10 @@ hooks require review again. See [REFERENCE.md](REFERENCE.md) for details.
 | AI agents | 2 | Claude Code · Codex CLI |
 | Governance roles | 2 | evaluator, wip-manager (Claude agents; Codex skill/subprocess mirrors) |
 | Hooks | 4 / 4 | session-start, pre-commit-gate, pre-push-gate, refinement-gate |
-| Skills | 4 | /refine, /status, /verify, karpathy-guidelines |
+| Skills | 5 | /refine, /status, /verify, karpathy-guidelines, typesafe-ai |
 | Tools | 20+ | ripgrep, fd, fzf, jq, tmux, gh, docker CLI, uv |
+
+For the optional TypeSafe API key, see [REFERENCE.md §TypeSafe (optional)](REFERENCE.md#typesafe-optional).
 
 ## Customizing for your project
 
