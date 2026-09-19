@@ -30,7 +30,7 @@ Codex command hooks run only after project trust and `/hooks` review; changed ho
 
 ## Mirror and communication
 
-Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/` by hand. Mirrored skill frontmatter is Claude metadata that Codex ignores. Respond in the user's language unless this file sets a team language.
+Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/` by hand. Codex uses skill names and descriptions for discovery; Claude-specific role metadata such as tools, model, and color does not configure the Codex role. Respond in the user's language unless this file sets a team language.
 
 ## Behavioral foundation
 
