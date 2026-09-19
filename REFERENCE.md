@@ -195,22 +195,10 @@ automation that independently vets the hook source.
 
 ### TypeSafe (optional)
 
-Store `TYPESAFE_API_KEY` only in `.devcontainer/.env`, then recreate the
-container after setting the key.
-
-The REST API uses `POST https://api.typesafe.ai/v1/systemone` with
-`Authorization: Bearer $TYPESAFE_API_KEY` and a body shaped as
-`{state, model: "jev-latest", questions}`. Questions use the `noul`,
-`choice`, or `score` primitive.
-
-The optional Python SDK, `typesafe-sdk`, reads `TYPESAFE_API_KEY` and
-`TYPESAFE_BASE_URL` from the environment. Run this isolated import and client
-construction smoke check (no API request or real key required):
-
-```bash
-uv run --no-project --python /usr/bin/python3.10 --with typesafe-sdk==0.7.0 python -c \
-  'from typesafe_sdk import TypeSafeClient,Choice,Noul,Score; from typesafe_sdk.constants import DEFAULT_MODEL; import sys; print(sys.version,DEFAULT_MODEL); c=TypeSafeClient(api_key="synthetic-probe"); print("SDK Python3.10 uv0.6 import and construction PASS"); c.close()'
-```
+Store `TYPESAFE_API_KEY` only in `.devcontainer/.env` (gitignored).
+`docker-compose.yml` passes it into the container, so recreate the container
+after setting it. The `typesafe-ai` skill reads the live TypeSafe documentation
+for API and SDK usage, so this file carries no request shapes or SDK commands.
 
 ## Verification
 
