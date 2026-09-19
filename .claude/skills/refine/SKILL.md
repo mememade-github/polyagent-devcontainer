@@ -96,9 +96,10 @@ Rediscover ground truth every run (no cached config). Read the project
 
 Prefer `objective`. If a project-local `.refine/score.sh` exists (JSON out:
 `{"score":0-1,"feedback":"...","metrics":{"<id>":"pass|fail"}}`) it is
-authoritative. Validate: run `verify_cmd` once — output must parse and the
-baseline must NOT already be perfect (else add stricter checks or raise the
-threshold). Freeze the Contract into `$MARKER` (immutable thereafter):
+authoritative. Validate that the Contract covers the requested outcome before
+freezing it. If the baseline already satisfies the required checks and acceptance
+threshold, accept it without modification. Do not add checks or raise the threshold
+merely to force an improvement. Freeze the Contract into `$MARKER` (immutable thereafter):
 
 ```bash
 cat > "$MARKER" <<EOF
@@ -108,15 +109,20 @@ EOF
 
 ## Step 2: Baseline
 
-For tool-augmented/calibrated contracts with no `verify_cmd`, baseline = evaluator
-run of `Contract.checks[]` against HEAD (no diff); skip the `verify_cmd`
-validation in Step 1.
+Run the baseline once. For tool-augmented/calibrated contracts with no
+`verify_cmd`, use a fresh evaluator run of `Contract.checks[]` against HEAD
+(no diff). Failed execution or invalid output is an error, not a passing
+baseline. For objective mode:
 
 ```bash
 bash -c "<Contract.verify_cmd>" > "$OUTPUT" 2>&1
 SCORE=<parse .score>; GAPS=<failing check IDs, or []>
 echo "{\"score\":$SCORE,\"gaps\":$GAPS,\"result\":\"Baseline\",\"feedback\":\"initial\"}" >> "$ATTEMPTS"
 ```
+
+If the baseline `SCORE >= THRESHOLD`, report **ACCEPT** with zero modification
+iterations, remove `$MARKER`, and exit without Audit, Modify, staging, or a
+commit. Otherwise continue to Step 3.
 
 ## Step 3: Audit (fresh Explore subagent — read-only)
 
@@ -186,12 +192,12 @@ ITERATION=$(wc -l < "$ATTEMPTS")
 
 ## Design principles
 
-1. **Exploratory over corrective** — discover the next gap, don't just fix the stated one.
+1. **Explore within scope** — discover the next gap in the requested outcome and frozen Contract.
 2. **Thin orchestrator** — heavy work in fresh subagents; only scores + one-liners enter main context.
 3. **Audit→Modify separation** — evidence-before-modification is structurally enforced.
 4. **Context reset per iteration**; output to file, not context.
 5. **Generator ≠ Evaluator** — context-isolated scoring (Anthropic GAN principle); the agent that modified code never writes or modifies its own scorer in the same iteration.
 6. **Metric over judgment** — objective if available; calibrated is last resort.
-7. **Baseline must not be perfect** — the Contract must be able to register improvement.
+7. **A qualifying baseline is a successful no-op** — change the Contract only to correct an actual mismatch with the requested outcome before it is frozen.
 8. **Scorer notes** — prefer graduated checks over binary pass/fail (binary → wasteful 0→1.0 jumps); evolve `score.sh` only *between* runs.
 9. **No dead data** — store only `{score, gaps, result, feedback}` per attempt.
