@@ -15,7 +15,7 @@ if command -v git &>/dev/null && [ -e "$PROJECT_DIR/.git" ]; then
   CONTEXT="${CONTEXT}Git branch: ${BRANCH} (${DIRTY} uncommitted changes)\n"
 fi
 
-# 2. Active WIP tasks — auto-resume directive
+# 2. Active WIP tasks — resume only when the current request permits
 if [ -d "$ACTUAL_ROOT/wip" ]; then
   WIP_DIRS=$(ls -d "$ACTUAL_ROOT"/wip/*/ 2>/dev/null)
   if [ -n "$WIP_DIRS" ]; then
@@ -24,7 +24,7 @@ if [ -d "$ACTUAL_ROOT/wip" ]; then
       CONTEXT="${CONTEXT}  - $(basename "$d")\n"
       [ -f "$d/README.md" ] && CONTEXT="${CONTEXT}$(head -5 "$d/README.md" | sed 's/^/    /')\n"
     done
-    CONTEXT="${CONTEXT}\nAUTO_RESUME: WIP tasks detected. Per CLAUDE.md Automated workflow, read the WIP README.md and resume work immediately.\n"
+    CONTEXT="${CONTEXT}\nWIP tasks detected. Follow the current request; when it permits resuming saved work, read the relevant WIP README.md and continue its first actionable item.\n"
   fi
 fi
 

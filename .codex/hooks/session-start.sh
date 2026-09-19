@@ -23,7 +23,7 @@ if [ -f "$GIT_ROOT/MEMORY.md" ]; then
   CONTEXT="${CONTEXT}Known issues from MEMORY.md:\n$(head -20 "$GIT_ROOT/MEMORY.md" | sed 's/^/  /')\n"
 fi
 
-# 3. Active WIP tasks — auto-resume directive
+# 3. Active WIP tasks — resume only when the current request permits
 if [ -d "$GIT_ROOT/wip" ]; then
   WIP_DIRS=$(ls -d "$GIT_ROOT"/wip/*/ 2>/dev/null)
   if [ -n "$WIP_DIRS" ]; then
@@ -32,7 +32,7 @@ if [ -d "$GIT_ROOT/wip" ]; then
       CONTEXT="${CONTEXT}  - $(basename "$d")\n"
       [ -f "$d/README.md" ] && CONTEXT="${CONTEXT}$(head -5 "$d/README.md" | sed 's/^/    /')\n"
     done
-    CONTEXT="${CONTEXT}\nAUTO_RESUME: WIP tasks detected. Per AGENTS.md, read the WIP README.md and resume work immediately.\n"
+    CONTEXT="${CONTEXT}\nWIP tasks detected. Follow the current request; when it permits resuming saved work, read the relevant WIP README.md and continue its first actionable item.\n"
   fi
 fi
 

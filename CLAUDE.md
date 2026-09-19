@@ -13,7 +13,7 @@ The container and its host-mounted `docker.sock` are not a security sandbox (see
 
 ## Automated workflow
 
-- At session start, check `MEMORY.md`; if the hook reports WIP, read each WIP `README.md` and resume the first actionable item. Otherwise wait for user instruction.
+- At session start, check `MEMORY.md`; if the hook reports WIP and the current request permits resuming saved work, read the relevant WIP `README.md` and continue its first actionable item. Otherwise follow the current request, and wait only if no task has been supplied.
 - The request or approved plan sets scope. Keep changes surgical; report unrelated issues. Commit tests only when requested or customary here; keep scratch checks outside the repository.
 - Every claim must be verified by execution; this does not expand the request's check scope or repository-defined tier timing.
 - Ground progress and completion claims in tool results from this session. State failed or skipped checks plainly.
