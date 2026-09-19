@@ -42,6 +42,8 @@ API contracts, SDK usage, models, limits, and worked examples.
   If Markdown fetching fails, try the normal page. If live access is unavailable,
   use available local docs or installed SDK types, state that limitation, and avoid
   inventing version-dependent details.
+  This skill keeps a snapshot of the HTTP API reference at `reference/api.md`
+  (docs.typesafe.ai/api.md, fetched 2026-09-19) for that case.
 
 | Task | Start here; follow the relevant details |
 | --- | --- |

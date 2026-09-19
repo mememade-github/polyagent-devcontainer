@@ -191,7 +191,7 @@ automation that independently vets the hook source.
 | /status | Workspace status |
 | /verify | Pre-commit verification |
 | karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md`) |
-| typesafe-ai | TypeSafe workflow skill from [typesafe-ai/skills](https://github.com/typesafe-ai/skills), commit `65a39f393687675ce170e6094757de20370365b9`; MIT; vendored byte-identical with no local delta; generated mirror for Codex |
+| typesafe-ai | TypeSafe workflow skill from [typesafe-ai/skills](https://github.com/typesafe-ai/skills), commit `65a39f393687675ce170e6094757de20370365b9`; MIT; vendored with one local delta: an offline snapshot of the HTTP API reference at `reference/api.md` and the SKILL.md sentence that names it; generated mirror for Codex |
 
 ### TypeSafe (optional)
 
