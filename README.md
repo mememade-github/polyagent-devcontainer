@@ -30,10 +30,9 @@ agy
 ```
 
 On first run, `claude` prompts interactive login and Codex needs
-`codex login --device-auth` once. `agy` prints a Google sign-in URL: open it in
-any browser, sign in, and paste the code the browser shows back into the
-terminal (Gemini 4 Argon needs a Google AI Pro or Ultra plan). All three
-credentials persist in the named volumes.
+`codex login --device-auth` once. For `agy`, sign in at the printed Google URL
+and follow the terminal prompts. Gemini 4 Argon requires a paid Google AI Pro
+or Ultra plan, excluding free trials. All three credentials persist in named volumes.
 
 The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's
 bubblewrap sandbox cannot create user namespaces inside Docker. It is only a
@@ -93,8 +92,7 @@ Always use **Reopen in Container** (`Ctrl+Shift+P`). Attach connects to a runnin
 | Reopen menu missing | Install the Dev Containers extension |
 | Claude re-auth needed | `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | `docker volume ls \| grep codex-config` |
-| Antigravity re-auth needed | `docker volume ls \| grep -E 'gemini-config\|antigravity-secrets'` |
-| Antigravity ignores a rule | add `trigger: always_on` frontmatter; register a nested folder in `.agents/rules.json` (see [REFERENCE.md §Antigravity CLI](REFERENCE.md#antigravity-cli-agy)) |
+| Antigravity re-auth needed or a rule is ignored | See [REFERENCE troubleshooting](REFERENCE.md#troubleshooting) |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
 
 ## License & history
