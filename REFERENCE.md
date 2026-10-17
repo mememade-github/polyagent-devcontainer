@@ -21,7 +21,7 @@ DevContainer inside a VM or on a dedicated machine.
 
 ## Configuration (`.devcontainer/.env`)
 
-All user-tunable values live in `.devcontainer/.env`. The tracked file is
+Template build and startup configuration lives in `.devcontainer/.env`. The tracked file is
 `.devcontainer/.env.example`; copy it to `.devcontainer/.env` to customize
 (compose defaults apply when `.env` is absent).
 
@@ -99,10 +99,7 @@ login, no network call) and a recognizable
 > Named volumes are prefixed by `COMPOSE_PROJECT_NAME` and shared identically by
 > both entry paths (`docker compose up` and VS Code "Reopen in Container").
 > Change `COMPOSE_PROJECT_NAME` in `.devcontainer/.env` to isolate volumes per instance.
-> The image creates every mount point as `vscode`, so new volumes are
-> `vscode`-owned. A volume created by an older image without that directory
-> may be `root`-owned; fix it once with
-> `sudo chown -R vscode:vscode ~/.gemini ~/.config/antigravity`.
+> The image creates the mount points as `vscode`, so new volumes are `vscode`-owned.
 
 ## Pre-installed tools
 
@@ -141,9 +138,9 @@ The template intentionally pulls latest releases at build/run time:
   performs the preflight before every new `codex` process. Codex's built-in
   `codex update` is **not** used: it targets the root-owned default npm prefix
   (`/usr/lib/node_modules`) and fails as the unprivileged `vscode` user.
-- **`agy update`**: runs on every container start (`setup-env.sh` step 6),
-  unless `SKIP_AGY_UPDATE=1` is set. agy also self-updates in the background
-  during sessions; see [§Antigravity CLI](#antigravity-cli-agy).
+- **Antigravity background updates**: `AGY_CLI_DISABLE_AUTO_UPDATE=true` disables
+  session updates, but not explicit `agy update`. The healthcheck uses
+  `agy --version`, which does not start the updater. Startup refresh is step 6 above.
 
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin the rolling sources: replace the Claude installer
@@ -154,12 +151,10 @@ tools (`ruff`/`pytest`/`mypy`), and Node to an
 exact version (`setup_22.x` already fixes only the major), and pin the base
 image to a digest or fully-qualified version tag — `ubuntu-22.04` is a rolling
 alias that gets rebuilt. The `docker compose` plugin and `uv`
-are already version-pinned. To disable the per-start refresh, set
-`SKIP_CLAUDE_UPDATE=1`, `SKIP_CODEX_UPDATE=1`, and `SKIP_AGY_UPDATE=1` in the
-compose `environment:` block (values may come from `.env`) — `docker compose up`
-does not read `devcontainer.json`, which covers only the VS Code "Reopen in
-Container" path. The tracked compose file passes only `TZ`; see
-[§Antigravity CLI](#antigravity-cli-agy) for when each route takes effect.
+are already version-pinned. The tracked compose file passes only `TZ`.
+To skip startup refresh, pass `SKIP_CLAUDE_UPDATE=1`, `SKIP_CODEX_UPDATE=1`, or
+`SKIP_AGY_UPDATE=1` before startup through compose `environment:` in a local override.
+`exec -e` affects only the new process and cannot change an earlier startup step.
 
 ## Agent system
 
@@ -179,13 +174,11 @@ boundary in interactive and non-interactive flows.
 consumes the mirror directly, so do not delete it as a mere convention. Mirrored
 `SKILL.md` frontmatter (`tools`, `model`, `maxTurns`, `color`) is Claude-host
 metadata that Codex ignores.
-Antigravity discovers the same `.agents/skills/` (seven skills, including the
-two mirrored roles). `/refine` runs Audit, Modify, and Evaluate each in a fresh
-built-in `self` subagent (`invoke_subagent`, `TypeName: self`): Audit and Modify
-get the skill's Step 3 and Step 4 text, Evaluate gets the evaluator role body,
-and each child receives only that instruction and the permitted evidence. The
-child keeps the repository rules and hooks and never sees the parent
-conversation. No `.agents/agents/*.md` definition file is used.
+Antigravity discovers seven mirrored skills, including the two governance roles.
+`/refine` invokes a fresh built-in `self` for each role; Step 0b of the
+[refine skill](.agents/skills/refine/SKILL.md#step-0b-fresh-role-isolation) specifies
+role text and permitted evidence. Children retain rules and hooks, exclude the
+parent conversation, and need no `.agents/agents/*.md` definition file.
 
 ### Hooks
 
@@ -195,11 +188,10 @@ Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`,
 `refinement-gate.sh`. Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 `Write`; these commit/push gates intentionally inspect `Bash` commands.
 
-Antigravity (adapter): `.agents/hooks.json` registers SessionStart, PreToolUse
-(`run_command`), and Stop, each calling `.agents/hooks/claude-hooks-adapter.sh`
-from `.agents/` (agy's hook working directory). The adapter feeds the
-unmodified Claude hooks with `CLAUDE_PROJECT_DIR` set to the git root of the
-command's `Cwd`:
+Antigravity runs the adapter after workspace trust. `.agents/hooks.json` registers
+SessionStart, PreToolUse (`run_command`), and Stop, calling
+`.agents/hooks/claude-hooks-adapter.sh` from `.agents/`. The unmodified Claude
+hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`:
 
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|
@@ -214,6 +206,8 @@ and the Claude hooks keep their fail-open policy. Antigravity shares the Claude
 markers and refine state in `.claude/`. One worktree runs one refine loop: while
 a Claude loop is active, an agy stop in the same repository takes part in the
 gate's alternation (block, allow, block, …) like a second Claude session.
+The adapter intercepts `run_command`, not file-editing tools. A hook `deny`
+still blocks under `--dangerously-skip-permissions`.
 
 All gates are advisory policy tripwires (see §Privilege boundary), not a
 security sandbox. A gate blocks (exit 2) only on a positive match — a
@@ -301,150 +295,29 @@ codex --version
 
 ## Antigravity CLI (agy)
 
-Antigravity CLI is Google's terminal agent (the successor of Gemini CLI). The
-image installs it with the official installer. Official documentation:
-<https://antigravity.google/docs/cli/reference/>.
+See the [official CLI reference](https://antigravity.google/docs/cli/reference/)
+and [troubleshooting](https://antigravity.google/docs/cli/troubleshooting/).
 
 ### Authentication
 
-| Method | Setup | Notes |
-|--------|-------|-------|
-| Google account OAuth (default) | run `agy` (or `/login`) | In a container the CLI prints a URL; sign in from any browser and paste the code the browser shows. Without a D-Bus session the token is stored in a file under `~/.gemini/antigravity-cli/`, which the `gemini-config` volume keeps. `/logout` signs out. Free, Pro, and Ultra plans |
-| Business (Gemini Enterprise) | Sign in → Business → Google Cloud or Advanced WIF | Needs a license, project, and location; `--project` selects the project |
-| Gemini API key | `"modelProvider": "gemini"` in `~/.gemini/antigravity-cli/settings.json` **and** `GEMINI_API_KEY` in the process environment | agy does not read `.env` files; export the key in the shell that runs agy. `/logout` has no effect; remove `modelProvider` to return to account login (removing only the key breaks runs). Billed through AI Studio, not the subscription |
-| Application Default Credentials | `gcloud auth application-default login` + `AGY_ADC_AUTH=true` | `gcloud` is not in the image, and its credentials in `~/.config/gcloud/` are not on a template volume. Remote control is unavailable with ADC |
+Without D-Bus, account tokens are stored under `~/.gemini/antigravity-cli/`,
+inside the `gemini-config` volume.
+API-key mode needs `"modelProvider": "gemini"` in
+`~/.gemini/antigravity-cli/settings.json` and `GEMINI_API_KEY` in the agy
+process environment; agy does not load `.env` files.
+ADC requires `gcloud`, which is not installed; its `~/.config/gcloud/`
+credentials are outside the template's persistent volumes.
+See the official CLI reference for account login and the
+[enterprise guide](https://antigravity.google/docs/enterprise/) for Business/WIF and ADC.
 
-Gemini 4 Argon is available on Google AI Pro (not the trial) and AI Ultra; Free
-and Plus plans get Gemini 3.8 Flash. `agy models` lists what the signed-in
-account can use. Consumer plans do not support wrapping `agy` inside another
-agent or automating account switching.
+### Container prerequisites
 
-### Updates and update variables
-
-- Start: `setup-env.sh` step 6 runs `agy update` on every container start. A
-  failure prints `WARN: agy update failed; continuing with <version>` and the
-  last 20 lines of output; the installed binary keeps working.
-  `SKIP_AGY_UPDATE=1` skips the step.
-- Background: during sessions agy updates itself (lock and 15-minute check
-  marker in `~/.gemini/antigravity-cli/updater/`).
-  `AGY_CLI_DISABLE_AUTO_UPDATE=true` turns this off; an explicit `agy update`
-  still runs. `agy --version`, which the healthcheck uses, does not start the
-  updater.
-
-The tracked compose file passes only `TZ`, so both variables use the same
-routes as `SKIP_CLAUDE_UPDATE` and `SKIP_CODEX_UPDATE`. When a route takes
-effect matters:
-
-| Route | Takes effect | Use for |
-|-------|--------------|---------|
-| Compose `environment:` (a local, untracked override such as `docker-compose.override.yml`) | every start of that container, `docker compose up` and VS Code | `SKIP_AGY_UPDATE`, container-wide `AGY_CLI_DISABLE_AUTO_UPDATE` |
-| `devcontainer.json` `containerEnv` | every start, VS Code "Reopen in Container" path only | same |
-| `docker run -e` / `docker compose run -e` | the new container it creates | same |
-| `docker compose exec -e VAR=… polyagent-devcontainer agy` | that one exec process only; the start step has already run | per-session `AGY_CLI_DISABLE_AUTO_UPDATE=true` |
-
-A variable passed with `exec -e` cannot skip the start step. Setting it in a
-shell (`export AGY_CLI_DISABLE_AUTO_UPDATE=true`) affects only agy processes
-started from that shell.
-
-### Paths
-
-| Path | Content |
-|------|---------|
-| `~/.local/bin/agy` | binary (the installer also adds a PATH block to `.bashrc` and `.profile`) |
-| `~/.gemini/antigravity-cli/` | `settings.json`, `keybindings.json`, `conversations/`, `plugins/`, `updater/`, `worktrees/`, logs |
-| `~/.gemini/config/` | global configuration shared by Antigravity products: `hooks.json`, `mcp_config.json`, `rules/`, `skills/`, `agents/`, `AGENTS.md` |
-| `~/.config/antigravity/plugin-secrets.json` | plugin and MCP secrets |
-| `AGENTS.md`, `.agents/` | workspace configuration, read from the current directory up to the repository root |
-
-### Headless
-
-`agy -p "<prompt>"` runs one turn. `--output-format text|json|stream-json`,
-`--input-format stream-json`, `--json-schema <schema>`, and `--print-timeout`
-control I/O. Without credentials it exits 1 with `authentication required` on
-stderr (JSON `status: ERROR`); a pipe left open can wait for a login code. A
-tool that needs approval is soft-denied in headless runs: exit 0, a hint on
-stderr, and `denied_actions` in JSON output. Exit 0 or `status: SUCCESS` does
-therefore not prove that a command ran. Hook denials do not necessarily appear
-in `denied_actions`; check the hook response and the requested side effect.
-`--print-timeout` can also return exit 0 and `SUCCESS` with partial output;
-check stderr for the timeout notice.
-
-### Permissions and sandbox
-
-Modes: `default`, `accept-edits`, `plan`, `auto` (`--mode`, `Shift+Tab`
-interactively). Rules: `permissions.allow` / `deny` / `ask` in `settings.json`,
-`/permissions`. `--dangerously-skip-permissions` (or `toolPermission:
-always-proceed`) auto-approves tools but still asks for plan approval. A hook
-`deny` blocks even under auto-approval. The terminal sandbox (`--sandbox`,
-`enableTerminalSandbox`, nsjail) is off by default and needs kernel namespaces,
-which Docker blocks for the same reason as Codex's bubblewrap.
-
-In login-free tests of agy 1.4.0 with a loopback model provider, explicit
-`--mode default`, `plan`, and `accept-edits` all executed `write_to_file`
-without the skip-permissions flag, while `run_command` was denied. All three
-reported `init.permission_mode=request-review`. Do not use `plan` or that
-field as a guarantee that files cannot be edited. The template's PreToolUse
-matcher covers `run_command`; it does not intercept file-editing tools.
-The hook still denied a prohibited command under skip-permissions.
-
-
-### Optional features
-
-Test result values: **Confirmed** · **Condition not met (unverified)** ·
-**Out of scope (App only / not CLI)** · **Failed: environment limit**.
-The results below were measured on agy 1.4.0 (2026-10-17), in a container
-with networking disabled and a loopback fixture provider. They confirm local
-CLI behavior, not Google authentication or model quality. Account-dependent
-checks remain **Pending test (L1–L5)** until the corresponding login tests.
-A recorded CLI limitation is stated explicitly rather than counted as a
-successful panel or a missing external prerequisite.
-
-| Feature | CLI support | Needs in this container | Test result |
-|---------|-------------|-------------------------|-------------|
-| Interactive TUI, color scheme, workspace trust | Yes | — | Confirmed (pty trust, color/rendering settings) |
-| Headless (`-p`, output/input formats, `--json-schema`, `--print-timeout`) | Yes | login or API key | Confirmed (three output formats, two input turns, schema `finish`, partial timeout output) |
-| Modes (`--mode`, `Shift+Tab`) | Yes (`auto` on Linux/macOS) | — | Confirmed (actual edits/commands and mode captions; see the 1.4.0 behavior above) |
-| Permission rules, `--dangerously-skip-permissions` | Yes | — | Confirmed (`allow`/`deny`/`ask` command effects and hook denial under skip) |
-| Terminal sandbox (`--sandbox`) | Yes, off by default | kernel namespaces | Failed: environment limit (tool execution: `operation not permitted`; command did not run) |
-| Rules (`AGENTS.md`, `.agents/rules`, `rules.json`, global rules) | Yes | — | Confirmed (captured provider requests) |
-| Skills (`.agents/skills`, `/skills`, `skills.json`) | Yes | — | Confirmed (seven skills, registered extra skill, current-repository selection and `/verify`); real `/refine`: Pending test (L1–L5) |
-| Hooks (six events, `/hooks`) | Yes | workspace trust | Confirmed (native adapter, recording hooks, session context and stop behavior) |
-| Subagents (`.agents/agents`, `--agent`, `invoke_subagent`, workspace inherit/branch/share) | Yes | — | Confirmed (self isolation, rules, command denial, report, workspace creation and explicit termination) |
-| Teamwork (`/teamwork-preview`) | Paid plans | eligible account | Pending test (L1–L5) |
-| MCP (`mcp_config.json`, `/mcp`, `agy mcp`) | Yes | the MCP server itself | Confirmed (local stdio server/tool execution; CLI add/list/disable/enable/remove) |
-| Plugins (`agy plugin …`, `agy plugin import gemini`) | CLI subcommands available | marketplace catalog for `link` | Confirmed (local install/validate/list/disable/enable/uninstall and rule loading; empty legacy import); `link` returned `unknown marketplace`, so link generation is not confirmed |
-| Artifact review (`/artifact`, `Ctrl+R`) | Yes | — | Pending test (L1–L5) |
-| Browser (`/browser`, Chrome DevTools MCP) | Yes | Google Chrome (not in the image) | Condition not met (unverified): Chrome is not installed |
-| Goal (`/goal`) | Yes | — | Confirmed (continuation and completion signal with the fixture); model completion: Pending test (L1–L5) |
-| Schedule (`/schedule`, one-time and cron) | Yes | — | Confirmed (one-shot, recurring notifications and cancellation with the fixture); actual account: Pending test (L1–L5) |
-| Sidecars | App only (not CLI) | — | Out of scope (App only / not CLI) |
-| `/plan` `/boost` `/learn` `/codesearch` `/context` `/btw` `/diff` | Yes (`/boost`: Pro/Ultra) | — | Confirmed (`/plan`, `/learn`, `/btw` provider requests; local `/codesearch`, `/context`, `/diff` panels); model quality and `/boost`: Pending test (L1–L5) |
-| Conversations (`/resume`, `-c`, `--conversation`, `/fork`, `/rewind`, `/rename`, `/compact`, `/clear`, `/tasks`, `/open`) | Yes | — | Confirmed (local resume, renamed title, fork/rewind, conversation files and interactive commands); summary quality: Pending test (L1–L5) |
-| `/plugin`, `/export` panels | Not available in the tested API-key session | login for account-mode comparison | Confirmed (`Unknown command` for each, including isolated sessions); account behavior: Pending test (L1–L5) |
-| Models, effort, `/usage`, `/credits` | Yes | login | Pending test (L1–L5) |
-| Status line, title, key bindings, Vim mode, `/config` | Yes | — | Confirmed (settings files, terminal output and actual edited prompts) |
-| Voice (`/voice`, `agy mic-serve`) | Yes (not enterprise accounts) | a microphone (none in the container) | Condition not met (unverified): no microphone |
-| Remote control (`--remote-control`, `agy remote-control`) | Yes (not with ADC) | account feature, a paired external device | Pending test (L1–L5): start requires login; paired external device absent |
-| Extra directories, projects (`--add-dir`, `--project`, `--new-project`) | Yes | — | Confirmed (external file read, project creation and selection) |
-| Login and logout | Yes | a browser on any machine | Pending test (L1–L5) |
-| API key, Business/WIF, ADC sign-in | Yes | see §Authentication | Confirmed (API-key configuration with loopback fixture only); real credentials: Condition not met (unverified); Google OAuth: Pending test (L1–L5) |
-| Updates (`agy update`, background updater) | Yes | network | Confirmed (explicit offline failure retains binary, skip variable, background suppression); online update previously observed in boot tests |
-| `agy install` options, `agy changelog`, `agy --version` | Yes | — | Confirmed (installer options leave shell files unchanged; local changelog and version) |
-| IDE extensions, tab completion, side panel, app-only browser settings, Python SDK | Not CLI | — | Out of scope (App only / not CLI) |
-
-The `inherit` subagent workspace uses the parent's checkout. Both `branch`
-and `share` created a separate Git worktree in the 1.4.0 tests; `share` shares
-repository storage, not the checkout directory. An idle child's worktree can
-remain present. `manage_subagents` with `Action: kill_all` removed the tested
-worktrees.
-
-For Vim prompt editing, set `"editorMode": "vim"` and optionally
-`"vimInsertFirst": false` in `settings.json`; `vimMode` is not the setting.
-Use `"editorMode": "default"` to turn it off. `/keybindings` opens an external
-editor, which must be saved and exited before more CLI commands are entered.
-`/title on` and `/title off` require a configured `title` command block.
-`/codesearch`, `/context`, and `/diff` can open local panels without a model
-request; close the panel before entering the next command.
+| Feature | Requirement | Template configuration |
+|---------|-------------|------------------------|
+| Terminal sandbox (`--sandbox`) | Host permission for kernel namespaces | Off by default in this template |
+| Browser | Google Chrome | Not installed |
+| Voice | Microphone | No microphone device configured |
+| Remote control | Eligible account and paired external device | Supplied separately by the user |
 
 ### Registering deeper rule folders
 
@@ -462,19 +335,6 @@ without `trigger` frontmatter. `.agents/rules.json` registers
 `agy plugin validate` accepts a missing or wrong `trigger`, so it is not
 evidence that a rule loads.
 
-### Antigravity commands
-
-```bash
-agy                                     # interactive (loads AGENTS.md and .agents/)
-agy -p "<prompt>"                        # headless, one turn
-agy -p --output-format json "<prompt>"  # machine-readable result
-agy --mode plan                         # start in plan mode
-agy --dangerously-skip-permissions      # auto-approve tools; hook deny still blocks
-agy models                              # models for the signed-in account
-agy update                              # explicit update
-agy --version
-```
-
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -483,9 +343,8 @@ agy --version
 | Claude re-auth needed | check named volume: `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | check named volume: `docker volume ls \| grep codex-config` |
 | Antigravity re-auth needed | check named volumes: `docker volume ls \| grep -E 'gemini-config\|antigravity-secrets'` |
-| agy prints D-Bus or keyring warnings | without a D-Bus session agy stores the token in a file, so no action is needed; `secret keyring is locked` means a keyring service is reachable but locked: unlock it (see the official CLI troubleshooting page) |
-| `another background updater process is already active (update.lock)` | wait for the running updater, or set `AGY_CLI_DISABLE_AUTO_UPDATE=true` for the session |
-| Antigravity ignores a rule | add `trigger: always_on` frontmatter; register a nested folder (§Registering deeper rule folders) |
+| Antigravity files are root-owned after using an older image | `sudo chown -R vscode:vscode ~/.gemini ~/.config/antigravity` |
+| Antigravity ignores a rule | See [Registering deeper rule folders](#registering-deeper-rule-folders) |
 | `/status` or `/refine` stops with exit 2 under agy | `ANTIGRAVITY_AGENT=1` is missing from the command environment; set `AGENT_VENDOR=antigravity` |
 | Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
