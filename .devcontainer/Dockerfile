@@ -102,9 +102,7 @@ RUN mkdir -p ${HOME}/.npm-global \
 
 # =============================================================================
 # Layer 3.6: Antigravity CLI (agy) — Official Installer
-# The installer verifies the binary against the manifest sha512, places it in
-# ~/.local/bin/agy, and adds a PATH block to .bashrc/.profile. The trailing
-# `agy --version` fails the build if no binary was installed.
+# The official installer checks the manifest sha512.
 # =============================================================================
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash \
     && agy --version
