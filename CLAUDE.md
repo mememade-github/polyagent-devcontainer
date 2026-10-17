@@ -3,7 +3,7 @@
 ## Context
 
 - Workspace: `/workspaces/`; environment: Ubuntu 22.04 DevContainer, user `vscode`.
-- `.claude/` is ground truth; `.agents/` is its generated Codex mirror, and `.codex/` holds Codex-specific configuration.
+- `.claude/` is ground truth; `.agents/rules/` and `.agents/skills/` are its generated mirror for Codex and Antigravity, the other `.agents/` files are hand-maintained Antigravity configuration, and `.codex/` holds Codex-specific configuration.
 - Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
 - [PROJECT.md](PROJECT.md) supplies product context. Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
 
@@ -26,7 +26,7 @@ The container and its host-mounted `docker.sock` are not a security sandbox (see
 
 ## Mirror and communication
 
-Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/` by hand. Respond in the user's language unless this file sets a team language.
+Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/rules/` or `.agents/skills/` by hand. Respond in the user's language unless this file sets a team language.
 
 ## Behavioral foundation
 

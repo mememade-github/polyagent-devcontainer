@@ -1,12 +1,12 @@
-# AGENTS.md — Codex CLI governance
+# AGENTS.md — Codex CLI and Antigravity CLI governance
 
 ## Context
 
 - Workspace: `/workspaces/`; environment: Ubuntu 22.04 DevContainer, user `vscode`.
 - In this DevContainer, bubblewrap cannot create user namespaces; Codex shell execution uses `--dangerously-bypass-approvals-and-sandbox` as a compatibility fallback, not a security boundary.
-- `.claude/` is ground truth; `.agents/` is its byte-faithful generated mirror, and `.codex/` holds Codex-specific configuration.
-- Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
-- Codex does not follow `@import`. At session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md), [`.agents/rules/devcontainer-patterns.md`](.agents/rules/devcontainer-patterns.md), and [PROJECT.md](PROJECT.md). Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
+- `.claude/` is ground truth; `.agents/rules/` and `.agents/skills/` are its byte-faithful generated mirror. `.agents/hooks.json`, `.agents/hooks/`, and `.agents/rules.json` are hand-maintained Antigravity configuration, and `.codex/` holds Codex-specific configuration.
+- Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; Antigravity (`agy`) is a self-updating native binary at `~/.local/bin/agy`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
+- Codex does not follow `@import`. On Codex, at session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md), [`.agents/rules/devcontainer-patterns.md`](.agents/rules/devcontainer-patterns.md), and [PROJECT.md](PROJECT.md). Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
 
 ## Trust model: advisory gates
 
@@ -23,14 +23,18 @@ Codex command hooks run only after project trust and `/hooks` review; changed ho
 - Get explicit approval before `rm -rf`, overwriting `mv`/`cp`, `git push --force`, `git reset --hard`, or database `DROP`/`DELETE`.
 - Fix root causes — diagnose across infra/config/deploy/code; no workarounds.
 - Explicit failure — every operation must succeed or fail visibly.
-- Use the `refine` skill for meaningful changes and direct editing for trivial ones. Run evaluation through `scripts/meta/run-isolated-role.sh` in a fresh `codex exec --ephemeral` context with the exact Contract/diff-only evidence channel, never the modifier's context.
+- Use the `refine` skill for meaningful changes and direct editing for trivial ones. Evaluation never runs in the modifier's context. On Codex, run it through `scripts/meta/run-isolated-role.sh` in a fresh `codex exec --ephemeral` context with the exact Contract/diff-only evidence channel. On Antigravity, run it in a fresh built-in `self` subagent given only the evaluator role body and the permitted evidence.
 - Invoke `status` for repository/worktree/WIP/upstream/marker state, `verify` for pre-commit checks, and `karpathy-guidelines` when writing, reviewing, or refactoring code.
 - For work likely to span sessions, load `.agents/skills/wip-manager/SKILL.md` and use it to manage the work at `wip/task-YYYYMMDD-description/README.md`; delete the WIP directory when complete.
 - Before an agent-issued commit, `bash scripts/meta/completion-checker.sh` must pass; it is environment-independent across fresh clones, CI, and temp checkouts. Never bypass verification. Run the docker-backed `.devcontainer/verify-template.sh` on demand and in CI, not per commit.
 
+## Antigravity
+
+Antigravity loads `AGENTS.md` and the `.agents/rules/*.md` files whose frontmatter sets `trigger: always_on`; the source rules carry that frontmatter. It reads only direct children of `.agents/rules/`, so `.agents/rules.json` registers `.agents/rules/project`; register any deeper rule folder there too. `.agents/hooks.json` runs `.agents/hooks/claude-hooks-adapter.sh`, which feeds the unmodified `.claude/hooks/*.sh` and answers `deny` with the gate's reason on a block, otherwise `ask`, leaving the call to Antigravity's own permission settings. Its Stop hook consults the refine gate only on a normal turn end (`NO_TOOL_CALL`). Hooks run after workspace trust. A hook `deny` still blocks under `--dangerously-skip-permissions`, and the terminal sandbox (`--sandbox`) is off by default. Skills detect Antigravity by `ANTIGRAVITY_AGENT=1` and resolve the repository from the current directory, not from inherited `CLAUDE_PROJECT_DIR`/`CODEX_PROJECT_DIR`; state and markers are shared with Claude in `.claude/`. `/refine` runs Audit, Modify, and Evaluate each in a fresh built-in `self` subagent, which receives the repository rules and hooks but not the parent conversation.
+
 ## Mirror and communication
 
-Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/` by hand. Codex uses skill names and descriptions for discovery; Claude-specific role metadata such as tools, model, and color does not configure the Codex role. Respond in the user's language unless this file sets a team language.
+Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to check drift. Do not edit `.agents/rules/` or `.agents/skills/` by hand; the sync leaves the other `.agents/` files untouched. Codex uses skill names and descriptions for discovery; Claude-specific role metadata such as tools, model, and color does not configure the Codex role. Respond in the user's language unless this file sets a team language.
 
 ## Behavioral foundation
 
