@@ -12,7 +12,7 @@ fail() { echo "FAIL: $1" >&2; FAIL=1; }
 while IFS= read -r f; do
   bash -n "$f" 2>/dev/null || fail "bash -n $f"
 done < <(git ls-files '*.sh')
-for f in .claude/settings.json .codex/hooks.json .agents/rules.json; do
+for f in .claude/settings.json .codex/hooks.json .agents/rules.json .agents/hooks.json; do
   jq empty "$f" 2>/dev/null || fail "invalid JSON: $f"
 done
 if command -v python3 >/dev/null 2>&1; then
