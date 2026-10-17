@@ -6,9 +6,9 @@
 
 ## Overview
 
-Workspace-scoped environment for running Claude Code, Codex CLI, and Antigravity CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/rules`, `.agents/skills`, `.codex/`); Antigravity adds only a native hook adapter and rule registration in `.agents/` that run the Claude hooks and rules unchanged. New vendors are added by mirroring, not by rewriting governance.
+Workspace-scoped environment for running Claude Code, Codex CLI, and Antigravity CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/rules`, `.agents/skills`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 4 hooks (Antigravity runs them through one adapter) · 5 skills (refine, status, verify, karpathy-guidelines, typesafe-ai).
+Default loadout: 2 sub-agents · 4 hooks · 5 skills (refine, status, verify, karpathy-guidelines, typesafe-ai).
 
 ## Tech Stack
 
@@ -31,7 +31,7 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/rules`, `
 
 ## Environment
 
-- **Configuration**: `.devcontainer/.env` (single source for all user-tunable values)
+- **Template configuration**: `.devcontainer/.env` (build and startup values)
 - **Persistent volumes**: `~/.claude` (Claude auth), `~/.codex` (Codex auth), `~/.gemini` (Antigravity auth, settings, conversations), `~/.config/antigravity` (Antigravity plugin/MCP secrets), `/commandhistory` (shell history)
 - **Editor workspace settings**: `.vscode/` is tracked for VS Code convenience settings; it is not an agent vendor.
 
