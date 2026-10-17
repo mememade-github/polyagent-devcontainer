@@ -195,8 +195,8 @@ fi
 # Parity with Claude (step 3): try `agy update` on every container start so the
 # CLI is not frozen at the image-build snapshot. Failure is soft (does not
 # block startup) but visible, as in step 4: a warning and the output tail.
-# Skip with SKIP_AGY_UPDATE=1. Background self-update during agy sessions is
-# separate; AGY_CLI_DISABLE_AUTO_UPDATE=true turns that off.
+# Skip with SKIP_AGY_UPDATE=1. The CLI also updates in the background during
+# sessions, independently of this startup step.
 step "Antigravity CLI version..."
 if ! command -v agy &>/dev/null; then
     echo "      WARN: agy CLI not installed — skipping update"
