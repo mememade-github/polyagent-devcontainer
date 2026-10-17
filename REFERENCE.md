@@ -138,9 +138,10 @@ The template intentionally pulls latest releases at build/run time:
   performs the preflight before every new `codex` process. Codex's built-in
   `codex update` is **not** used: it targets the root-owned default npm prefix
   (`/usr/lib/node_modules`) and fails as the unprivileged `vscode` user.
-- **Antigravity background updates**: `AGY_CLI_DISABLE_AUTO_UPDATE=true` disables
-  session updates, but not explicit `agy update`. The healthcheck uses
-  `agy --version`, which does not start the updater. Startup refresh is step 6 above.
+- **Antigravity updates**: `agy update` runs on every container start
+  (`setup-env.sh` step 6), unless `SKIP_AGY_UPDATE=1` is set. The CLI also
+  updates in the background during sessions. The healthcheck uses
+  `agy --version`, which does not start the updater.
 
 Same git commit may produce different installed versions on different days.
 For reproducible images, pin the rolling sources: replace the Claude installer
@@ -302,13 +303,6 @@ and [troubleshooting](https://antigravity.google/docs/cli/troubleshooting/).
 
 Without D-Bus, account tokens are stored under `~/.gemini/antigravity-cli/`,
 inside the `gemini-config` volume.
-API-key mode needs `"modelProvider": "gemini"` in
-`~/.gemini/antigravity-cli/settings.json` and `GEMINI_API_KEY` in the agy
-process environment; agy does not load `.env` files.
-ADC requires `gcloud`, which is not installed; its `~/.config/gcloud/`
-credentials are outside the template's persistent volumes.
-See the official CLI reference for account login and the
-[enterprise guide](https://antigravity.google/docs/enterprise/) for Business/WIF and ADC.
 
 ### Container prerequisites
 
