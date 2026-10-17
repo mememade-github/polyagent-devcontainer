@@ -2,11 +2,14 @@
 # =============================================================================
 # sync-agents-mirror.sh — one-way generated mirror of .claude/ into .agents/
 # =============================================================================
-# `.claude/` is ground truth; `.agents/` is an exact generated mirror — do not
-# edit by hand. Source additions/edits are copied and destination-only entries
-# are pruned recursively. Vendor-coupled text must be made vendor-neutral at the
-# source; the sync copies verbatim and rejects bare `$CLAUDE_PROJECT_DIR`
-# expansions that would break under Codex.
+# `.claude/` is ground truth; `.agents/rules/` and `.agents/skills/` are exact
+# generated mirrors — do not edit them by hand. Within those two trees, source
+# additions/edits are copied and destination-only entries are pruned
+# recursively. Every other `.agents/` entry (e.g. Antigravity's native
+# hooks.json, hooks/, rules.json) is hand-maintained and never touched here.
+# Vendor-coupled text must be made vendor-neutral at the source; the sync copies
+# verbatim and rejects bare `$CLAUDE_PROJECT_DIR` expansions that would break
+# under Codex.
 #
 # Usage:
 #   bash scripts/sync-agents-mirror.sh         # update mirror
@@ -83,9 +86,23 @@ if [ -n "$LEAKS" ]; then
     exit 1
 fi
 
-# --- 3. Compare or reconcile the complete tree, including nested orphans. ---
+# --- 3. Compare or reconcile the generated trees, including nested orphans. ---
+# Only .agents/rules and .agents/skills are generated; other .agents/ entries
+# are outside the mirror and are neither compared nor removed.
+GENERATED="rules skills"
 if [ -d "$DST" ]; then
-    DIFF_OUTPUT=$(diff -rq "$EXPECTED" "$DST" 2>/dev/null || true)
+    DIFF_OUTPUT=""
+    for SUB in $GENERATED; do
+        if [ -d "$DST/$SUB" ]; then
+            SUB_DIFF=$(diff -rq "$EXPECTED/$SUB" "$DST/$SUB" 2>/dev/null || true)
+        else
+            SUB_DIFF="Destination missing: $DST/$SUB"
+        fi
+        if [ -n "$SUB_DIFF" ]; then
+            [ -z "$DIFF_OUTPUT" ] || DIFF_OUTPUT="${DIFF_OUTPUT}"$'\n'
+            DIFF_OUTPUT="${DIFF_OUTPUT}${SUB_DIFF}"
+        fi
+    done
     MODE_DIFF=""
     while IFS=$'\t' read -r rel expected_mode; do
         [ -e "$DST/$rel" ] || continue
@@ -111,23 +128,20 @@ else
     fi
     mkdir -p "$DST"
 
-    while IFS= read -r -d '' path; do
-        if [ -d "$path" ]; then
-            rm -r "$path"
-        else
-            rm -f "$path"
+    for SUB in $GENERATED; do
+        if [ -d "$DST/$SUB" ]; then
+            rm -r "${DST:?}/$SUB"
+        elif [ -e "$DST/$SUB" ]; then
+            rm -f "${DST:?}/$SUB"
         fi
-    done < <(find "$DST" -mindepth 1 -maxdepth 1 -print0)
-
-    while IFS= read -r -d '' path; do
-        cp -R --preserve=mode "$path" "$DST"/
-    done < <(find "$EXPECTED" -mindepth 1 -maxdepth 1 -print0)
-    echo "[SYNC] exact .agents/"
+        cp -R --preserve=mode "$EXPECTED/$SUB" "$DST"/
+    done
+    echo "[SYNC] exact .agents/rules and .agents/skills"
 fi
 
 if [ "$DRY_RUN" -eq 1 ]; then
     echo ""; echo "Dry run complete. $CHANGED change(s) detected."
 else
     echo ""; echo "Sync complete. $CHANGED change(s) applied."
-    echo "Note: .agents/ is a generated mirror. Edit .claude/ as ground truth."
+    echo "Note: .agents/rules and .agents/skills are generated. Edit .claude/ as ground truth."
 fi
