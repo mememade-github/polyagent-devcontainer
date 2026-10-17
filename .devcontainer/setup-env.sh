@@ -7,7 +7,7 @@ set -e
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-STEP_TOTAL=5
+STEP_TOTAL=6
 STEP=0
 step() { STEP=$((STEP + 1)); echo "[${STEP}/${STEP_TOTAL}] $1"; }
 workspace_marker_ok() {
@@ -187,6 +187,36 @@ if [ -L "$USER_CODEX_CONFIG" ]; then
     fi
 elif [ -f "$USER_CODEX_CONFIG" ] && grep -q '^ask_for_approval[[:space:]]*=' "$USER_CODEX_CONFIG"; then
     echo "      WARN: existing user config uses obsolete ask_for_approval; use approval_policy"
+fi
+
+# =============================================================================
+# 6. Antigravity CLI — idempotent latest-version sync
+# =============================================================================
+# Parity with Claude (step 3): try `agy update` on every container start so the
+# CLI is not frozen at the image-build snapshot. Failure is soft (does not
+# block startup) but visible, as in step 4: a warning and the output tail.
+# Skip with SKIP_AGY_UPDATE=1. Background self-update during agy sessions is
+# separate; AGY_CLI_DISABLE_AUTO_UPDATE=true turns that off.
+step "Antigravity CLI version..."
+if ! command -v agy &>/dev/null; then
+    echo "      WARN: agy CLI not installed — skipping update"
+elif [ "${SKIP_AGY_UPDATE:-}" = "1" ]; then
+    echo "      Skipped (SKIP_AGY_UPDATE=1), current: $(agy --version 2>/dev/null)"
+else
+    BEFORE=$(agy --version 2>/dev/null | awk '{print $1}')
+    AGY_UPDATE_LOG=$(mktemp)
+    if agy update >"$AGY_UPDATE_LOG" 2>&1; then
+        AFTER=$(agy --version 2>/dev/null | awk '{print $1}')
+        if [ "$BEFORE" = "$AFTER" ]; then
+            echo "      $AFTER (already latest)"
+        else
+            echo "      $BEFORE -> $AFTER"
+        fi
+    else
+        echo "      WARN: agy update failed; continuing with ${BEFORE:-unknown}"
+        tail -20 "$AGY_UPDATE_LOG" | sed 's/^/      agy: /'
+    fi
+    rm -f "$AGY_UPDATE_LOG"
 fi
 
 # =============================================================================
