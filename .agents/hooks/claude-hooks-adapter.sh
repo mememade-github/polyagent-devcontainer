@@ -7,19 +7,8 @@
 # translates the result back. It never executes the tool command itself.
 #
 # Usage: bash hooks/claude-hooks-adapter.sh <session-start|pre-tool-use|stop>
-#
-#   pre-tool-use  stdin {"toolCall":{"args":{"CommandLine","Cwd"}}} is passed to
-#                 pre-commit-gate.sh and pre-push-gate.sh as
-#                 {"tool_name":"Bash","tool_input":{"command":...}}, with
-#                 CLAUDE_PROJECT_DIR set to the git root of Cwd (else of this
-#                 checkout). Either gate exiting 2 -> {"decision":"deny",
-#                 "reason":<its stderr>}; otherwise {"decision":"ask"}, which
-#                 leaves the call to agy's own permission handling. An empty
-#                 {} would block every call in agy, so it is never emitted.
-#   stop          only terminationReason NO_TOOL_CALL consults
-#                 refinement-gate.sh; its "block" -> {"decision":"continue",
-#                 "reason":...}. Everything else -> {"decision":"allow"}.
-#   session-start session-start.sh additionalContext ->
+# Event mapping is documented in REFERENCE.md, section Hooks.
+# For pre-tool-use, an empty {} blocks commands; emit ask on a non-denial.
 #                 {"injectSteps":[{"systemMessage":{"systemMessage":...}}]}.
 #
 # Exit status is always 0 with one valid JSON object on stdout: that is the
