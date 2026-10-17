@@ -179,10 +179,7 @@ prints the final message to stdout, and fails if the report is absent or empty.
 description, the modifier's reasoning, or *why* changes were made. On Codex,
   run the evaluator with
   `bash "$PROJECT/scripts/meta/run-isolated-role.sh" evaluate "$PROJECT" <prompt-file> "$EVAL_JSON"`
-  — never in-session. On Antigravity, the evaluator is a fresh built-in `self`
-  subagent given the evaluator body and only the permitted evidence; it writes
-  its report to `$EVAL_JSON` and returns the single line
-  `{"score":N,"suggestion":"one line"}` — never in-session.
+  — never in-session. On Antigravity, invoke the evaluator as specified in Step 0b.
 
 ## Step 6: Keep or Discard
 
