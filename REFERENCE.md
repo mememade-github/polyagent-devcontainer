@@ -364,7 +364,10 @@ control I/O. Without credentials it exits 1 with `authentication required` on
 stderr (JSON `status: ERROR`); a pipe left open can wait for a login code. A
 tool that needs approval is soft-denied in headless runs: exit 0, a hint on
 stderr, and `denied_actions` in JSON output. Exit 0 or `status: SUCCESS` does
-therefore not prove that a command ran.
+therefore not prove that a command ran. Hook denials do not necessarily appear
+in `denied_actions`; check the hook response and the requested side effect.
+`--print-timeout` can also return exit 0 and `SUCCESS` with partial output;
+check stderr for the timeout notice.
 
 ### Permissions and sandbox
 
@@ -376,43 +379,72 @@ always-proceed`) auto-approves tools but still asks for plan approval. A hook
 `enableTerminalSandbox`, nsjail) is off by default and needs kernel namespaces,
 which Docker blocks for the same reason as Codex's bubblewrap.
 
+In login-free tests of agy 1.4.0 with a loopback model provider, explicit
+`--mode default`, `plan`, and `accept-edits` all executed `write_to_file`
+without the skip-permissions flag, while `run_command` was denied. All three
+reported `init.permission_mode=request-review`. Do not use `plan` or that
+field as a guarantee that files cannot be edited. The template's PreToolUse
+matcher covers `run_command`; it does not intercept file-editing tools.
+The hook still denied a prohibited command under skip-permissions.
+
+
 ### Optional features
 
 Test result values: **Confirmed** · **Condition not met (unverified)** ·
 **Out of scope (App only / not CLI)** · **Failed: environment limit**.
-"Pending test" cells are filled after the release test run.
+The results below were measured on agy 1.4.0 (2026-10-17), in a container
+with networking disabled and a loopback fixture provider. They confirm local
+CLI behavior, not Google authentication or model quality. Account-dependent
+checks remain **Pending test (L1–L5)** until the corresponding login tests.
+A recorded CLI limitation is stated explicitly rather than counted as a
+successful panel or a missing external prerequisite.
 
 | Feature | CLI support | Needs in this container | Test result |
 |---------|-------------|-------------------------|-------------|
-| Interactive TUI, color scheme, workspace trust | Yes | — | Pending test |
-| Headless (`-p`, output/input formats, `--json-schema`, `--print-timeout`) | Yes | login or API key | Pending test |
-| Modes (`--mode`, `Shift+Tab`) | Yes (`auto` on Linux/macOS) | — | Pending test |
-| Permission rules, `--dangerously-skip-permissions` | Yes | — | Pending test |
-| Terminal sandbox (`--sandbox`) | Yes, off by default | kernel namespaces | Pending test |
-| Rules (`AGENTS.md`, `.agents/rules`, `rules.json`, global rules) | Yes | — | Pending test |
-| Skills (`.agents/skills`, `/skills`, `skills.json`) | Yes | — | Pending test |
-| Hooks (six events, `/hooks`) | Yes | workspace trust | Pending test |
-| Subagents (`.agents/agents`, `--agent`, `invoke_subagent`, workspace inherit/branch/share) | Yes | — | Pending test |
-| Teamwork (`/teamwork-preview`) | Paid plans | eligible account | Pending test |
-| MCP (`mcp_config.json`, `/mcp`, `agy mcp`) | Yes | the MCP server itself | Pending test |
-| Plugins (`/plugin`, `agy plugin …`, `agy plugin import gemini`) | Yes | marketplace access | Pending test |
-| Artifact review (`/artifact`, `Ctrl+R`) | Yes | — | Pending test |
-| Browser (`/browser`, Chrome DevTools MCP) | Yes | Google Chrome (not in the image) | Pending test |
-| Goal (`/goal`) | Yes | — | Pending test |
-| Schedule (`/schedule`, one-time and cron) | Yes | — | Pending test |
+| Interactive TUI, color scheme, workspace trust | Yes | — | Confirmed (pty trust, color/rendering settings) |
+| Headless (`-p`, output/input formats, `--json-schema`, `--print-timeout`) | Yes | login or API key | Confirmed (three output formats, two input turns, schema `finish`, partial timeout output) |
+| Modes (`--mode`, `Shift+Tab`) | Yes (`auto` on Linux/macOS) | — | Confirmed (actual edits/commands and mode captions; see the 1.4.0 behavior above) |
+| Permission rules, `--dangerously-skip-permissions` | Yes | — | Confirmed (`allow`/`deny`/`ask` command effects and hook denial under skip) |
+| Terminal sandbox (`--sandbox`) | Yes, off by default | kernel namespaces | Failed: environment limit (tool execution: `operation not permitted`; command did not run) |
+| Rules (`AGENTS.md`, `.agents/rules`, `rules.json`, global rules) | Yes | — | Confirmed (captured provider requests) |
+| Skills (`.agents/skills`, `/skills`, `skills.json`) | Yes | — | Confirmed (seven skills, registered extra skill, current-repository selection and `/verify`); real `/refine`: Pending test (L1–L5) |
+| Hooks (six events, `/hooks`) | Yes | workspace trust | Confirmed (native adapter, recording hooks, session context and stop behavior) |
+| Subagents (`.agents/agents`, `--agent`, `invoke_subagent`, workspace inherit/branch/share) | Yes | — | Confirmed (self isolation, rules, command denial, report, workspace creation and explicit termination) |
+| Teamwork (`/teamwork-preview`) | Paid plans | eligible account | Pending test (L1–L5) |
+| MCP (`mcp_config.json`, `/mcp`, `agy mcp`) | Yes | the MCP server itself | Confirmed (local stdio server/tool execution; CLI add/list/disable/enable/remove) |
+| Plugins (`agy plugin …`, `agy plugin import gemini`) | CLI subcommands available | marketplace catalog for `link` | Confirmed (local install/validate/list/disable/enable/uninstall and rule loading; empty legacy import); `link` returned `unknown marketplace`, so link generation is not confirmed |
+| Artifact review (`/artifact`, `Ctrl+R`) | Yes | — | Pending test (L1–L5) |
+| Browser (`/browser`, Chrome DevTools MCP) | Yes | Google Chrome (not in the image) | Condition not met (unverified): Chrome is not installed |
+| Goal (`/goal`) | Yes | — | Confirmed (continuation and completion signal with the fixture); model completion: Pending test (L1–L5) |
+| Schedule (`/schedule`, one-time and cron) | Yes | — | Confirmed (one-shot, recurring notifications and cancellation with the fixture); actual account: Pending test (L1–L5) |
 | Sidecars | App only (not CLI) | — | Out of scope (App only / not CLI) |
-| `/plan` `/boost` `/learn` `/codesearch` `/context` `/btw` `/diff` | Yes (`/boost`: Pro/Ultra) | — | Pending test |
-| Conversations (`/resume`, `-c`, `--conversation`, `/fork`, `/rewind`, `/rename`, `/compact`, `/clear`, `/export`, `/tasks`, `/open`) | Yes | — | Pending test |
-| Models, effort, `/usage`, `/credits` | Yes | login | Pending test |
-| Status line, title, key bindings, Vim mode, `/config` | Yes | — | Pending test |
-| Voice (`/voice`, `agy mic-serve`) | Yes (not enterprise accounts) | a microphone (none in the container) | Pending test |
-| Remote control (`--remote-control`, `agy remote-control`) | Yes (not with ADC) | account feature, a paired external device | Pending test |
-| Extra directories, projects (`--add-dir`, `--project`, `--new-project`) | Yes | — | Pending test |
-| Login and logout | Yes | a browser on any machine | Pending test |
-| API key, Business/WIF, ADC sign-in | Yes | see §Authentication | Pending test |
-| Updates (`agy update`, background updater) | Yes | network | Pending test |
-| `agy install` options, `agy changelog`, `agy --version` | Yes | — | Pending test |
+| `/plan` `/boost` `/learn` `/codesearch` `/context` `/btw` `/diff` | Yes (`/boost`: Pro/Ultra) | — | Confirmed (`/plan`, `/learn`, `/btw` provider requests; local `/codesearch`, `/context`, `/diff` panels); model quality and `/boost`: Pending test (L1–L5) |
+| Conversations (`/resume`, `-c`, `--conversation`, `/fork`, `/rewind`, `/rename`, `/compact`, `/clear`, `/tasks`, `/open`) | Yes | — | Confirmed (local resume, renamed title, fork/rewind, conversation files and interactive commands); summary quality: Pending test (L1–L5) |
+| `/plugin`, `/export` panels | Not available in the tested API-key session | login for account-mode comparison | Confirmed (`Unknown command` for each, including isolated sessions); account behavior: Pending test (L1–L5) |
+| Models, effort, `/usage`, `/credits` | Yes | login | Pending test (L1–L5) |
+| Status line, title, key bindings, Vim mode, `/config` | Yes | — | Confirmed (settings files, terminal output and actual edited prompts) |
+| Voice (`/voice`, `agy mic-serve`) | Yes (not enterprise accounts) | a microphone (none in the container) | Condition not met (unverified): no microphone |
+| Remote control (`--remote-control`, `agy remote-control`) | Yes (not with ADC) | account feature, a paired external device | Pending test (L1–L5): start requires login; paired external device absent |
+| Extra directories, projects (`--add-dir`, `--project`, `--new-project`) | Yes | — | Confirmed (external file read, project creation and selection) |
+| Login and logout | Yes | a browser on any machine | Pending test (L1–L5) |
+| API key, Business/WIF, ADC sign-in | Yes | see §Authentication | Confirmed (API-key configuration with loopback fixture only); real credentials: Condition not met (unverified); Google OAuth: Pending test (L1–L5) |
+| Updates (`agy update`, background updater) | Yes | network | Confirmed (explicit offline failure retains binary, skip variable, background suppression); online update previously observed in boot tests |
+| `agy install` options, `agy changelog`, `agy --version` | Yes | — | Confirmed (installer options leave shell files unchanged; local changelog and version) |
 | IDE extensions, tab completion, side panel, app-only browser settings, Python SDK | Not CLI | — | Out of scope (App only / not CLI) |
+
+The `inherit` subagent workspace uses the parent's checkout. Both `branch`
+and `share` created a separate Git worktree in the 1.4.0 tests; `share` shares
+repository storage, not the checkout directory. An idle child's worktree can
+remain present. `manage_subagents` with `Action: kill_all` removed the tested
+worktrees.
+
+For Vim prompt editing, set `"editorMode": "vim"` and optionally
+`"vimInsertFirst": false` in `settings.json`; `vimMode` is not the setting.
+Use `"editorMode": "default"` to turn it off. `/keybindings` opens an external
+editor, which must be saved and exited before more CLI commands are entered.
+`/title on` and `/title off` require a configured `title` command block.
+`/codesearch`, `/context`, and `/diff` can open local panels without a model
+request; close the panel before entering the next command.
 
 ### Registering deeper rule folders
 
