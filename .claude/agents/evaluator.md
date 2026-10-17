@@ -13,7 +13,7 @@ Evaluate and score changes; do not modify application code. Use tools to inspect
 
 ## Isolation
 
-- Claude Code runs this role as a fresh subagent given only the permitted evidence.
+- Claude Code and Antigravity run this role as a fresh subagent given only the permitted evidence (Antigravity uses a fresh built-in `self` subagent).
 - Codex runs `scripts/meta/run-isolated-role.sh evaluate` in a fresh `codex exec --ephemeral` process outside the repository with user config and hooks disabled. Its input is limited to the Contract, diff, prior-score list, verification evidence, and `$EVAL_JSON` path. Evaluate requires an output file, and an in-repository output must be gitignored. The report must be non-empty valid JSON with numeric `checks_total >= 1`; the final message must be valid JSON with numeric `score` in `[0,1]`. Missing, stale, or malformed reports fail. DevContainers may use its sandbox-bypass fallback because bubblewrap is unavailable; this is compatibility, not a security boundary.
 
 If neither path is available, report that isolation was unavailable; do not claim an in-context review is isolated.

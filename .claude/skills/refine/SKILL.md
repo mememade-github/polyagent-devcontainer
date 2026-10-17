@@ -23,15 +23,18 @@ Marker/attempts/output paths resolve to match whichever host's Stop-hook gate is
 watching, so the mirrored Codex copy works without `$CLAUDE_PROJECT_DIR`:
 
 ```bash
-PROJECT="${PROJECT:-${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
-if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+if [ "${ANTIGRAVITY_AGENT:-}" = "1" ]; then
+  AGENT_VENDOR=antigravity
+  PROJECT="${PROJECT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+elif [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   AGENT_VENDOR=claude
 elif [ -n "${CODEX_PROJECT_DIR:-}" ] || [ "${CODEX_CI:-}" = "1" ] || [ -n "${CODEX_THREAD_ID:-}" ]; then
   AGENT_VENDOR=codex
-elif [ "${AGENT_VENDOR:-}" != "claude" ] && [ "${AGENT_VENDOR:-}" != "codex" ]; then
-  echo "ERROR: cannot identify Claude or Codex host; set AGENT_VENDOR=claude|codex" >&2
+elif [ "${AGENT_VENDOR:-}" != "claude" ] && [ "${AGENT_VENDOR:-}" != "codex" ] && [ "${AGENT_VENDOR:-}" != "antigravity" ]; then
+  echo "ERROR: cannot identify Claude, Codex, or Antigravity host; set AGENT_VENDOR=claude|codex|antigravity" >&2
   exit 2
 fi
+PROJECT="${PROJECT:-${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
 
 if [ "$AGENT_VENDOR" = "codex" ]; then
   STATE_DIR="$PROJECT/.codex/state"; MARKER="$STATE_DIR/refinement-active"
@@ -44,8 +47,12 @@ OUTPUT="$STATE_DIR/.refine-output"; EVAL_JSON="$STATE_DIR/.refine-eval.json"
 ```
 
 `CODEX_PROJECT_DIR` is optional in real Codex sessions, so `CODEX_CI` and
-`CODEX_THREAD_ID` are also authoritative host signals. These paths match the
-Claude and Codex `refinement-gate.sh` markers exactly.
+`CODEX_THREAD_ID` are also authoritative host signals. Antigravity's
+`run_command` sets `ANTIGRAVITY_AGENT=1` and can also inherit a parent's Codex or
+Claude variables, so that signal is checked first and the project is the git
+root of the current directory. Antigravity shares the Claude state paths, which
+its Stop hook reads through `.agents/hooks/claude-hooks-adapter.sh`. These paths
+match the Claude and Codex `refinement-gate.sh` markers exactly.
 
 ## Step 0b: Fresh-role isolation
 
@@ -61,6 +68,13 @@ Claude and Codex `refinement-gate.sh` markers exactly.
   supported, but the subprocess remains intentional here because the evaluator
   must receive an exact, minimal evidence channel in interactive and
   non-interactive runs.
+- **Antigravity**: invoke a fresh built-in `self` subagent (`invoke_subagent`,
+  `TypeName: self`) separately for Audit, Modify, and Evaluate. Role
+  instructions: Audit and Modify use the Step 3 and Step 4 text of this skill
+  verbatim; Evaluate uses the body of `.agents/skills/evaluator/SKILL.md`. Give
+  each child only that instruction and the permitted evidence as its prompt, and
+  never reuse an evaluator conversation. The child receives the repository rules
+  and hooks unchanged, as a Claude subagent does.
 - In a DevContainer where bubblewrap is unavailable, the child may use
   `--dangerously-bypass-approvals-and-sandbox`. This is a compatibility fallback,
   not a security boundary. What the helper does enforce, fail-closed: Evaluate
@@ -165,7 +179,10 @@ prints the final message to stdout, and fails if the report is absent or empty.
 description, the modifier's reasoning, or *why* changes were made. On Codex,
   run the evaluator with
   `bash "$PROJECT/scripts/meta/run-isolated-role.sh" evaluate "$PROJECT" <prompt-file> "$EVAL_JSON"`
-  — never in-session.
+  — never in-session. On Antigravity, the evaluator is a fresh built-in `self`
+  subagent given the evaluator body and only the permitted evidence; it writes
+  its report to `$EVAL_JSON` and returns the single line
+  `{"score":N,"suggestion":"one line"}` — never in-session.
 
 ## Step 6: Keep or Discard
 
