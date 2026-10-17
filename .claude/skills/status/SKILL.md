@@ -11,15 +11,18 @@ Resolve the repository root and vendor marker directory:
 
 ```bash
 WORKSPACE_ROOT="${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
-if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+if [ "${ANTIGRAVITY_AGENT:-}" = "1" ]; then
+  WORKSPACE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  STATE_DIR="$WORKSPACE_ROOT/.claude"; MARKER_PREFIX=".last-verification."
+elif [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   STATE_DIR="$WORKSPACE_ROOT/.claude"; MARKER_PREFIX=".last-verification."
 elif [ -n "${CODEX_PROJECT_DIR:-}" ] || [ "${CODEX_CI:-}" = "1" ] || [ -n "${CODEX_THREAD_ID:-}" ]; then
   STATE_DIR="$WORKSPACE_ROOT/.codex/state"; MARKER_PREFIX="last-verification."
 else
   case "${AGENT_VENDOR:-}" in
-    claude) STATE_DIR="$WORKSPACE_ROOT/.claude"; MARKER_PREFIX=".last-verification." ;;
+    claude|antigravity) STATE_DIR="$WORKSPACE_ROOT/.claude"; MARKER_PREFIX=".last-verification." ;;
     codex) STATE_DIR="$WORKSPACE_ROOT/.codex/state"; MARKER_PREFIX="last-verification." ;;
-    *) echo "ERROR: cannot identify Claude or Codex host; set AGENT_VENDOR=claude|codex" >&2; exit 2 ;;
+    *) echo "ERROR: cannot identify Claude, Codex, or Antigravity host; set AGENT_VENDOR=claude|codex|antigravity" >&2; exit 2 ;;
   esac
 fi
 ```
