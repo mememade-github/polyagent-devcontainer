@@ -28,8 +28,12 @@ services:
       # devcontainer.json does not re-declare these, so plain `docker compose up`
       # and VS Code "Reopen in Container" share the same COMPOSE_PROJECT_NAME-scoped
       # volumes and preserve auth tokens + history identically across rebuild.
+      # Antigravity keeps tokens, settings and conversations in ~/.gemini and
+      # plugin/MCP secrets in ~/.config/antigravity.
       - claude-config:/home/vscode/.claude
       - codex-config:/home/vscode/.codex
+      - gemini-config:/home/vscode/.gemini
+      - antigravity-secrets:/home/vscode/.config/antigravity
       - command-history:/commandhistory
 
     # =========================================================================
@@ -66,4 +70,6 @@ services:
 volumes:
   claude-config:
   codex-config:
+  gemini-config:
+  antigravity-secrets:
   command-history:
