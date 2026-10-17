@@ -1,12 +1,13 @@
 # =============================================================================
 # Polyagent DevContainer — Universal Base Template
 # =============================================================================
-# Claude Code CLI + Codex CLI + Shell tools + Agent System
+# Claude Code CLI + Codex CLI + Antigravity CLI + Shell tools + Agent System
 # Project language/framework installed by the user (Go, Rust, Java, etc.)
 #
 # Runtime layout:
 #   Claude Code — native binary (~/.local/bin/claude, auto-updated)
 #   Codex CLI   — npm global (~/.npm-global/bin/codex)
+#   Antigravity — native binary (~/.local/bin/agy, self-updating)
 #   Node.js     — Node 22 LTS for Codex CLI infrastructure
 #   Python      — system python3 + uv (general development)
 #   Project Node.js can be installed via PROJECT_NODE_VERSION
@@ -98,6 +99,15 @@ RUN mkdir -p ${HOME}/.npm-global \
     && npm install -g --prefix "${HOME}/.npm-global" @openai/codex \
     && echo 'export PATH="${HOME}/.npm-global/bin:${PATH}"' >> ${HOME}/.bashrc \
     && ${HOME}/.npm-global/bin/codex --version
+
+# =============================================================================
+# Layer 3.6: Antigravity CLI (agy) — Official Installer
+# The installer verifies the binary against the manifest sha512, places it in
+# ~/.local/bin/agy, and adds a PATH block to .bashrc/.profile. The trailing
+# `agy --version` fails the build if no binary was installed.
+# =============================================================================
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash \
+    && agy --version
 
 # =============================================================================
 # Layer 4: Node.js — Project (optional)
