@@ -30,7 +30,7 @@ Codex command hooks run only after project trust and `/hooks` review; changed ho
 
 ## Antigravity
 
-Antigravity loads `AGENTS.md` and the `.agents/rules/*.md` files whose frontmatter sets `trigger: always_on`; the source rules carry that frontmatter. It reads only direct children of `.agents/rules/`, so `.agents/rules.json` registers `.agents/rules/project`; register any deeper rule folder there too. `.agents/hooks.json` runs `.agents/hooks/claude-hooks-adapter.sh`, which feeds the unmodified `.claude/hooks/*.sh` and answers `deny` with the gate's reason on a block, otherwise `ask`, leaving the call to Antigravity's own permission settings. Its Stop hook consults the refine gate only on a normal turn end (`NO_TOOL_CALL`). Hooks run after workspace trust. A hook `deny` still blocks under `--dangerously-skip-permissions`, and the terminal sandbox (`--sandbox`) is off by default. Skills detect Antigravity by `ANTIGRAVITY_AGENT=1` and resolve the repository from the current directory, not from inherited `CLAUDE_PROJECT_DIR`/`CODEX_PROJECT_DIR`; state and markers are shared with Claude in `.claude/`. `/refine` runs Audit, Modify, and Evaluate each in a fresh built-in `self` subagent, which receives the repository rules and hooks but not the parent conversation.
+Keep `trigger: always_on` frontmatter on source rules; `.agents/rules.json` registers `.agents/rules/project`, and any deeper rule folder must be registered there. `/refine` runs Audit, Modify, and Evaluate in separate fresh built-in `self` subagents that retain repository rules and hooks without the parent conversation.
 
 ## Mirror and communication
 
