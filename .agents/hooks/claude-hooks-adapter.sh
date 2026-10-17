@@ -9,7 +9,6 @@
 # Usage: bash hooks/claude-hooks-adapter.sh <session-start|pre-tool-use|stop>
 # Event mapping is documented in REFERENCE.md, section Hooks.
 # For pre-tool-use, an empty {} blocks commands; emit ask on a non-denial.
-#                 {"injectSteps":[{"systemMessage":{"systemMessage":...}}]}.
 #
 # Exit status is always 0 with one valid JSON object on stdout: that is the
 # agy response format, not a claim that a gate succeeded. The fail-open policy
