@@ -6,6 +6,7 @@
   //   - DevContainer Specification: https://containers.dev/implementors/json_reference/
   //   - Anthropic Claude Code: https://github.com/anthropics/claude-code/tree/main/.devcontainer
   //   - OpenAI Codex CLI: https://github.com/openai/codex
+  //   - Google Antigravity CLI: https://antigravity.google/docs/cli/reference/
   // ==========================================================================
 
   "name": "Polyagent DevContainer",
@@ -77,7 +78,8 @@
   // Mounts
   // SSH: bind host keys (for git pushes/pulls)
   // Auth/history persistent volumes (claude-config, codex-config,
-  // command-history) are defined in docker-compose.yml — not redeclared here
+  // gemini-config, antigravity-secrets, command-history) are defined in
+  // docker-compose.yml — not redeclared here
   // so plain `docker compose up` and VS Code share the same named volumes.
   // ==========================================================================
   "mounts": [
