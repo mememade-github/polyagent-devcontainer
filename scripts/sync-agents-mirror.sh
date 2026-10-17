@@ -87,8 +87,6 @@ if [ -n "$LEAKS" ]; then
 fi
 
 # --- 3. Compare or reconcile the generated trees, including nested orphans. ---
-# Only .agents/rules and .agents/skills are generated; other .agents/ entries
-# are outside the mirror and are neither compared nor removed.
 GENERATED="rules skills"
 if [ -d "$DST" ]; then
     DIFF_OUTPUT=""
