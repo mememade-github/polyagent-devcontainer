@@ -1,3 +1,6 @@
+---
+trigger: always_on
+---
 # Behavioral Core
 
 > **Source of truth.** The canonical body is mirrored in `.claude/skills/karpathy-guidelines/SKILL.md`; `scripts/meta/karpathy-consistency-check.sh` automates the comparison. Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.

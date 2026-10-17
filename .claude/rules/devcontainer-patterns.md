@@ -1,3 +1,6 @@
+---
+trigger: always_on
+---
 # DevContainer Development Patterns
 
 > Prevents Docker-in-Docker (DinD) anti-pattern and defines container validation.
