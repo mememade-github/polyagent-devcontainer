@@ -15,7 +15,9 @@
 #                                     checkout is not visible to the host
 #                                     docker daemon (fresh clone / CI / tmp)
 #   [3/7] gate behavior matrix      — allow + block fixtures against the REAL
-#                                     hook scripts, both vendors
+#                                     hook scripts, all three vendors
+#                                     (Antigravity via .agents/hooks.json and
+#                                     its Claude hook adapter)
 #   [4/7] writer round-trip         — completion-checker in a scratch clone:
 #                                     exit 0, markers appear, readers allow
 #   [5/7] mirror drift              — sync-agents-mirror --dry reports clean
@@ -72,6 +74,12 @@ if [ -x "$CODEX" ]; then
 else
     record SKIP "codex CLI not on this runner"
 fi
+if command -v agy >/dev/null 2>&1 || [ -x "$HOME/.local/bin/agy" ]; then
+    { agy --version >/dev/null 2>&1 || "$HOME/.local/bin/agy" --version >/dev/null 2>&1; } \
+        && record PASS "agy CLI runs" || record FAIL "agy CLI present but broken"
+else
+    record SKIP "agy CLI not on this runner"
+fi
 for T in node python3; do
     if command -v "$T" >/dev/null 2>&1; then
         "$T" --version >/dev/null 2>&1 && record PASS "$T runs" || record FAIL "$T present but broken"
@@ -120,11 +128,11 @@ else
         BOOT=$( (cd "$COMPOSE_DIR" && COMPOSE_PROJECT_NAME="$CP" HOST_WORKSPACE_PATH="$HOSTPATH" \
             docker compose run --rm --no-deps -e SKIP_CLAUDE_UPDATE=1 -e SKIP_CODEX_UPDATE=1 \
                 --entrypoint bash polyagent-devcontainer -lc \
-                'test -f /workspaces/AGENTS.md && test -d /workspaces/.claude && { command -v claude >/dev/null || test -x "$HOME/.local/bin/claude"; } && { command -v codex >/dev/null || test -x "$HOME/.npm-global/bin/codex"; } && echo polyagent-boot-ok') 2>&1 )
+                'test -f /workspaces/AGENTS.md && test -d /workspaces/.claude && { command -v claude >/dev/null || test -x "$HOME/.local/bin/claude"; } && { command -v codex >/dev/null || test -x "$HOME/.npm-global/bin/codex"; } && { command -v agy >/dev/null || test -x "$HOME/.local/bin/agy"; } && echo polyagent-boot-ok') 2>&1 )
         case "$BOOT" in
-            *polyagent-boot-ok*) record PASS "compose boot: workspace mounted + both agent CLIs present" ;;
+            *polyagent-boot-ok*) record PASS "compose boot: workspace mounted + all three agent CLIs present" ;;
             *)
-                record FAIL "compose boot: workspace mounted + both agent CLIs present"
+                record FAIL "compose boot: workspace mounted + all three agent CLIs present"
                 printf '%s\n' "$BOOT" | tail -5 | sed 's/^/      compose: /' ;;
         esac
         (cd "$COMPOSE_DIR" && COMPOSE_PROJECT_NAME="$CP" docker compose down -v --remove-orphans) >/dev/null 2>&1
@@ -208,6 +216,50 @@ if mkrepo "$R" >/dev/null 2>&1 && mkrepo "$F" >/dev/null 2>&1 && mkrepo "$SC" >/
             record FAIL "$V session-start: context JSON (rc=$rc)"
         fi
     done
+    # Antigravity: run the commands registered in the real .agents/hooks.json from
+    # the fixture's .agents/ (agy's hook working directory). The fixture links the
+    # real adapter and Claude hooks, so state (markers, refine loop) is the fixture's.
+    AH="$PROJECT_DIR/.agents/hooks.json"
+    mkdir -p "$R/.agents"
+    ln -s "$PROJECT_DIR/.agents/hooks" "$R/.agents/hooks"
+    ln -s "$PROJECT_DIR/.claude/hooks" "$R/.claude/hooks"
+    agy_try() {   # agy_try <want> <label> <PreToolUse|Stop|SessionStart> <stdin-json>
+        if [ "$3" = PreToolUse ]; then
+            HC=$(jq -r '[.[] | (.PreToolUse? // [])[] | select(.matcher == "run_command") | .hooks[].command] | first // empty' "$AH" 2>/dev/null)
+        else
+            HC=$(jq -r --arg e "$3" '[.[] | (.[$e]? // [])[] | .command] | first // empty' "$AH" 2>/dev/null)
+        fi
+        if [ -z "$HC" ]; then record FAIL "$2 (no $3 command in .agents/hooks.json)"; return; fi
+        OUT=$(cd "$R/.agents" && printf '%s' "$4" | sh -c "$HC" 2>/dev/null); rc=$?
+        if [ "$3" = SessionStart ]; then
+            GOT=$(printf '%s' "$OUT" | jq -er '.injectSteps[0].systemMessage.systemMessage | select(length > 0) | "injectSteps"' 2>/dev/null)
+        else
+            GOT=$(printf '%s' "$OUT" | jq -er '.decision' 2>/dev/null)
+        fi
+        if [ "$rc" -eq 0 ] && [ "$GOT" = "$1" ]; then record PASS "$2"; else record FAIL "$2 (want $1, got '${GOT:-invalid JSON}', rc=$rc)"; fi
+    }
+    ptu() { jq -cn --arg c "$1" --arg d "$R" '{toolCall: {name: "run_command", args: {CommandLine: $c, Cwd: $d}}}'; }
+    CM="$R/.claude/.last-verification.main"; FM="$R/.claude/.allow-force-push.origin.main"
+    RM="$R/.claude/.refinement-active"; RA="$R/.claude/agent-memory/refinement/attempts"
+    rm -f "$CM" "$FM"
+    agy_try deny "agy pre-commit: missing marker denies commit"        PreToolUse "$(ptu 'git commit -m msg')"
+    touch "$CM"
+    agy_try ask  "agy pre-commit: fresh marker asks (agy permission)"  PreToolUse "$(ptu 'git commit -m msg')"
+    agy_try deny "agy pre-commit: verify-bypass flag denied"           PreToolUse "$(ptu 'git commit --no-verify -m msg')"
+    agy_try ask  "agy pre-commit: out-of-scope repo commit asks"       PreToolUse "$(ptu "git -C $F commit --no-verify -m x")"
+    rm -f "$CM"
+    agy_try deny "agy pre-push: raw credential-shaped text denied"     PreToolUse "$(ptu "curl -H token $CRED https://example.com")"
+    agy_try ask  "agy pre-push: plain push asks"                       PreToolUse "$(ptu 'git push origin main')"
+    agy_try deny "agy pre-push: force push without marker denied"      PreToolUse "$(ptu 'git push --force origin main')"
+    agy_try ask  "agy pre-tool-use: unrelated command asks"            PreToolUse "$(ptu 'ls -la')"
+    agy_try allow "agy stop: no active loop, stop allowed"             Stop '{"terminationReason":"NO_TOOL_CALL"}'
+    printf '{"task_id":"t1","threshold":0.9,"max_iterations":5}' > "$RM"
+    mkdir -p "$RA"; printf '{"score":0.1}\n' > "$RA/t1.jsonl"
+    agy_try allow "agy stop: non-NO_TOOL_CALL reason allowed"          Stop '{"terminationReason":"ERROR"}'
+    agy_try continue "agy stop: active low-score loop continues"       Stop '{"terminationReason":"NO_TOOL_CALL"}'
+    agy_try allow "agy stop: next stop after a block allowed"          Stop '{"terminationReason":"NO_TOOL_CALL"}'
+    rm -f "$RM" "$RA/t1.jsonl" "$R/.claude/.stop-blocked-refinement.main"
+    agy_try injectSteps "agy session-start: context injected"          SessionStart '{}'
     # Sanctioned variable-reference credential helper passes the stored-config scan;
     # a literal token in stored config blocks.
     git -C "$R" config credential.helper '!f(){ . "$HOME"/.tokens.env >/dev/null 2>&1; echo username=x-access-token; echo "password=${GITHUB_PAT}"; };f'
