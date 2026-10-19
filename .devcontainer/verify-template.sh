@@ -10,10 +10,10 @@
 # Sections:
 #   [1/7] environment presence      — missing essentials FAIL, missing
 #                                     optional tools SKIP
-#   [2/7] compose boot smoke        — ephemeral container, unique project
-#                                     name; SKIPs (never FAILs) when the
-#                                     checkout is not visible to the host
-#                                     docker daemon (fresh clone / CI / tmp)
+#   [2/7] compose boot smoke        — disposable container, fixed project
+#                                     polyagent-v3-accept; Compose-selected
+#                                     image, no forced rebuild (may lack agy)
+#                                     prerequisites SKIP; config/boot FAIL
 #   [3/7] gate behavior matrix      — allow + block fixtures against the REAL
 #                                     hook scripts, all three vendors
 #                                     (Antigravity via .agents/hooks.json and
@@ -95,7 +95,7 @@ else
     record SKIP "uv not on this runner"
 fi
 
-# --- [2/7] Compose boot smoke (ephemeral; never FAILs for environment reasons) ---
+# --- [2/7] Compose boot smoke (Docker/plugin unavailable: SKIP; config/boot: FAIL) ---
 echo ""
 echo "=== [2/7] Compose boot smoke ==="
 COMPOSE_DIR="$PROJECT_DIR/.devcontainer"
@@ -106,9 +106,8 @@ elif ! docker compose version >/dev/null 2>&1; then
 else
     (cd "$COMPOSE_DIR" && docker compose config -q) >/dev/null 2>&1 \
         && record PASS "compose config parses" || record FAIL "compose config invalid"
-    # Bind mounts are resolved by the HOST daemon, so the smoke can only run
-    # when we can name this checkout by a daemon-visible path. Otherwise SKIP:
-    # a temp/CI clone must never fail here (that was the old per-commit deadlock).
+    # Bind mounts use host-daemon paths. An unresolved checkout path skips boot;
+    # any configuration failure above still counts as FAIL.
     HOSTPATH=""
     if [ -n "${HOST_WORKSPACE_PATH:-}" ]; then
         HOSTPATH="$HOST_WORKSPACE_PATH"
