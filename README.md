@@ -8,18 +8,35 @@ Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-
 
 ## Requirements
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [VS Code](https://code.visualstudio.com/) + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine with Compose v2 (both paths)
+- [VS Code](https://code.visualstudio.com/) + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) (path A only)
 
 ## Quick start
 
 ```bash
 git clone https://github.com/mememade-github/polyagent-devcontainer.git my-project
 cd my-project
+cp .devcontainer/.env.example .devcontainer/.env
+```
+
+Set unique `COMPOSE_PROJECT_NAME` and `CONTAINER_NAME` values in `.devcontainer/.env`.
+
+**A: VS Code.** Attach does not apply `devcontainer.json`.
+
+```bash
 code .
 # VS Code: Ctrl+Shift+P → "Dev Containers: Reopen in Container"
 # First build ~3-5 min.
 ```
+
+**B: Docker Compose.** Run from the repository root:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml up -d --build
+docker compose -f .devcontainer/docker-compose.yml exec polyagent-devcontainer bash
+```
+
+For settings, operations, and differences between A and B, see [DevContainer lifecycle](REFERENCE.md#devcontainer-lifecycle).
 
 Run an agent inside the container:
 
@@ -79,16 +96,12 @@ generated with matching content and file modes; do not edit them by hand. The
 other `.agents/` files (`hooks.json`, `hooks/`, `rules.json`) are hand-maintained
 Antigravity configuration that the sync never touches.
 
-## VS Code: Reopen in Container vs. Attach
-
-Always use **Reopen in Container** (`Ctrl+Shift+P`). Attach connects to a running container without applying `devcontainer.json` (workspace path, extensions, port forwarding), which breaks the template.
-
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| Build fails | `docker compose build --no-cache` |
-| Files invisible or container is unhealthy | Use Reopen in Container, not Attach; for headless `docker compose`, set `HOST_WORKSPACE_PATH` to the host filesystem path |
+| Build fails | `docker compose -f .devcontainer/docker-compose.yml build --no-cache` |
+| Files invisible or container is unhealthy | A: use Reopen in Container. B: set `HOST_WORKSPACE_PATH` to a project path accessible to the Docker daemon. See [Configuration](REFERENCE.md#configuration-devcontainerenv). |
 | Reopen menu missing | Install the Dev Containers extension |
 | Claude re-auth needed | `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | `docker volume ls \| grep codex-config` |
