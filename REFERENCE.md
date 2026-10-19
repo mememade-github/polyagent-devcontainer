@@ -285,14 +285,7 @@ power; outside containers, keep the default sandbox.
 
 ### Codex commands
 
-```bash
-codex login --device-auth                                                # auth (volume-persistent)
-codex login status                                                       # auth status
-codex                                                                    # interactive (loads AGENTS.md)
-codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
-codex exec --dangerously-bypass-hook-trust "<vetted-automation-prompt>"    # vetted hooks only
-codex --version
-```
+See the [official Codex CLI reference](https://developers.openai.com/codex/cli/reference).
 
 ## Antigravity CLI (agy)
 
