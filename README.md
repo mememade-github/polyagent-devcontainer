@@ -67,8 +67,6 @@ REFERENCE.md, .devcontainer/.env, and
 
 During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/hooks/`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts. Keep the `trigger: always_on` frontmatter on the rule files and give every new rule in `.claude/rules/project/` the same three lines, or Antigravity silently skips that file; customize the six update targets named before “Verify with” in the prompt above, while `.devcontainer/verify-template.sh` is the verification command rather than an update target.
 
-Upgrading an existing project: [UPGRADING.md](UPGRADING.md).
-
 ## Vendor parity sync
 
 ```bash
