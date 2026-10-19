@@ -35,7 +35,7 @@ Template build and startup configuration lives in `.devcontainer/.env`. The trac
 | `TYPESAFE_API_KEY` | *(empty)* | `.devcontainer/.env` | Optional TypeSafe key; store only in `.devcontainer/.env`; load it in the command before a request |
 | `DNS_PRIMARY` | `8.8.8.8` | docker-compose.yml dns | First DNS resolver; set to your network's DNS server if internal hostnames must resolve |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
-| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | HOST path for cross-namespace bind mounts (see `.claude/rules/devcontainer-patterns.md`) |
+| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | Empty binds the parent of `.devcontainer` to `/workspaces`. If that path does not identify the same project for the Docker daemon, set a project path accessible to the daemon. This can occur inside another container, with a remote daemon, or on a host that needs path translation. |
 
 ## Runtime isolation
 
@@ -86,6 +86,71 @@ login, no network call) and a recognizable
 `.devcontainer/`). A container with an empty or mis-mounted workspace stays
 `unhealthy` instead of reporting a false green status.
 
+A is VS Code "Reopen in Container". B uses Docker Compose and does not read
+`devcontainer.json`. Both paths use the Dockerfile and Compose declarations below.
+
+| Common value | Source |
+|--------------|--------|
+| `LANG=en_US.UTF-8`, `LC_ALL=en_US.UTF-8`, `DEVCONTAINER=true` | Dockerfile `ENV`; also declared in `devcontainer.json` `containerEnv` |
+| `LANGUAGE=en_US:en` | Dockerfile `ENV` |
+| `TZ=UTC` by default | Dockerfile `ENV`; Compose `environment` uses `${TZ:-UTC}` |
+| `init: true` | Compose; also declared in `devcontainer.json` |
+| `tty: true`, `stdin_open: true` | Compose |
+| Working directory `/workspaces` | Dockerfile `WORKDIR`; also `devcontainer.json` `workspaceFolder` |
+| Default user `vscode` | Dockerfile `ARG USERNAME=vscode` and `USER ${USERNAME}` |
+
+A also has these declarations in `devcontainer.json`:
+
+| Declaration | Source |
+|-------------|--------|
+| `waitFor: postCreateCommand` | `devcontainer.json` `waitFor` |
+| `remoteUser: vscode`; the same default user as Dockerfile `USER` for B | `devcontainer.json` `remoteUser` |
+| `updateRemoteUserUID: true` | `devcontainer.json` `updateRemoteUserUID` |
+| `shutdownAction: stopCompose` | `devcontainer.json` `shutdownAction` |
+| Host `~/.ssh` bind to `/home/vscode/.ssh` | `devcontainer.json` `mounts` |
+| `NODE_OPTIONS=--max-old-space-size=4096` | `devcontainer.json` `containerEnv` |
+| `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0` | `devcontainer.json` `remoteEnv` |
+| VS Code settings: format on save, no default formatter, two spaces, UTF-8, LF, whitespace cleanup, final newline, Bash terminal, Git objects and node_modules watcher exclusions | `devcontainer.json` `customizations.vscode.settings` |
+| `dbaeumer.vscode-eslint`, `esbenp.prettier-vscode`, `eamodio.gitlens`, `ms-azuretools.vscode-docker` | `devcontainer.json` `customizations.vscode.extensions` |
+
+For configuration values and workspace path conditions, see
+[Configuration](#configuration-devcontainerenv).
+
+After configuration changes, A uses **Dev Containers: Rebuild Container**.
+For B, run these commands from the repository root:
+
+```bash
+# Reapply configuration
+docker compose -f .devcontainer/docker-compose.yml up -d --build --force-recreate
+# Connect
+docker compose -f .devcontainer/docker-compose.yml exec polyagent-devcontainer bash
+# Check status and logs
+docker compose -f .devcontainer/docker-compose.yml ps
+docker compose -f .devcontainer/docker-compose.yml logs
+# Stop
+docker compose -f .devcontainer/docker-compose.yml down
+```
+
+For another B instance, copy `.devcontainer/.env.example` to
+`.devcontainer/.env.project-b`. Set both identifiers to unique values in that file:
+
+```dotenv
+COMPOSE_PROJECT_NAME=polyagent-project-b
+CONTAINER_NAME=polyagent-project-b-dev
+```
+
+Run from the repository root. Repeat the same `--env-file` in every command:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b up -d --build --force-recreate
+docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b exec polyagent-devcontainer bash
+docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b ps
+docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b logs
+docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b down
+```
+
+See [Persistent volumes](#persistent-volumes) for volume deletion behavior.
+
 ## Persistent volumes
 
 | Volume | Mount | Purpose |
@@ -98,8 +163,10 @@ login, no network call) and a recognizable
 
 > Named volumes are prefixed by `COMPOSE_PROJECT_NAME` and shared identically by
 > both entry paths (`docker compose up` and VS Code "Reopen in Container").
-> Change `COMPOSE_PROJECT_NAME` in `.devcontainer/.env` to isolate volumes per instance.
+> For multiple instances, see [DevContainer lifecycle](#devcontainer-lifecycle).
 > The image creates the mount points as `vscode`, so new volumes are `vscode`-owned.
+
+`down` preserves named volumes; `down -v` removes the three vendors' auth, secrets, and history volumes.
 
 ## Pre-installed tools
 
