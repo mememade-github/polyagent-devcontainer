@@ -102,10 +102,33 @@ RUN mkdir -p ${HOME}/.npm-global \
 
 # =============================================================================
 # Layer 3.6: Antigravity CLI (agy) — Official Installer
-# The official installer checks the manifest sha512.
+# Download to a file; the installer checks the manifest sha512.
+# Strip only successful I-level glog prefixes; failures and E/W/F keep raw logs.
 # =============================================================================
-RUN curl -fsSL https://antigravity.google/cli/install.sh | bash \
-    && agy --version
+RUN agy_script=$(mktemp) || exit $?; \
+    agy_log=; \
+    trap 'rm -f "$agy_script" "$agy_log"' 0; \
+    trap 'exit 1' HUP INT TERM; \
+    agy_log=$(mktemp) || exit $?; \
+    curl -fsSL https://antigravity.google/cli/install.sh -o "$agy_script" || exit $?; \
+    bash "$agy_script" >"$agy_log" 2>&1; \
+    install_rc=$?; \
+    if [ "$install_rc" -ne 0 ]; then \
+        cat "$agy_log"; \
+        exit "$install_rc"; \
+    fi; \
+    grep -E '^ERROR: logging before google\.Init: [EWF][0-9]{4} ' "$agy_log" >/dev/null; \
+    display_rc=$?; \
+    case "$display_rc" in \
+        0) cat "$agy_log" || exit $? ;; \
+        1) sed -E 's/^ERROR: logging before google\.Init: (I[0-9]{4} )/\1/' "$agy_log" || { \
+            display_rc=$?; cat "$agy_log"; exit "$display_rc"; \
+        } ;; \
+        *) cat "$agy_log"; exit "$display_rc" ;; \
+    esac; \
+    rm -f "$agy_script" "$agy_log" || exit $?; \
+    trap - 0; \
+    agy --version
 
 # =============================================================================
 # Layer 4: Node.js — Project (optional)

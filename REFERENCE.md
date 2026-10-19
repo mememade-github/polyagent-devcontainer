@@ -179,8 +179,11 @@ The template intentionally pulls latest releases at build/run time:
   through the same explicit prefix, then re-execs the real
   `~/.npm-global/bin/codex` binary. The template does not persistently mutate
   npm's global prefix.
-- **Antigravity CLI**: `curl -fsSL https://antigravity.google/cli/install.sh | bash`
-  (latest at build; the installer checks the manifest sha512).
+- **Antigravity CLI**: the official installer is downloaded to a file and run
+  with Bash (latest at build; the installer checks the manifest sha512).
+  Successful output loses only the pre-initialization glog prefix on `I`-level
+  lines from the installer's final `agy install` step. A nonzero installer exit
+  or any `E`/`W`/`F`-level prefix keeps the full raw log.
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
   unless `SKIP_CLAUDE_UPDATE=1` is set.
 - **Codex update**: every container start reconciles the launcher symlinks and
