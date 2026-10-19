@@ -1,14 +1,7 @@
 # =============================================================================
 # Polyagent DevContainer — Docker Compose (base variant)
 # =============================================================================
-# All settings are managed in the .env file.
-#
-# Usage:
-#   docker compose up -d
-#
-# Multiple instances:
-#   cp .env.example .env.project-b
-#   docker compose --env-file .env.project-b up -d
+# See [DevContainer lifecycle](../REFERENCE.md#devcontainer-lifecycle) for configuration and operations.
 # =============================================================================
 
 services:
