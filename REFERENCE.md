@@ -110,8 +110,7 @@ A also has these declarations in `devcontainer.json`:
 | Host `~/.ssh` bind to `/home/vscode/.ssh` | `devcontainer.json` `mounts` |
 | `NODE_OPTIONS=--max-old-space-size=4096` | `devcontainer.json` `containerEnv` |
 | `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0` | `devcontainer.json` `remoteEnv` |
-| VS Code settings: format on save, no default formatter, two spaces, UTF-8, LF, whitespace cleanup, final newline, Bash terminal, Git objects and node_modules watcher exclusions | `devcontainer.json` `customizations.vscode.settings` |
-| `dbaeumer.vscode-eslint`, `esbenp.prettier-vscode`, `eamodio.gitlens`, `ms-azuretools.vscode-docker` | `devcontainer.json` `customizations.vscode.extensions` |
+| VS Code editor settings and four extensions | `devcontainer.json` `customizations.vscode` |
 
 For configuration values and workspace path conditions, see
 [Configuration](#configuration-devcontainerenv).
@@ -143,10 +142,6 @@ Run from the repository root. Repeat the same `--env-file` in every command:
 
 ```bash
 docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b up -d --build --force-recreate
-docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b exec polyagent-devcontainer bash
-docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b ps
-docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b logs
-docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b down
 ```
 
 See [Persistent volumes](#persistent-volumes) for volume deletion behavior.
