@@ -21,8 +21,8 @@ DevContainer inside a VM or on a dedicated machine.
 
 ## Configuration (`.devcontainer/.env`)
 
-Template build and startup configuration lives in `.devcontainer/.env`. The tracked file is
-`.devcontainer/.env.example`; copy it to `.devcontainer/.env` to customize
+Template build and startup configuration lives in `.devcontainer/.env`;
+[Quick start](README.md#quick-start) covers initial setup
 (compose defaults apply when `.env` is absent).
 
 | Variable | Default | Used by | Purpose |
@@ -35,7 +35,7 @@ Template build and startup configuration lives in `.devcontainer/.env`. The trac
 | `TYPESAFE_API_KEY` | *(empty)* | `.devcontainer/.env` | Optional TypeSafe key; store only in `.devcontainer/.env`; load it in the command before a request |
 | `DNS_PRIMARY` | `8.8.8.8` | docker-compose.yml dns | First DNS resolver; set to your network's DNS server if internal hostnames must resolve |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
-| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | Empty binds the parent of `.devcontainer` to `/workspaces`. If that path does not identify the same project for the Docker daemon, set a project path accessible to the daemon. This can occur inside another container, with a remote daemon, or on a host that needs path translation. |
+| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | Empty binds the parent of `.devcontainer` to `/workspaces`. If that path does not identify the same project for the Docker daemon, set a project path accessible to the daemon. This can occur inside another container, with a remote daemon, or on a host that needs path translation. On Windows, if the daemon expects `/c/...` paths, `C:\Users\you\my-project` becomes `/c/Users/you/my-project`. |
 
 ## Runtime isolation
 
@@ -120,29 +120,19 @@ For B, run these commands from the repository root:
 
 ```bash
 # Reapply configuration
-docker compose -f .devcontainer/docker-compose.yml up -d --build --force-recreate
-# Connect
-docker compose -f .devcontainer/docker-compose.yml exec polyagent-devcontainer bash
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml up -d --build --force-recreate
 # Check status and logs
-docker compose -f .devcontainer/docker-compose.yml ps
-docker compose -f .devcontainer/docker-compose.yml logs
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml ps
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml logs
 # Stop
-docker compose -f .devcontainer/docker-compose.yml down
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml down
 ```
 
-For another B instance, copy `.devcontainer/.env.example` to
-`.devcontainer/.env.project-b`. Set both identifiers to unique values in that file:
+The connection step is in [Quick start, path B](README.md#quick-start).
 
-```dotenv
-COMPOSE_PROJECT_NAME=polyagent-project-b
-CONTAINER_NAME=polyagent-project-b-dev
-```
-
-Run from the repository root. Repeat the same `--env-file` in every command:
-
-```bash
-docker compose -f .devcontainer/docker-compose.yml --env-file .devcontainer/.env.project-b up -d --build --force-recreate
-```
+Another B instance uses a separate env file, such as `.devcontainer/.env.project-b`,
+with distinct values for the two identifiers described in [Quick start](README.md#quick-start).
+Every Compose command selects that file with `--env-file`.
 
 See [Persistent volumes](#persistent-volumes) for volume deletion behavior.
 
@@ -282,10 +272,8 @@ verification marker is per-branch and considered fresh for 24 hours from its
 mtime; `scripts/meta/completion-checker.sh` writes it (see §Verification).
 These gates do not scan staged file contents.
 
-Codex loads `.codex/config.toml` directly after the project is trusted. Project
-command hooks also require review in `/hooks`, and changed definitions are
-skipped until reviewed again. Use `--dangerously-bypass-hook-trust` only in
-automation that independently vets the hook source.
+Codex project trust and hook review are covered in
+[Codex sandbox bypass](#codex-sandbox-bypass-devcontainer-only).
 
 ### Skills (5)
 
@@ -344,6 +332,12 @@ Codex CLI sandboxes commands with [bubblewrap](https://github.com/containers/bub
 The bypass makes the DevContainer the command-execution compatibility boundary,
 not a security or trust boundary. The mounted Docker socket grants host-level
 power; outside containers, keep the default sandbox.
+
+On first interactive use, Codex loads `.codex/config.toml` directly after the
+project is trusted. Project command hooks require review in `/hooks`, and
+changed definitions are skipped until reviewed again. The
+`--dangerously-bypass-hook-trust` flag is for automation that independently vets
+the hook source.
 
 ### Codex commands
 

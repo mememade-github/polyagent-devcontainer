@@ -19,7 +19,10 @@ cd my-project
 cp .devcontainer/.env.example .devcontainer/.env
 ```
 
-Set unique `COMPOSE_PROJECT_NAME` and `CONTAINER_NAME` values in `.devcontainer/.env`.
+In `.devcontainer/.env`, `COMPOSE_PROJECT_NAME` is the project and volume prefix
+(for example, `my-project`), and `CONTAINER_NAME` is the container name used by
+`docker exec` below (for example, `my-project-dev`). Both identifiers are unique
+per instance; the other settings are listed in [Configuration](REFERENCE.md#configuration-devcontainerenv).
 
 **A: VS Code.** Attach does not apply `devcontainer.json`.
 
@@ -32,11 +35,14 @@ code .
 **B: Docker Compose.** Run from the repository root:
 
 ```bash
-docker compose -f .devcontainer/docker-compose.yml up -d --build
-docker compose -f .devcontainer/docker-compose.yml exec polyagent-devcontainer bash
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml build
+docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml up -d
+docker exec -it my-project-dev bash
 ```
 
 For settings, operations, and differences between A and B, see [DevContainer lifecycle](REFERENCE.md#devcontainer-lifecycle).
+
+### Agents and first login
 
 Run an agent inside the container:
 
@@ -51,12 +57,7 @@ On first run, `claude` prompts interactive login and Codex needs
 and follow the terminal prompts. Gemini 4 Argon requires a paid Google AI Pro
 or Ultra plan, excluding free trials. All three credentials persist in named volumes.
 
-The `--dangerously-bypass-approvals-and-sandbox` flag is needed because Codex's
-bubblewrap sandbox cannot create user namespaces inside Docker. It is only a
-compatibility workaround: because `docker.sock` is mounted,
-the DevContainer is not a security or trust boundary. On first interactive
-Codex use, trust the project and review project hooks with `/hooks`; changed
-hooks require review again. See [REFERENCE.md](REFERENCE.md) for details.
+Codex compatibility and project trust details are covered in [Codex sandbox bypass](REFERENCE.md#codex-sandbox-bypass-devcontainer-only).
 
 ## What's included
 
