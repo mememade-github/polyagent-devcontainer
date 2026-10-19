@@ -1,8 +1,8 @@
 #!/bin/bash
 # Stop hook: keep an active Codex /refine loop running.
-# Blocks (JSON decision) once per 120s window while refinement-active exists
-# and the best recorded score is below threshold; on any missing/invalid
-# state it allows the stop (fail-open). Never exits non-zero.
+# An eligible active loop blocks below threshold until the iteration limit.
+# A block marker younger than 120 seconds allows the next Stop and is consumed;
+# the following call can block again. Fails open; never exits non-zero.
 set -u
 
 PROJECT_DIR="${CODEX_PROJECT_DIR:-.}"
@@ -10,7 +10,7 @@ STATE_DIR="$PROJECT_DIR/.codex/state"
 BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BRANCH_SAFE=$(echo "$BRANCH" | tr '/' '-')
 
-# Loop prevention: if we already blocked within the last 120s, allow the stop.
+# Loop prevention: consume the marker; if younger than 120s, allow this Stop.
 BLOCK_MARKER="$STATE_DIR/stop-blocked-refinement.$BRANCH_SAFE"
 if [ -f "$BLOCK_MARKER" ]; then
   BLOCK_MTIME=$(stat -c %Y "$BLOCK_MARKER" 2>/dev/null || echo 0)
