@@ -40,6 +40,7 @@ fi
 ENV_ISSUES=""
 [ ! -S /var/run/docker.sock ] && ENV_ISSUES="${ENV_ISSUES}  - Docker socket not available\n"
 [ ! -f "$GIT_ROOT/.devcontainer/.env" ] && ENV_ISSUES="${ENV_ISSUES}  - .devcontainer/.env missing (copy .devcontainer/.env.example)\n"
+[ -f /.dockerenv ] && ! command -v agy >/dev/null 2>&1 && ENV_ISSUES="${ENV_ISSUES}  - agy not found in container; see UPGRADING.md\n"
 [ -n "$ENV_ISSUES" ] && CONTEXT="${CONTEXT}Environment issues:\n${ENV_ISSUES}"
 
 # 5. Stale markers: existence+age semantics — prune anything older than 7 days.
