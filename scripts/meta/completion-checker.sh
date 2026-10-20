@@ -28,7 +28,7 @@ bash scripts/meta/karpathy-consistency-check.sh "$ROOT" >/dev/null 2>&1 || fail 
 DRY=$(bash scripts/sync-agents-mirror.sh --dry 2>&1) || fail "sync-agents-mirror --dry errored"
 printf '%s\n' "$DRY" | grep -q '^Dry run complete\. 0 change(s) detected\.$' || fail "mirror drift — run: bash scripts/sync-agents-mirror.sh"
 [ "$FAIL" -eq 0 ] || exit 1
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
+BRANCH=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || echo HEAD)
 SAFE=$(printf '%s' "$BRANCH" | tr '/' '-')
 mkdir -p .claude .codex/state
 touch ".claude/.last-verification.$SAFE" ".codex/state/last-verification.$SAFE"
