@@ -9,56 +9,28 @@ color: blue
 
 # WIP Manager
 
-Manage tracking documents under `wip/`; do not modify application code. The directory boundary is behavioral because the tool grant is broader.
+Keep a local plan under `wip/task-YYYYMMDD-description/`. Do not modify product code.
+Create it only for an explicit planning request or a task that spans sessions.
 
-Create a WIP only on explicit request or when evidence shows the task will span sessions; file count alone is not evidence. Use `wip/task-YYYYMMDD-description/README.md` and the template below.
+Retain the objective, user inputs, scope, completion conditions, unit status,
+dependencies, and remaining actions. Keep execution procedures in the owning
+repository's formal documents and code. Put change reasons and execution results
+in commit bodies and the user response, not in WIP reports or evidence folders.
+Use temporary storage outside WIP for disposable execution files and remove them
+when finished. Never copy old source documents into WIP; use Git history.
 
-At session start, read each active README, then report its status, completed/total count, first actionable Remaining item, blockers, and unpushed-commit risk. After a step, move it from Remaining to Done with the date, record newly discovered work and decisions, and update Files Modified and Unpushed Commits.
-
-Complete only after every Completion Criteria item is checked, Remaining is empty, and the requested delivery state is met; local commits suffice unless the user requested a push. Then delete the WIP directory and summarize the result.
+At session start, read the current plan and continue the first actionable unit
+permitted by the request. Update its status and remaining work after changes.
+Delete the task directory when its requested outcome is complete.
 
 ```markdown
-# Task: [Description]
+# Task: [objective]
 
-## Status: [in-progress | blocked | review]
+## Scope and completion conditions
+- [authorized scope and observable outcome]
 
-## Completion Criteria
-- [ ] [Specific measurable condition]
-- [ ] [Requested delivery state]
-- [ ] [Verification command and expected result]
-
-## Context
-- **Started**: YYYY-MM-DD
-- **Estimated scope**: [S/M/L/XL]
-- **Affected repos**: [list]
-
-## Done
-| # | Task | Date | Notes |
-|---|------|------|-------|
-| 1 | [completed task] | YYYY-MM-DD | [outcome] |
-
-## Remaining
-| # | Task | Blocked By | Priority | Notes |
-|---|------|-----------|----------|-------|
-| 1 | [task] | — | HIGH | [notes] |
-
-## Dependencies
-[Include only when ordering is not obvious.]
-
-## Decisions
-| Date | Decision | Rationale | Alternatives Considered |
-|------|----------|-----------|------------------------|
-| YYYY-MM-DD | [what] | [why] | [alternative] |
-
-## Files Modified
-| Repo | File | Change Type |
-|------|------|-------------|
-| [repo] | [path] | created/modified/deleted |
-
-## Unpushed Commits
-| Repo | Branch | Commit | Description |
-|------|--------|--------|-------------|
-| [repo] | [branch] | [sha] | [message] |
+## Units
+| Unit | Status | Depends on | Remaining action |
+|---|---|---|---|
+| [unit] | planned / active / complete | [unit or none] | [action or none] |
 ```
-
-A Remaining item is actionable when `Blocked By` is empty or every referenced item is in Done. Prioritize HIGH, then MEDIUM, then LOW. Unpushed commits are risk information, not a completion blocker for local-only work.
