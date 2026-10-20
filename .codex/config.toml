@@ -11,7 +11,7 @@
 #   with "bwrap: No permissions to create a new namespace".
 #   Use the README/REFERENCE.md flag for headless invocations from inside the
 #   container:
-#     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>"
+#     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>" </dev/null
 #   This is a compatibility workaround, not a security boundary: docker.sock
 #   grants host-level power. Outside containers, keep this workspace-write
 #   default. See REFERENCE.md §"Codex sandbox bypass (DevContainer only)".
