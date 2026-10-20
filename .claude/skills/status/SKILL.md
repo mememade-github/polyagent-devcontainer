@@ -27,7 +27,7 @@ else
 fi
 ```
 
-Use `$WORKSPACE_ROOT` for every path. Run `bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief`; report a missing upstream explicitly. This base template reports the current repository only; derived multi-repository workspaces may replace that script with an enumerator. List `git -C "$WORKSPACE_ROOT" worktree list`, read each `wip/*/README.md`, and list marker ages with:
+Use `$WORKSPACE_ROOT` for every path. Run `bash "$WORKSPACE_ROOT/scripts/git/git-status.sh" --brief`; report a missing upstream explicitly. The shared script reports the workspace repository and nested Git boundaries, including worktrees; dependency directories are excluded. List `git -C "$WORKSPACE_ROOT" worktree list`, read each `wip/*/README.md`, and list marker ages with:
 
 ```bash
 for marker in "$STATE_DIR"/"$MARKER_PREFIX"*; do

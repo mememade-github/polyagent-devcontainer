@@ -402,3 +402,19 @@ evidence that a rule loads.
 ---
 
 *Last updated: 2026-10-17*
+
+## Shared status and verification
+
+`scripts/git/git-status.sh` and `scripts/meta/completion-checker.sh` are maintained
+here. Receivers take these files unchanged when updating their base. Status finds
+nested Git repositories and worktrees, excluding `node_modules` and `.venv`.
+The JSON output keeps repository paths, branch, changes and upstream counts.
+
+The default tracked-content policy checks public-template identifiers. A private
+project can replace it with its own extended regexes in
+`scripts/meta/leak-patterns.txt`; optional untracked identifiers come from
+`.env/leak-patterns`. Matches report filenames without copying secret values.
+An invalid pattern or failed scan is an error. Repositories that already own
+`scripts/meta/verify-env-sync.sh` run it when their `.env` exists. Others have no
+additional synchronization check. Successful checks write both vendor markers
+for the current branch, including an initial branch without commits.
