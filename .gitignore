@@ -70,3 +70,6 @@ Thumbs.db
 # would overwrite any consumer repo that registers a Runner + schedule. Kept
 # locally for manual mirror wiring; never tracked/pushed. See PROJECT.md.
 /.gitlab-ci.yml
+
+# Session state belongs to the local workspace, never the template history.
+/wip/
