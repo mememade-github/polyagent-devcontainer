@@ -408,7 +408,7 @@ evidence that a rule loads.
 `scripts/git/git-status.sh` and `scripts/meta/completion-checker.sh` are maintained
 here. Receivers take these files unchanged when updating their base. Status finds
 nested Git repositories and worktrees, excluding `node_modules` and `.venv`.
-The JSON output keeps repository paths, branch, changes and upstream counts.
+Full and brief output show each repository’s branch, changes and upstream state.
 
 The default tracked-content policy checks public-template identifiers. A private
 project can replace it with its own extended regexes in

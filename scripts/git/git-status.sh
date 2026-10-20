@@ -3,7 +3,7 @@
 # git-status.sh - Unified Git Status Viewer
 # =============================================================================
 # Purpose: Display git status for root and all subprojects in standardized format
-# Usage: ./scripts/git/git-status.sh [--json|--brief|--help]
+# Usage: ./scripts/git/git-status.sh [--brief|--help]
 # =============================================================================
 
 set -e
@@ -60,19 +60,7 @@ get_repo_status() {
         behind=$(git -C "$repo_path" rev-list --count HEAD..@{upstream} 2>/dev/null || echo 0)
     fi
 
-    if [ "$OUTPUT_MODE" = "json" ]; then
-        jq -n --arg name "$repo_name" --arg path "$repo_path" \
-            --arg branch "$branch" --arg remote "$remote" \
-            --arg hash "$last_commit_hash" --arg message "$last_commit_msg" \
-            --arg date "$last_commit_date" --arg upstream "$upstream" \
-            --argjson staged "$staged" --argjson unstaged "$unstaged" \
-            --argjson untracked "$untracked" --argjson ahead "$ahead" --argjson behind "$behind" \
-            '{name:$name,path:$path,branch:$branch,remote:$remote,
-              lastCommit:{hash:$hash,message:$message,date:$date},
-              changes:{staged:$staged,unstaged:$unstaged,untracked:$untracked},
-              sync:{upstream:$upstream,ahead:$ahead,behind:$behind}}'
-
-    elif [ "$OUTPUT_MODE" = "brief" ]; then
+    if [ "$OUTPUT_MODE" = "brief" ]; then
         local status_icon="✓"
         local status_color="$GREEN"
         if [ $staged -gt 0 ] || [ $unstaged -gt 0 ] || [ $untracked -gt 0 ]; then
@@ -133,13 +121,7 @@ get_repo_status() {
 # All repositories status
 # -----------------------------------------------------------------------------
 get_all_status() {
-    local first=true
-
-    if [ "$OUTPUT_MODE" = "json" ]; then
-        echo "{"
-        echo '  "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",'
-        echo '  "repositories": ['
-    elif [ "$OUTPUT_MODE" = "brief" ]; then
+    if [ "$OUTPUT_MODE" = "brief" ]; then
         echo -e "${BOLD}Project Status Summary${NC} ($(date '+%Y-%m-%d %H:%M'))"
         echo -e "──────────────────────────────────────────────────────────────────────────────"
         printf "  %-25s %-10s %-18s %s\n" "PROJECT" "BRANCH" "SYNC" "LAST COMMIT"
@@ -151,12 +133,7 @@ get_all_status() {
 
     # Root repository
     if [ -e "$ROOT_DIR/.git" ]; then
-        if [ "$OUTPUT_MODE" = "json" ]; then
-            get_repo_status "$ROOT_DIR" "root"
-            first=false
-        else
-            get_repo_status "$ROOT_DIR" "root (workspace)"
-        fi
+        get_repo_status "$ROOT_DIR" "root (workspace)"
     fi
 
     local gitdir repo name
@@ -164,18 +141,10 @@ get_all_status() {
         repo=$(dirname "$gitdir")
         [ "$repo" != "$ROOT_DIR" ] || continue
         name=${repo#"$ROOT_DIR/"}
-        if [ "$OUTPUT_MODE" = "json" ]; then
-            [ "$first" = true ] || echo ','
-            first=false
-        fi
         get_repo_status "$repo" "$name"
     done < <(find "$ROOT_DIR" \( -name node_modules -o -name .venv \) -prune -o -name .git -prune -print0 | sort -z)
 
-    if [ "$OUTPUT_MODE" = "json" ]; then
-        echo ""
-        echo "  ]"
-        echo "}"
-    elif [ "$OUTPUT_MODE" = "brief" ]; then
+    if [ "$OUTPUT_MODE" = "brief" ]; then
         echo -e "──────────────────────────────────────────────────────────────────────────────"
     else
         log_header "Status Complete"
@@ -192,13 +161,11 @@ Usage: $0 [options]
 Options:
   (none)      Full detailed status
   --brief     Brief summary (one line per repo)
-  --json      JSON output (for parsing)
   --help      Show this help
 
 Examples:
   $0              # Full detailed status
   $0 --brief      # Quick summary
-  $0 --json       # Machine-readable status
 EOF
 }
 
@@ -207,10 +174,6 @@ EOF
 # -----------------------------------------------------------------------------
 main() {
     case "${1:-}" in
-        --json)
-            OUTPUT_MODE="json"
-            get_all_status
-            ;;
         --brief)
             OUTPUT_MODE="brief"
             get_all_status
