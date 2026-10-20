@@ -43,13 +43,15 @@ WS="/workspaces"
 if ! workspace_marker_ok "$WS"; then
     echo "      ERROR: /workspaces has no project marker; set HOST_WORKSPACE_PATH for docker compose entrypoints"
 fi
-find "$WS" -maxdepth 3 -name ".git" -type d 2>/dev/null | while read gitdir; do
-    repo=$(dirname "$gitdir")
-    git -C "$repo" config core.filemode false 2>/dev/null || true
-done
-
 # 9p/drvfs: prevent dubious-ownership warnings on root:root mounts
 git config --global safe.directory '*' 2>/dev/null || true
+
+# Include linked worktrees and nested application repos; skip dependency trees.
+while IFS= read -r -d '' gitdir; do
+    repo=$(dirname "$gitdir")
+    git -C "$repo" config core.filemode false || { echo "ERROR: cannot configure $repo" >&2; exit 1; }
+done < <(find "$WS" \( -name node_modules -o -name .venv \) -prune -o -name .git -prune -print0)
+
 
 # Command history
 if [ -d /commandhistory ]; then
