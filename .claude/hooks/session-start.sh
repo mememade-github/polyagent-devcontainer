@@ -17,10 +17,10 @@ fi
 
 # 2. Active WIP tasks — resume only when the current request permits
 if [ -d "$ACTUAL_ROOT/wip" ]; then
-  WIP_DIRS=$(ls -d "$ACTUAL_ROOT"/wip/*/ 2>/dev/null)
-  if [ -n "$WIP_DIRS" ]; then
+  WIP_DIRS=("$ACTUAL_ROOT"/wip/*/)
+  if [ -d "${WIP_DIRS[0]}" ]; then
     CONTEXT="${CONTEXT}Active WIP tasks:\n"
-    for d in $WIP_DIRS; do
+    for d in "${WIP_DIRS[@]}"; do
       CONTEXT="${CONTEXT}  - $(basename "$d")\n"
       [ -f "$d/README.md" ] && CONTEXT="${CONTEXT}$(head -5 "$d/README.md" | sed 's/^/    /')\n"
     done
