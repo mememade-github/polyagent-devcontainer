@@ -4,11 +4,9 @@
 # See [DevContainer lifecycle](../REFERENCE.md#devcontainer-lifecycle) for configuration and operations.
 # =============================================================================
 
-name: ${COMPOSE_PROJECT_NAME:-polyagent}
-
 services:
   polyagent-devcontainer:
-    container_name: ${CONTAINER_NAME:-${COMPOSE_PROJECT_NAME:-polyagent}-dev}
+    container_name: ${CONTAINER_NAME:-polyagent-dev}
     image: ${IMAGE_NAME:-polyagent-devcontainer}:${IMAGE_TAG:-latest}
     build:
       context: .

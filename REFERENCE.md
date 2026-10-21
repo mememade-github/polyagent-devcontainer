@@ -418,5 +418,3 @@ An invalid pattern or failed scan is an error. Repositories that already own
 `scripts/meta/verify-env-sync.sh` run it when their `.env` exists. Others have no
 additional synchronization check. Successful checks write both vendor markers
 for the current branch, including an initial branch without commits.
-
-Compose uses `polyagent` when no PC env file exists. To run another instance, set `COMPOSE_PROJECT_NAME` in `.devcontainer/.env`; leave `CONTAINER_NAME` empty to derive its name from that instance. An explicit `CONTAINER_NAME` overrides this choice. Both entry paths read the same Compose configuration.
