@@ -141,7 +141,7 @@ commit. Otherwise continue to Step 3.
 ## Step 3: Audit (fresh Explore subagent — read-only)
 
 Spawn a fresh Explore role (Claude Agent or Codex ephemeral subprocess) given:
-project, task context,
+project, task context including the user's verbatim request or its existing source path,
 `$OUTPUT`, `$ATTEMPTS`, current GAPS. It must: identify which checks fail; read
 `$ATTEMPTS` to skip already-resolved gaps; gather evidence across code/config/
 infra to find the TRUE root cause (code adapting to an infra limit is a
@@ -151,10 +151,10 @@ a Gap Report: `PRIORITY_GAP / EVIDENCE / ROOT_CAUSE / REGRESSION / REMAINING`.
 
 ## Step 4: Modify (fresh subagent — focused)
 
-Spawn a fresh Modify role with: task, Contract summary, the
+Spawn a fresh Modify role with: task including the user's verbatim request or its existing source path, Contract summary, the
 Gap Report, `$ATTEMPTS` path. Rules: address **only** the `PRIORITY_GAP`; use the
 evidence (don't assume); `git add` changed files; return ONE line (what changed +
-which gap). The main agent never reads code or edits directly.
+which gap). The main agent never edits directly.
 
 ## Step 5: Evaluate
 
@@ -207,7 +207,7 @@ ITERATION=$(wc -l < "$ATTEMPTS")
 ## Design principles
 
 1. **Explore within scope** — discover the next gap in the requested outcome and frozen Contract.
-2. **Thin orchestrator** — heavy work in fresh subagents; only scores + one-liners enter main context.
+2. **Thin orchestrator** — heavy work in fresh subagents; keep returned summaries concise.
 3. **Audit→Modify separation** — evidence-before-modification is structurally enforced.
 4. **Context reset per iteration**; output to file, not context.
 5. **Generator ≠ Evaluator** — context-isolated scoring (Anthropic GAN principle); the agent that modified code never writes or modifies its own scorer in the same iteration.
