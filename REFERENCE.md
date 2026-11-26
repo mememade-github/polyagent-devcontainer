@@ -374,7 +374,9 @@ the project path was in `trustedWorkspaces`, with or without
 SessionStart and PreToolUse (`run_command`), calling
 `.agents/hooks/claude-hooks-adapter.sh` from `.agents/`. The unmodified Claude
 hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`,
-or to `Cwd` itself when it is not inside a repository:
+or to `Cwd` itself when it is not inside a repository. When `Cwd` is given but
+is not a directory, the gate finds no repository, so a push is reported as not
+checked; the credential check on the command text still runs:
 
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|

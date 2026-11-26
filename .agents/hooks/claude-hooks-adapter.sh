@@ -43,6 +43,12 @@ case "$EVENT" in
       RUN_DIR="$CWD"
       # Outside a repository the gate gets Cwd itself and reports a push there as not checked.
       P=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) && PROJ="$P" || PROJ="$CWD"
+    elif [ -n "$CWD" ]; then
+      # Cwd is not a directory: the gate still checks the command text, but
+      # GIT_DIR names a missing path, so no repository (this one included) is
+      # found and a push is reported as not checked.
+      PROJ="$CWD"
+      export GIT_DIR="$CWD/.git"
     fi
     CLAUDE_INPUT=$(jq -n --arg c "$CMD" '{tool_name: "Bash", tool_input: {command: $c}}') || unchecked "could not build the Claude hook input (adapter)"
     [ -f "$HOOKS/pre-push-gate.sh" ] || unchecked "$HOOKS/pre-push-gate.sh not found (adapter)"
