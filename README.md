@@ -95,13 +95,11 @@ reports drift). See [Polyagent parity](REFERENCE.md#polyagent-parity).
 
 | Symptom | Fix |
 |---------|-----|
-| Build fails | From the repository root: `docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml build --no-cache` |
 | Files invisible or container is unhealthy | A: use Reopen in Container. B: set `HOST_WORKSPACE_PATH` to a project path accessible to the Docker daemon. See [Configuration](REFERENCE.md#configuration-devcontainerenv). |
 | Reopen menu missing | Install the Dev Containers extension |
-| Claude re-auth needed | `docker volume ls \| grep claude-config` |
-| Codex re-auth needed | `docker volume ls \| grep codex-config` |
-| Antigravity re-auth needed or a rule is ignored | See [REFERENCE troubleshooting](REFERENCE.md#troubleshooting) |
-| `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
+
+For a failed build, re-authentication, an ignored Antigravity rule, `.agents/`
+drift, and other symptoms, see [REFERENCE troubleshooting](REFERENCE.md#troubleshooting).
 
 ## License & history
 
