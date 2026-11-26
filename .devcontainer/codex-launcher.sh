@@ -40,7 +40,8 @@ codex_clean_install() {
         rm -rf "$bak" 2>/dev/null || true
         return 0
     fi
-    echo "codex launcher: reinstall failed; keeping previous install" >&2
+    [ -e "$bak" ] && echo "codex launcher: reinstall failed; keeping previous install" >&2 ||
+        echo "codex launcher: reinstall failed; no previous install to keep" >&2
     rm -rf "$pkg" 2>/dev/null || true
     mkdir -p "$(dirname "$pkg")"
     [ -e "$bak" ] && mv "$bak" "$pkg"
@@ -49,8 +50,9 @@ codex_clean_install() {
 
 # Status codes (exit status of --update-only, read by setup-env.sh step 4):
 #   0  up to date: reinstalled to the latest version, or already at it
-#   3  latest version not checked (npm missing or registry unreachable);
-#      the current install is left as it is
+#   3  latest version not checked (npm missing, or registry unreachable while
+#      the real binary is executable); the current install is left as it is.
+#      Registry unreachable with no executable binary: a reinstall is tried.
 #   4  reinstall failed; the previous install was restored and runs
 #   5  reinstall failed; no working codex is installed
 # Any other non-zero status is an unexpected failure.

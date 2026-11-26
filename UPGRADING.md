@@ -210,10 +210,13 @@ longer report "already latest" when the latest version was not checked or a
 reinstall failed. Before, `--update-only` exited 0 when npm was missing, when
 the registry was unreachable, and when a failed reinstall was rolled back to a
 working previous install. Now `--update-only` exits 0 (reinstalled or already
-at the latest version), 3 (latest version not checked; the install is left as
-it was, working or not), 4 (reinstall failed; a working previous install was
+at the latest version), 3 (latest version not checked: npm missing, or the
+registry unreachable while the real binary is executable; the install is left
+as it was, working or not), 4 (reinstall failed; a working previous install was
 restored), or 5 (reinstall failed; no working `codex`), and step 4 prints a
-WARN for every status but 0. A normal `codex` run prints one line on stderr
+WARN for every status but 0. With the registry unreachable and no executable binary, the
+reinstall is still tried, and its failure line says "no previous install to
+keep" instead of "keeping previous install" when there was none. A normal `codex` run prints one line on stderr
 when the reinstall fails and nothing more on stdout. Restoring the previous
 install, the offline guard, and the update lock are unchanged. A script of
 your own that called `codex-launcher --update-only` and treated any non-zero

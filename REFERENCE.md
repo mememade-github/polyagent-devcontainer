@@ -270,14 +270,16 @@ The template intentionally pulls latest releases at build/run time:
   @openai/codex@latest`, unless `SKIP_CODEX_UPDATE=1` is set. Its exit status
   tells startup what happened: 0 when Codex was reinstalled or already matched
   the latest version, 3 when the latest version could not be checked (npm
-  missing or registry unreachable) and the install was left as it was, 4 when
+  missing, or the registry unreachable while `~/.npm-global/bin/codex` is
+  executable) and the install was left as it was, 4 when
   the reinstall failed and a working previous install was restored, and 5 when
   the reinstall failed and no working `codex` is installed. Startup prints "already
   latest" only for 0 with an unchanged version; 3, 4, 5, and any other status
   print a WARN, and 4, 5, and other statuses add the tail of the npm output.
   Startup continues in every case. A failed reinstall moves the previous
   package aside first and restores it, and with the registry unreachable an
-  existing executable is never removed. The same launcher
+  existing executable is never removed; with the registry unreachable and no
+  executable, the reinstall is still tried. The same launcher
   performs the preflight before every new `codex` process; there a failed
   reinstall prints one line on stderr, nothing is added to stdout, and a
   skipped or unchecked update is silent. Codex's built-in
