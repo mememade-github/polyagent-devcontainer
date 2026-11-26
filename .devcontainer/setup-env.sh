@@ -184,7 +184,7 @@ else
 fi
 
 # =============================================================================
-# 5. Codex CLI — project-local config validation
+# 5. Codex CLI — obsolete-key warnings and legacy config-link removal
 # =============================================================================
 # Current Codex loads a trusted project's .codex/config.toml directly. Never
 # copy project policy into ~/.codex/config.toml: that user file is persistent,

@@ -133,7 +133,12 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
         [4/6] Codex CLI      — reconcile PATH-first launcher, then refresh the
                               real ~/.npm-global/bin/codex with npm --prefix
                               (skip with SKIP_CODEX_UPDATE=1)
-        [5/6] Codex config   — validate project config; preserve user config without copying
+        [5/6] Codex config   — warn when the project .codex/config.toml is missing
+                              or it or ~/.codex/config.toml sets the obsolete
+                              `ask_for_approval`; remove a ~/.codex/config.toml
+                              symlink to the project config and warn on any
+                              other symlink there; never copy project config
+                              into ~/.codex
         [6/6] Antigravity    — `agy update` (skip with SKIP_AGY_UPDATE=1)
 
 postStartCommand (every start, devcontainer.json)
