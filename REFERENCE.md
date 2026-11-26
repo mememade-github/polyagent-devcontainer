@@ -387,13 +387,14 @@ in the raw text of any command (including `git commit`, and a command that
 only prints the text), or, when the text contains `git … push` outside quoted
 spans, a literal credential in the `remote.*`, `url.*`, or `credential.*` git
 config visible from the target repository. A push or credential hidden in a
-variable, `eval`, an alias, or a script file is not seen. The target
-repository is the text after a literal `git -C` up to the first space, `;`,
-`|` or `&`, with quotes removed; a quoted path with a space is cut there, and
-the gate uses the repository that contains the cut path or, when there is
-none, reports `no git repository found at <cut path>` as not checked. Without
-`git -C` it is `CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`), else the
-current directory. The gate does not block force pushes; approval for them is
+variable, `eval`, an alias, or a script file is not seen. Each push, the text
+between `;`, `|`, `&`, `(`, `)` and newlines that contains `git … push`, is
+checked against a repository the gate infers from the text: that push's
+`git -C <path>` (a path without spaces, quotes removed), else
+`CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`), else the current directory;
+a preceding `cd` or a variable is not followed. When no repository is found
+for a push, the gate reports `no git repository found at <path>` as not
+checked. The gate does not block force pushes; approval for them is
 the agent's duty in `AGENTS.md` and each vendor's permission settings.
 
 Exit 0 means the gate did not block: it checked and found no match, or the

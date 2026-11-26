@@ -38,26 +38,47 @@ fi
 QUOTELESS=$(printf '%s' "$COMMAND" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g") || not_checked "sed failed"
 match '(^|[;&|([:space:]])git[[:space:]]([^;|&]*[[:space:]])?push([[:space:];|&)]|$)' "$QUOTELESS" || exit 0
 
-# Resolve the target repo: `git -C <path>` up to the first space ; | or &,
-# quotes removed (a path with a space is cut there; the repo containing the cut
-# path is used, or none is found and it is not checked), else the session dir.
-TARGET_DIR=$(printf '%s' "$COMMAND" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p') || not_checked "sed failed"
-TARGET_DIR=${TARGET_DIR%%$'\n'*}
-TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)') TARGET_DIR=$PWD ;; '$CODEX_PROJECT_DIR'|'${CODEX_PROJECT_DIR}') TARGET_DIR="${CODEX_PROJECT_DIR:-.}" ;; esac
-[ -n "$TARGET_DIR" ] || TARGET_DIR="${CODEX_PROJECT_DIR:-.}"
-REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || not_checked "no git repository found at $TARGET_DIR"
+# check_target <text>: the target repo is the text's `git -C <path>` up to the
+# first space ; | or &, quotes removed (a path with a space is cut there; the
+# repo containing the cut path is used), else the session dir. Exits 2 when
+# that repo's config stores a literal credential; when no repo is found, the
+# path is kept for the not-checked line.
+UNRESOLVED=""
+check_target() {
+  local TARGET_DIR REPO_ROOT CONFIG STORED KEYS rc
+  TARGET_DIR=$(printf '%s' "$1" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p') || not_checked "sed failed"
+  TARGET_DIR=${TARGET_DIR%%$'\n'*}
+  TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)') TARGET_DIR=$PWD ;; '$CODEX_PROJECT_DIR'|'${CODEX_PROJECT_DIR}') TARGET_DIR="${CODEX_PROJECT_DIR:-.}" ;; esac
+  [ -n "$TARGET_DIR" ] || TARGET_DIR="${CODEX_PROJECT_DIR:-.}"
+  REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || { [ -n "$UNRESOLVED" ] || UNRESOLVED=$TARGET_DIR; return 0; }
 
-# Block: stored-config credential (remote URLs, credential-helper values).
-# git config exits 1 when no key matches; any other non-zero status is an error.
-CONFIG=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null); rc=$?
-[ "$rc" -le 1 ] || not_checked "git config exited $rc"
-STORED=$(printf '%s\n' "$CONFIG" | grep -E "$CRED_RE"); rc=$?
-[ "$rc" -le 1 ] || not_checked "grep exited $rc"
-if [ -n "$STORED" ]; then
-  echo "Blocked: git config visible from $REPO_ROOT stores a literal credential in:" >&2
-  KEYS=$(printf '%s\n' "$STORED" | awk '!seen[$1]++ {print "  " $1}') || KEYS="  (could not list the keys: awk failed)"
-  printf '%s\n' "$KEYS" >&2
-  echo "Fix: keep remote URLs clean; let a credential helper read the token from a gitignored file (variable-reference helper values pass)." >&2
-  exit 2
-fi
+  # Block: stored-config credential (remote URLs, credential-helper values).
+  # git config exits 1 when no key matches; any other non-zero status is an error.
+  CONFIG=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null); rc=$?
+  [ "$rc" -le 1 ] || not_checked "git config exited $rc"
+  STORED=$(printf '%s\n' "$CONFIG" | grep -E "$CRED_RE"); rc=$?
+  [ "$rc" -le 1 ] || not_checked "grep exited $rc"
+  if [ -n "$STORED" ]; then
+    echo "Blocked: git config visible from $REPO_ROOT stores a literal credential in:" >&2
+    KEYS=$(printf '%s\n' "$STORED" | awk '!seen[$1]++ {print "  " $1}') || KEYS="  (could not list the keys: awk failed)"
+    printf '%s\n' "$KEYS" >&2
+    echo "Fix: keep remote URLs clean; let a credential helper read the token from a gitignored file (variable-reference helper values pass)." >&2
+    exit 2
+  fi
+}
+
+# Check each piece of the text between ; | & ( ) and newlines that is push-shaped
+# with its quoted spans removed, so each push is checked against its own
+# `git -C`. When no single piece is push-shaped (e.g. `git $(...) push`), the
+# whole text is checked as one piece.
+PIECES=$(printf '%s' "$COMMAND" | tr ';|&()' '\n\n\n\n\n') || not_checked "tr failed"
+FOUND=""
+while IFS= read -r P; do
+  Q=$(printf '%s' "$P" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g") || not_checked "sed failed"
+  match '(^|[[:space:]])git[[:space:]](.*[[:space:]])?push([[:space:]]|$)' "$Q" || continue
+  FOUND=1
+  check_target "$P"
+done <<< "$PIECES"
+[ -n "$FOUND" ] || check_target "$COMMAND"
+[ -z "$UNRESOLVED" ] || not_checked "no git repository found at $UNRESOLVED"
 exit 0
