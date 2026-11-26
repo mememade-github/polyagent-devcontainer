@@ -24,17 +24,11 @@ yarn-error.log*
 *.code-workspace
 
 # -----------------------------------------------------------------------------
-# Claude Code (runtime markers — never committed)
+# Claude Code (local files — never committed)
 # -----------------------------------------------------------------------------
-.claude/.allow-force-push*
 .claude/settings.local.json
 .claude/worktrees/
 .mcp.json
-
-# -----------------------------------------------------------------------------
-# Codex CLI (runtime markers — never committed; keep only .gitkeep)
-# -----------------------------------------------------------------------------
-.codex/state/allow-force-push*
 
 # -----------------------------------------------------------------------------
 # Misc

@@ -7,17 +7,10 @@
 # translates the result back. It never executes the tool command itself.
 #
 # Usage: bash hooks/claude-hooks-adapter.sh <session-start|pre-tool-use>
-# Event mapping is documented in REFERENCE.md, section Hooks.
-# For pre-tool-use, an empty {} blocks commands; emit ask on a non-denial.
-#
-# Exit status is always 0 with one valid JSON object on stdout: that is the
-# agy response format, not a claim that a gate succeeded. The fail-open policy
-# of the Claude hooks is unchanged: pre-push-gate.sh exit 2 -> deny, anything
-# else -> ask. An ask is not an approval. When the gate did not check the
-# command (its exit is neither 0 nor 2, including a 124 timeout) or the adapter
-# could not run it (no jq, unreadable input, no hook file), the answer is still
-# ask, and one line "pre-push gate: not checked: <cause>" goes to the adapter's
-# stderr so that case is not silent like a checked ask.
+# REFERENCE.md §Hooks has the event mapping and the answers. Always exits 0
+# with one JSON object on stdout (agy's response format). pre-tool-use answers
+# deny for gate exit 2 and ask otherwise, never {} (agy blocks on {}); an
+# unchecked run also writes "pre-push gate: not checked: <cause>" to stderr.
 EVENT="${1:-}"
 
 fallback() {

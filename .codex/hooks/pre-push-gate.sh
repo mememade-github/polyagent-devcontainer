@@ -5,11 +5,8 @@
 # states the matching rules and their limits. Exit codes:
 #   2  blocked (stderr is the reason): a credential pattern in the raw text of
 #      ANY command (inline token-shaped fixture text blocks too; keep it in
-#      files); a literal credential in the target repo's remote/url/credential
-#      config; or unquoted force-push text without the single-use marker
-#      .codex/state/allow-force-push.<remote>.<branch> in the target repo root,
-#      consumed on allow. --force-with-lease passes without a marker: it fails
-#      instead of overwriting remote work it has not seen.
+#      files), or, for push-shaped text, a literal credential in the target
+#      repo's remote/url/credential config. Force pushes are not judged.
 #   0  not blocked, or not checked. Neither is an approval or evidence that the
 #      command is safe. Not checked writes one line
 #      "pre-push gate: not checked: <cause>" to stderr; the Codex hooks
@@ -27,7 +24,7 @@ command -v git >/dev/null 2>&1 || not_checked "git not found"
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || not_checked "jq could not read the hook input as JSON"
 [ -n "$COMMAND" ] || not_checked "no tool_input.command in the hook input"
 
-# Block 2: credential-looking secret in the raw command text.
+# Block: credential-looking secret in the raw command text.
 CRED_RE='ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{16,}|oauth2:[^@[:space:]]+@|x-access-token:[^@[:space:]]+@|[A-Za-z][A-Za-z0-9+.-]*://[^/@:[:space:]]+:[^/@[:space:]]+@'
 if match "$CRED_RE" "$COMMAND"; then
   echo "Blocked: the command text matches a credential-looking secret." >&2
@@ -50,7 +47,7 @@ TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)
 [ -n "$TARGET_DIR" ] || TARGET_DIR="${CODEX_PROJECT_DIR:-.}"
 REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || not_checked "no git repository found at $TARGET_DIR"
 
-# Block 3: stored-config credential (remote URLs, credential-helper values).
+# Block: stored-config credential (remote URLs, credential-helper values).
 # git config exits 1 when no key matches; any other non-zero status is an error.
 CONFIG=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null); rc=$?
 [ "$rc" -le 1 ] || not_checked "git config exited $rc"
@@ -63,32 +60,4 @@ if [ -n "$STORED" ]; then
   echo "Fix: keep remote URLs clean; let a credential helper read the token from a gitignored file (variable-reference helper values pass)." >&2
   exit 2
 fi
-
-# Block 1: plain force push text requires a scoped single-use marker.
-SPANS=$(printf '%s' "${QUOTELESS//$'\n'/;}" | grep -oE '(^|[[:space:]])push([[:space:]][^;|&()]*|$)'); rc=$?
-[ "$rc" -le 1 ] || not_checked "grep exited $rc"
-TAIL=""
-while IFS= read -r S; do
-  match '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' "${S#*push}" && { TAIL=${S#*push}; break; }
-done <<< "$SPANS"
-[ -n "$TAIL" ] || exit 0
-
-REMOTE=""
-for w in $TAIL; do case "$w" in -*|+*) ;; *) REMOTE="$w"; break ;; esac; done
-if [ -z "$REMOTE" ]; then U=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) && REMOTE=${U%%/*}; fi
-[ -n "$REMOTE" ] || REMOTE=origin
-BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-[ -n "$BRANCH" ] || BRANCH=unknown
-R=$(printf '%s' "$REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g') || not_checked "sed failed"
-B=$(printf '%s' "$BRANCH" | sed -E 's/[^A-Za-z0-9._-]+/_/g') || not_checked "sed failed"
-MARKER="$REPO_ROOT/.codex/state/allow-force-push.${R:-unnamed}.${B:-unnamed}"
-if [ -f "$MARKER" ]; then
-  rm -f "$MARKER" || not_checked "approved by $MARKER, but could not remove it, so it was not consumed"
-  exit 0
-fi
-echo "Blocked: the command text matches a force push, which requires explicit single-use approval." >&2
-echo "Approval scope: remote '$REMOTE', branch '$BRANCH' (checked out in $REPO_ROOT; not read from the command's refspec)." >&2
-echo "Narrower alternative: --force-with-lease passes without a marker." >&2
-echo "To approve exactly once, create the marker file and retry:" >&2
-echo "  mkdir -p '$REPO_ROOT/.codex/state' && touch '$MARKER'" >&2
-exit 2
+exit 0

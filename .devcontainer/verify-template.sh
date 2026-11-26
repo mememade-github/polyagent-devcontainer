@@ -116,31 +116,13 @@ if ! command -v git >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
 elif ! mkrepo "$R" >/dev/null 2>&1 || ! mkrepo "$SC" >/dev/null 2>&1; then
     notrun "hook scripts: could not create fixture repositories"
 else
-    mkdir -p "$R/.claude" "$R/.codex/state" || fail "hook fixtures: mkdir failed"
+    mkdir -p "$R/.claude" || fail "hook fixtures: mkdir failed"
     CRED="ghp_""aaaaaaaaaaaaaaaaaaaaaaaaaa"   # fragment-built fake token; matches the gate's shape check only
     for V in claude codex; do
-        if [ "$V" = claude ]; then
-            HOOKS="$PROJECT_DIR/.claude/hooks"
-            FM="$R/.claude/.allow-force-push.origin.main"
-        else
-            HOOKS="$PROJECT_DIR/.codex/hooks"
-            FM="$R/.codex/state/allow-force-push.origin.main"
-        fi
+        if [ "$V" = claude ]; then HOOKS="$PROJECT_DIR/.claude/hooks"; else HOOKS="$PROJECT_DIR/.codex/hooks"; fi
         PPG="$HOOKS/pre-push-gate.sh"
-        rm -f "$FM" || fail "$V pre-push: could not clear the approval marker"
         try 2 "$V pre-push: raw credential-shaped text blocked"      "$PPG" "$R" "curl -H token $CRED https://example.com"
         try 0 "$V pre-push: plain push allowed"                      "$PPG" "$R" 'git push origin main'
-        try 0 "$V pre-push: force-with-lease allowed without marker" "$PPG" "$R" 'git push --force-with-lease origin main'
-        try 2 "$V pre-push: force push without marker blocked"       "$PPG" "$R" 'git push --force origin main'
-        try 2 "$V pre-push: force push before a later push blocked"  "$PPG" "$R" 'git push --force origin feature/push; git push origin x'
-        try 0 "$V pre-push: push word inside a ref name not force"   "$PPG" "$R" 'git push origin feature/push-fix'
-        if mkdir -p "${FM%/*}" && touch "$FM"; then
-            try 0 "$V pre-push: force push with single-use marker allowed" "$PPG" "$R" 'git push --force origin main'
-            [ ! -f "$FM" ] && pass "$V pre-push: marker consumed on allow" || fail "$V pre-push: marker not consumed"
-            try 2 "$V pre-push: second force push re-blocked"            "$PPG" "$R" 'git push --force origin main'
-        else
-            fail "$V pre-push: marker cases (could not create the approval marker)"
-        fi
         # Session-start hook: context-only, valid JSON, exit 0.
         OUT=$(printf '{"source":"startup"}' | CLAUDE_PROJECT_DIR="$R" CODEX_PROJECT_DIR="$R" bash "$HOOKS/session-start.sh" 2>/dev/null); rc=$?
         if [ "$rc" -eq 0 ] && printf '%s' "$OUT" | jq -er '.hookSpecificOutput.additionalContext | length > 0' >/dev/null 2>&1; then
@@ -151,7 +133,7 @@ else
     done
     # Antigravity: run the commands registered in the real .agents/hooks.json from
     # the fixture's .agents/ (agy's hook working directory). The fixture links the
-    # real adapter and Claude hooks, so state (force-push approval markers) is the fixture's.
+    # real adapter and Claude hooks.
     AH="$PROJECT_DIR/.agents/hooks.json"
     mkdir -p "$R/.agents" &&
         ln -s "$PROJECT_DIR/.agents/hooks" "$R/.agents/hooks" &&
@@ -178,11 +160,8 @@ else
         jrc=$?
         if [ "$rc" -eq 0 ] && [ "$jrc" -eq 0 ] && [ "$GOT" = "$1" ]; then pass "$2"; else fail "$2 (want $1, got '${GOT:-invalid JSON}', rc=$rc, jq=$jrc)"; fi
     }
-    FM="$R/.claude/.allow-force-push.origin.main"
-    rm -f "$FM" || fail "agy pre-push: could not clear the approval marker"
     agy_try deny "agy pre-push: raw credential-shaped text denied"     PreToolUse "curl -H token $CRED https://example.com"
     agy_try ask  "agy pre-push: plain push asks"                       PreToolUse 'git push origin main'
-    agy_try deny "agy pre-push: force push without marker denied"      PreToolUse 'git push --force origin main'
     agy_try ask  "agy pre-tool-use: unrelated command asks"            PreToolUse 'ls -la'
     agy_try injectSteps "agy session-start: context injected"          SessionStart
     # Sanctioned variable-reference credential helper passes the stored-config scan;

@@ -377,46 +377,30 @@ agy treats an empty
 command itself and always exits 0 with valid JSON; that is the response format,
 and the Claude hooks keep their fail-open policy. An unchecked `ask` carries no
 `reason` field; the not-checked line is on the adapter's stderr only.
-Antigravity uses the Claude hook's force-push approval markers in `.claude/`.
 The adapter intercepts `run_command`, not file-editing tools. A hook `deny`
 still blocks under `--dangerously-skip-permissions`.
 
 The pre-push gate is an advisory policy tripwire (see §Privilege boundary),
 not a security sandbox. It reads the command text and does not work out what
 the shell will run. It blocks (exit 2) only on a match: a credential pattern
-in the raw text of any command (including `git commit`), a literal credential
-in the `remote.*`, `url.*`, or `credential.*` git config visible from the
-target repository when the text contains `git … push`, or force-push text
-(`--force`, `-f`, `+refspec`) without a single-use approval marker, in a
-command with `git … push` text. Force text counts after any unquoted
-standalone `push` word, up to the next `;`, `|`, `&`, `(`, `)` or newline. Quoted spans are removed before the push and force checks, so
-`echo "git push --force origin main"` is not blocked, while unquoted text blocks even when the command only prints it
-(`echo git push --force origin main`). A push hidden in a variable, `eval`, an
-alias, or a script file is not seen. The target repository is the text after
-a literal `git -C` up to the first space, `;`, `|` or `&`, with quotes removed;
-a quoted path with a space is cut there, and the gate uses the repository that
-contains the cut path or, when there is none, reports
-`no git repository found at <cut path>` as not checked. Without `git -C` it is
-`CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`),
-else the current directory. The approval marker and the block message name
-the remote (the first non-option word after `push` in the first span with
-force text, else the upstream's
-remote, else `origin`) and the branch checked out in the
-target repository as `git rev-parse --abbrev-ref HEAD` prints it (`HEAD`
-when detached or before the first commit, `unknown` when it prints nothing),
-not the branch named in the command's refspec. These fallbacks are the scope
-itself: when no upstream remote can be read, the remote is `origin`. The
-block message shows that scope, and the marker it names approves it. The
-marker name turns each run of characters outside `[A-Za-z0-9._-]` into `_`,
-so branches such as `feature/a` and `feature_a` share one marker: a marker
-created for one approves a force push from the other.
+in the raw text of any command (including `git commit`, and a command that
+only prints the text), or, when the text contains `git … push` outside quoted
+spans, a literal credential in the `remote.*`, `url.*`, or `credential.*` git
+config visible from the target repository. A push or credential hidden in a
+variable, `eval`, an alias, or a script file is not seen. The target
+repository is the text after a literal `git -C` up to the first space, `;`,
+`|` or `&`, with quotes removed; a quoted path with a space is cut there, and
+the gate uses the repository that contains the cut path or, when there is
+none, reports `no git repository found at <cut path>` as not checked. Without
+`git -C` it is `CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`), else the
+current directory. The gate does not block force pushes; approval for them is
+the agent's duty in `AGENTS.md` and each vendor's permission settings.
 
 Exit 0 means the gate did not block: it checked and found no match, or the
 command has no `git … push` text. It is not an approval and not evidence that
 the command is safe. When a step the result depends on fails (unreadable or
 non-JSON input, no command in it, `jq` or `git` missing, a `sed`, `grep`, or
-`git config` error, no repository found for a push-shaped command, or an
-approval marker that allowed the push but could not be removed), the gate
+`git config` error, or no repository found for a push-shaped command), the gate
 writes `pre-push gate: not checked: <cause>` to stderr and does not block. The Claude gate then exits 1, which Claude Code's hooks documentation
 defines as a non-blocking error for PreToolUse. The Codex gate exits 0,
 because the Codex hooks documentation defines only exit 0 and exit 2 for

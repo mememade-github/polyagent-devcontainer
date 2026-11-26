@@ -69,13 +69,12 @@ describes the resulting behavior; this section lists only what to do.
 
    | Where | Paths |
    |-------|-------|
-   | `.claude/` | `.refinement-active`, `.stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `agent-memory/refinement/`, `.last-verification.*` |
-   | `.codex/state/` | `refinement-active`, `stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `refinement/`, `last-verification.*` |
-   | `.gitignore` lines | `.claude/.last-verification*`, `.claude/.stop-blocked*`, `.claude/.refinement-active`, `.claude/.refine-output`, `.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, and the `.codex/state/` lines `last-verification*`, `stop-blocked*`, `refinement-active`, `.refine-output`, `.refine-eval.json`, `refinement/` |
+   | `.claude/` | `.refinement-active`, `.stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `agent-memory/refinement/`, `.last-verification.*`, `.allow-force-push.*` |
+   | `.codex/state/` | `refinement-active`, `stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `refinement/`, `last-verification.*`, `allow-force-push.*`, `.gitkeep`, then the directory if it is empty |
+   | `.gitignore` lines | `.claude/.last-verification*`, `.claude/.stop-blocked*`, `.claude/.refinement-active`, `.claude/.refine-output`, `.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, `.claude/.allow-force-push*`, and the `.codex/state/` lines `last-verification*`, `allow-force-push*`, `stop-blocked*`, `refinement-active`, `.refine-output`, `.refine-eval.json`, `refinement/` |
 
-   Keep the single-use force-push approval markers
-   (`.claude/.allow-force-push.*`, `.codex/state/allow-force-push.*`), their
-   ignore lines, and `.codex/state/.gitkeep`.
+   The `.allow-force-push.*` files were the pre-push gates' force-push
+   approval markers; the gates no longer read them (step 8).
 
 6. **Take these files together.**
    - Hooks: `.claude/hooks/pre-push-gate.sh`, `.codex/hooks/pre-push-gate.sh`,
@@ -110,7 +109,7 @@ describes the resulting behavior; this section lists only what to do.
 
    | Component | What a caller must now read |
    |-----------|-----------------------------|
-   | Pre-push gates | Exit 2 blocks. The Claude gate exits 1 when it could not check a command and Claude Code still runs the command; treat only 2 as a block. The Codex gate exits 0 for both checked and unchecked. The cause is the stderr line `pre-push gate: not checked: <cause>`. Force text now counts in every push span, so `git push --force origin feature/push` and a force push followed by another push block, and `git push origin feature/push-fix` does not. |
+   | Pre-push gates | Exit 2 blocks. The Claude gate exits 1 when it could not check a command and Claude Code still runs the command; treat only 2 as a block. The Codex gate exits 0 for both checked and unchecked. The cause is the stderr line `pre-push gate: not checked: <cause>`. The gates no longer block force pushes and read no approval marker; a force push passes them like any other push. Where your operation relied on that block, get approval as `AGENTS.md` requires and set each vendor's permission settings to ask before such a command; remove any script or instruction of your own that creates an approval marker. |
    | Antigravity adapter | Gate exit 2 answers `deny`; every other result answers `ask`, which is not an approval, and an unchecked run writes the not-checked line to the adapter's stderr. For a `Cwd` outside any repository the gate gets `Cwd`, so a push there is not checked. |
    | `run-isolated-role.sh evaluate <project-root> <prompt-file> <output-file>` | The prompt supplies the evaluator role body, the permitted inputs (authorized request, acceptance conditions, actual diff, relevant repository facts, execution evidence) and the repository location; the helper appends a line naming `<output-file>` as the report path, which overrides any report path in the prompt. It fails when the evaluator process fails or leaves no non-empty report at `<output-file>`, and it does not check the report's content or format. |
    | `completion-checker.sh` | Writes no marker. Prints `Leak patterns:`, then `NOT CHECKED:` for a check that could not run (the TOML parse without python3 `tomllib`, as in this image's python3 3.10), then `OK:` or `FAILED:`. Exits 1 when a check failed or could not read its input, including a missing `jq`, an unreadable pattern file, a `scripts/meta/leak-patterns.txt` with no patterns, and a `git grep` error. |
