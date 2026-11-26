@@ -375,7 +375,11 @@ generated. The sync copies content and file modes, and **prunes** entries in
 those two trees whose `.claude/` source was deleted, so the mirror tracks
 metadata and deletions, not just additions. Other `.agents/` entries
 (`hooks.json`, `hooks/`, `rules.json`) are Antigravity's hand-maintained native
-files; the sync neither compares nor removes them.
+files; the sync neither compares, checks for symlinks, nor removes them.
+Symlinks are rejected only in the two generated trees and their `.claude/`
+sources. `--dry` exits 0 and prints the number of differences; a failed
+`find`, `grep`, `diff` or `stat` exits 1 before any result is printed or any
+file is changed.
 
 ### Codex sandbox bypass (DevContainer only)
 

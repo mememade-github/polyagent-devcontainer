@@ -157,6 +157,16 @@ verification, then run `bash scripts/sync-agents-mirror.sh`. A tool of your own
 that parsed the old `OK:` line must read the new `OK:`, `NOT CHECKED:`,
 `FAILED:`, and `Leak patterns:` lines. No container rebuild is needed.
 
+`scripts/sync-agents-mirror.sh` now rejects symlinks only in `.agents/rules/`,
+`.agents/skills/` and their `.claude/` sources, so a symlink under a
+hand-maintained path such as `.agents/hooks/` no longer stops the sync or the
+fast checker. A failed `find`, `grep`, `diff` or `stat` now exits 1 before the
+sync reports a result or changes files; before, a `diff` error read as "no
+difference". Its comments and closing note no longer call `.claude/` the
+ground truth: `AGENTS.md` holds the shared duties, and `.claude/` is the source
+of the generated trees. Take the new script with REFERENCE §Polyagent parity.
+No container rebuild is needed.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
