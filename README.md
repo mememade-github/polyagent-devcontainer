@@ -54,8 +54,9 @@ agy
 
 On first run, `claude` prompts interactive login and Codex needs
 `codex login --device-auth` once. For `agy`, sign in at the printed Google URL
-and follow the terminal prompts. Gemini 4 Argon requires a paid Google AI Pro
-or Ultra plan, excluding free trials. All three credentials persist in named volumes.
+and follow the terminal prompts. Some models require a paid Google AI Pro or
+Ultra plan and may not be included in free trials; after sign-in,
+`agy models` lists the available models. All three credentials persist in named volumes.
 
 Codex compatibility and project trust details are covered in [Codex sandbox bypass](REFERENCE.md#codex-sandbox-bypass-devcontainer-only).
 
