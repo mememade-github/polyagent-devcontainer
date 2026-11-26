@@ -359,7 +359,9 @@ Codex: `session-start.sh`, `pre-push-gate.sh`.
 Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 `Write`; the push gate intentionally inspects `Bash` commands.
 
-Antigravity runs the adapter after workspace trust. `.agents/hooks.json` registers
+In `agy -p` sessions (agy 1.5.18) Antigravity ran the adapter whether or not
+the project path was in `trustedWorkspaces`, with or without
+`--dangerously-skip-permissions`. `.agents/hooks.json` registers
 SessionStart and PreToolUse (`run_command`), calling
 `.agents/hooks/claude-hooks-adapter.sh` from `.agents/`. The unmodified Claude
 hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`,
