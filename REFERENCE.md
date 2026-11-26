@@ -150,10 +150,8 @@ Both `docker compose up` and VS Code "Reopen in Container" route through
 The container healthcheck runs `--version` of the three agent CLIs (no login,
 no network call; Codex with `SKIP_CODEX_UPDATE=1`) and checks that
 `/workspaces` has at least one of `.git`, `AGENTS.md`, `CLAUDE.md`,
-`README.md`, or `.devcontainer/`. It shows only that the CLIs run and that the
-mounted path looks like a project. It does not check that the intended project
-is mounted: another project's `README.md` satisfies it too. An empty
-`/workspaces`, or one with none of those entries, stays `unhealthy`.
+`README.md`, or `.devcontainer/`. It shows only that the CLIs run and that one
+of those entries exists, not that the intended project is mounted.
 
 A is VS Code "Reopen in Container". B uses Docker Compose and does not read
 `devcontainer.json`. Both paths use the Dockerfile and Compose declarations below.
