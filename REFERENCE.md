@@ -129,18 +129,12 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
                               Git's ownership check in every directory, on
                               any filesystem), command-history setup
         [2/6] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
-        [3/6] Claude CLI     — `claude update`; a failure prints a WARN, the
-                              version in use, and the output tail
-                              (skip with SKIP_CLAUDE_UPDATE=1)
+        [3/6] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
         [4/6] Codex CLI      — reconcile PATH-first launcher, then refresh the
-                              real ~/.npm-global/bin/codex with npm --prefix;
-                              an unchecked latest version or a failed
-                              reinstall prints a WARN
+                              real ~/.npm-global/bin/codex with npm --prefix
                               (skip with SKIP_CODEX_UPDATE=1)
         [5/6] Codex config   — validate project config; preserve user config without copying
-        [6/6] Antigravity    — `agy update`; a failure prints a WARN and the
-                              output tail and keeps the installed binary
-                              (skip with SKIP_AGY_UPDATE=1)
+        [6/6] Antigravity    — `agy update` (skip with SKIP_AGY_UPDATE=1)
 
 postStartCommand (every start, devcontainer.json)
   git config core.filemode false
@@ -304,7 +298,9 @@ The template intentionally pulls latest releases at build/run time:
   `codex update` is **not** used: it targets the root-owned default npm prefix
   (`/usr/lib/node_modules`) and fails as the unprivileged `vscode` user.
 - **Antigravity updates**: `agy update` runs on every container start
-  (`setup-env.sh` step 6), unless `SKIP_AGY_UPDATE=1` is set. The CLI also
+  (`setup-env.sh` step 6), unless `SKIP_AGY_UPDATE=1` is set. A failed update
+  prints a WARN and the tail of its output, keeps the installed binary, and
+  startup continues. The CLI also
   updates in the background during sessions. The healthcheck uses
   `agy --version`, which does not start the updater.
 
