@@ -1,5 +1,5 @@
 #!/bin/bash
-# SessionStart hook: inject project context (branch, memory, WIP, environment).
+# SessionStart hook: inject project context (branch, WIP, environment).
 # Context-only: never blocks a session (always exit 0).
 set -u
 
@@ -16,11 +16,6 @@ if command -v git >/dev/null 2>&1 && [ -e "$GIT_ROOT/.git" ]; then
   BRANCH=$(git -C "$GIT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null) || BRANCH="unknown"
   DIRTY=$(git -C "$GIT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   CONTEXT="${CONTEXT}Git branch: ${BRANCH} (${DIRTY} uncommitted changes)\n"
-fi
-
-# 2. Known issues from auto memory
-if [ -f "$GIT_ROOT/MEMORY.md" ]; then
-  CONTEXT="${CONTEXT}Known issues from MEMORY.md:\n$(head -20 "$GIT_ROOT/MEMORY.md" | sed 's/^/  /')\n"
 fi
 
 # 3. Active WIP tasks — resume only when the current request permits

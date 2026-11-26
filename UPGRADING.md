@@ -30,6 +30,13 @@ matching report destination in the prompt. Consume the report's conclusion and
 evidence; the helper requires a newly written, non-empty report without imposing
 a content or format gate. No container rebuild is needed.
 
+The session-start check of a repository-root `MEMORY.md` is removed: no
+template component creates that file. Drop the `MEMORY.md` clause from the
+session-start bullet in `CLAUDE.md` and `AGENTS.md`, and the "Known issues from
+auto memory" block from `.codex/hooks/session-start.sh`. A project that keeps
+its own memory file names its path and purpose in its own governance. Claude
+Code's automatic memory is stored outside the repository and is not this file.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
