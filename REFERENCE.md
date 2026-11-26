@@ -585,7 +585,6 @@ evidence that a rule loads.
 | Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
-| Hook test fails | `export CLAUDE_PROJECT_DIR=/workspaces` (Codex: `CODEX_PROJECT_DIR`) |
 | Git permission errors | `git config core.filemode false` |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
 
