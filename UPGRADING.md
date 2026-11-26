@@ -242,6 +242,11 @@ the hooks run from the mounted checkout.
 line, no container rebuild is needed. Files already tracked stay tracked, and
 `git ls-files -ci --exclude-standard` lists any that the new line covers.
 
+The Dockerfile's mount-point `mkdir -p` now lists `${HOME}/.codex`, so a new
+`codex-config` volume no longer depends on the Codex install layer having
+created that directory; add it to the same line in your Dockerfile and rebuild
+(an existing volume keeps its owner).
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
