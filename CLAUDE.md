@@ -36,5 +36,4 @@ Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to c
 The imported rules derive from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 @.claude/rules/behavioral-core.md
-@.claude/rules/devcontainer-patterns.md
 @PROJECT.md

@@ -35,7 +35,53 @@ Template build and startup configuration lives in `.devcontainer/.env`;
 | `TYPESAFE_API_KEY` | *(empty)* | `.devcontainer/.env` | Optional TypeSafe key; store only in `.devcontainer/.env`; load it in the command before a request |
 | `DNS_PRIMARY` | `8.8.8.8` | docker-compose.yml dns | First DNS resolver; set to your network's DNS server if internal hostnames must resolve |
 | `PROJECT_NODE_VERSION` | *(empty)* | Dockerfile ARG | Project Node.js version (empty = not installed) |
-| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | Empty binds the parent of `.devcontainer` to `/workspaces`. If that path does not identify the same project for the Docker daemon, set a project path accessible to the daemon. This can occur inside another container, with a remote daemon, or on a host that needs path translation. On Windows, if the daemon expects `/c/...` paths, `C:\Users\you\my-project` becomes `/c/Users/you/my-project`. |
+| `HOST_WORKSPACE_PATH` | *(empty)* | docker-compose.yml volumes | Empty binds the parent of `.devcontainer` to `/workspaces`. If that path does not identify the same project for the Docker daemon, set a project path accessible to the daemon. This can occur inside another container, with a remote daemon, or on a host that needs path translation (see [Docker from inside the container](#docker-from-inside-the-container)). On Windows, if the daemon expects `/c/...` paths, `C:\Users\you\my-project` becomes `/c/Users/you/my-project`. |
+
+## Docker from inside the container
+
+The container uses the host's Docker daemon through the mounted
+`/var/run/docker.sock`; this is not Docker-in-Docker (see
+[Privilege boundary](#privilege-boundary)). It needs the mounted socket, the
+in-container user in the `docker` group, and, for `devcontainer` commands, the
+`devcontainer` CLI.
+
+| Works through the socket | Not possible in the container |
+|--------------------------|-------------------------------|
+| `docker compose build`, `docker images`, `docker inspect` | VS Code extension testing |
+| `devcontainer up`, `devcontainer exec` | GUI-dependent features |
+| Compose bind mounts whose source path the daemon can see (below) | |
+
+Compose resolves the two kinds of path in different places:
+
+| Command | Who reads the path | Path inside this container |
+|---------|--------------------|----------------------------|
+| `docker compose build` | The Docker CLI reads the build context and sends it to the daemon | Works |
+| `docker compose up` with a bind mount | The daemon mounts the source from its own filesystem | Works only if the daemon sees the same path |
+
+The daemon may not see this container's `/workspaces/...` paths. For example,
+with Docker Desktop on WSL2 the container's 9p-mounted `/workspaces` and the
+daemon's host paths are different filesystem namespaces. In that case set
+`HOST_WORKSPACE_PATH` to the project's path as the daemon sees it, and keep the
+usual command form from the repository root:
+
+```bash
+HOST_WORKSPACE_PATH=<daemon-visible project path> \
+  docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml up -d
+```
+
+`HOST_WORKSPACE_PATH` changes only the `/workspaces` bind source; the build
+context stays `.devcontainer/` and the CLI reads it from this container. Do not
+add `--project-directory <host path>`: Compose then resolves the build context
+against that host path as well, which the CLI inside the container cannot read.
+Running the same command with `config` instead of `up -d` prints both resolved
+paths without starting anything.
+
+The daemon-visible source of a running container's workspace is:
+
+```bash
+docker inspect <container_name> \
+  --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}'
+```
 
 ## Runtime isolation
 

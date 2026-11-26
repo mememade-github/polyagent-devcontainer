@@ -6,7 +6,7 @@
 - In this DevContainer, bubblewrap cannot create user namespaces; Codex shell execution uses `--dangerously-bypass-approvals-and-sandbox` as a compatibility fallback, not a security boundary.
 - `.claude/` is ground truth; `.agents/rules/` and `.agents/skills/` are its byte-faithful generated mirror. `.agents/hooks.json`, `.agents/hooks/`, and `.agents/rules.json` are hand-maintained Antigravity configuration, and `.codex/` holds Codex-specific configuration.
 - Claude is native/auto-updated at `~/.local/bin/claude`; Codex is npm-global at `~/.npm-global/bin/codex`; Antigravity (`agy`) is a self-updating native binary at `~/.local/bin/agy`; `PROJECT_NODE_VERSION` adds project Node; 9p `postStartCommand` sets `core.filemode=false`; project rules: `.claude/rules/project/`; Git helpers: `scripts/git/`.
-- Codex does not follow `@import`. On Codex, at session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md), [`.agents/rules/devcontainer-patterns.md`](.agents/rules/devcontainer-patterns.md), and [PROJECT.md](PROJECT.md). Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
+- Codex does not follow `@import`. On Codex, at session start, read [`.agents/rules/behavioral-core.md`](.agents/rules/behavioral-core.md) and [PROJECT.md](PROJECT.md). Read [REFERENCE.md](REFERENCE.md) when the task needs commands, configuration, or troubleshooting.
 
 ## Trust model: advisory gates
 

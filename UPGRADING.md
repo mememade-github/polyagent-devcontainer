@@ -53,6 +53,15 @@ disappears and `.agents/rules/behavioral-core.md` follows its source;
 script or setting that still calls the removed files breaks and must be changed
 with them.
 
+The always-loaded `.claude/rules/devcontainer-patterns.md` rule is removed; its
+operating notes now live in REFERENCE.md §Docker from inside the container,
+without the old `docker compose --project-directory <HOST_PATH>` instruction,
+which also moved the build context to the host path. Delete the rule file, run
+`bash scripts/sync-agents-mirror.sh` so `.agents/rules/devcontainer-patterns.md`
+disappears, and drop its `@` import from `CLAUDE.md` and its read instruction
+from `AGENTS.md`. Set `HOST_WORKSPACE_PATH` alone when the daemon cannot see the
+container's paths.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
