@@ -29,6 +29,8 @@
 # =============================================================================
 set -e
 
+die() { echo "ERROR: $1" >&2; exit 1; }
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$PROJECT_ROOT/.claude"
 DST="$PROJECT_ROOT/.agents"
@@ -46,10 +48,7 @@ case "${1:-}" in
         ;;
 esac
 
-if [ ! -d "$SRC" ]; then
-    echo "ERROR: $SRC not found; it is the source of the generated mirror." >&2
-    exit 1
-fi
+[ -d "$SRC" ] || die "$SRC not found; it is the source of the generated mirror."
 
 EXPECTED_ROOT=$(mktemp -d)
 trap 'rm -r "$EXPECTED_ROOT"' EXIT
@@ -63,10 +62,8 @@ done
 LINKS=""
 [ ! -L "$DST" ] || LINKS="$DST"
 if [ "${#LINK_SCOPE[@]}" -gt 0 ]; then
-    FOUND=$(find "${LINK_SCOPE[@]}" -type l -print) || {
-        echo "ERROR: find failed while looking for symlinks; nothing compared or changed." >&2
-        exit 1
-    }
+    FOUND=$(find "${LINK_SCOPE[@]}" -type l -print) ||
+        die "find failed while looking for symlinks; nothing compared or changed."
     if [ -n "$FOUND" ]; then
         if [ -n "$LINKS" ]; then LINKS="$LINKS"$'\n'"$FOUND"; else LINKS="$FOUND"; fi
     fi
@@ -102,10 +99,7 @@ if [ -d "$DST" ]; then
         if [ -d "$DST/$SUB" ]; then
             DIFF_RC=0
             SUB_DIFF=$(diff -rq "$EXPECTED/$SUB" "$DST/$SUB") || DIFF_RC=$?
-            if [ "$DIFF_RC" -gt 1 ]; then
-                echo "ERROR: diff could not compare $DST/$SUB (exit $DIFF_RC); nothing changed." >&2
-                exit 1
-            fi
+            [ "$DIFF_RC" -le 1 ] || die "diff could not compare $DST/$SUB (exit $DIFF_RC); nothing changed."
         else
             SUB_DIFF="Destination missing: $DST/$SUB"
         fi
@@ -115,18 +109,13 @@ if [ -d "$DST" ]; then
         fi
     done
     MODE_DIFF=""
-    MODES=$(find "$EXPECTED" -mindepth 1 -printf '%P\t%m\n') || {
-        echo "ERROR: find failed while listing expected modes; nothing changed." >&2
-        exit 1
-    }
+    MODES=$(find "$EXPECTED" -mindepth 1 -printf '%P\t%m\n') ||
+        die "find failed while listing expected modes; nothing changed."
     MODES=$(printf '%s\n' "$MODES" | LC_ALL=C sort)
     while IFS=$'\t' read -r rel expected_mode; do
         [ -n "$rel" ] || continue
         [ -e "$DST/$rel" ] || continue
-        actual_mode=$(stat -c '%a' "$DST/$rel") || {
-            echo "ERROR: stat failed on $DST/$rel; nothing changed." >&2
-            exit 1
-        }
+        actual_mode=$(stat -c '%a' "$DST/$rel") || die "stat failed on $DST/$rel; nothing changed."
         if [ "$expected_mode" != "$actual_mode" ]; then
             MODE_DIFF="${MODE_DIFF}Mode differs: $DST/$rel ($actual_mode != $expected_mode)"$'\n'
         fi
