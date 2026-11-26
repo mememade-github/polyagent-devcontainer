@@ -348,9 +348,17 @@ Two tiers, split by cost:
 | Fast checks | `bash scripts/meta/completion-checker.sh` | For a change that touches what it checks; report which checks ran, failed, or were skipped |
 | Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand, not per commit — environment presence, a Compose boot smoke when Docker is reachable, hook scripts on synthetic inputs, mirror drift, leak scan, shell syntax |
 
-`completion-checker.sh` is environment-independent: it works in fresh clones
-and temp checkouts, and does not require docker or a canonical checkout
-path. A passing acceptance suite covers only the checks it runs: its hook cases
+`completion-checker.sh` needs no Docker, network, or canonical checkout path.
+It checks the checkout that contains the script (a worktree's copy checks that
+worktree), names each check that passed or failed and the leak-pattern
+sources it used, and exits 1 when any check
+failed or could not read its input, including a failed `git ls-files`. The
+Codex TOML parse needs python3 with `tomllib` (Python 3.11 or later). This
+template's image uses Ubuntu 22.04's python3 3.10, which has no `tomllib`, so in
+the container that check always prints `NOT CHECKED` and the run can still exit
+0; the TOML is parsed only where a newer python3 is on `PATH`.
+
+A passing acceptance suite covers only the checks it runs: its hook cases
 show the hook scripts' input and output, not a real agent session, and its boot
 smoke is not a normal container start. Run it after structural changes to the
 template (hooks, mirror, devcontainer) and before releases.
@@ -455,6 +463,13 @@ The default tracked-content policy checks public-template identifiers. A private
 project can replace it with its own extended regexes in
 `scripts/meta/leak-patterns.txt`; optional untracked identifiers come from
 `.env/leak-patterns`. Matches report filenames without copying secret values.
-An invalid pattern or failed scan is an error. Repositories that already own
+A pattern file that exists as a directory entry must be readable, and
+`scripts/meta/leak-patterns.txt` must hold at least one pattern; otherwise the
+scan fails. The scan also fails when `git grep` exits above 1 or writes any
+error, including for a pattern it rejects or a tracked file it cannot read; its
+messages are not printed because they can quote the patterns. The checker
+prints which pattern source it used and whether `.env/leak-patterns` was
+present; a local file it cannot see is reported as `none`. An
+`.env/leak-patterns` with no patterns adds nothing. Repositories that already own
 `scripts/meta/verify-env-sync.sh` run it when their `.env` exists. Others have no
 additional synchronization check.

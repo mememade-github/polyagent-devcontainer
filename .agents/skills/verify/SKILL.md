@@ -14,7 +14,7 @@ For `all`, run the fast checker:
 bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}/scripts/meta/completion-checker.sh"
 ```
 
-It checks shell syntax, the hook and rule JSON files, the Codex TOML (skipped when python3 has no tomllib), the tracked-content leak scan, and mirror drift; a pass establishes only those properties. Run the docker-backed acceptance suite on demand, not per commit:
+It checks shell syntax, the hook and rule JSON files, the Codex TOML, the tracked-content leak scan, and mirror drift, and names the checks that passed, failed, or were not checked. The TOML parse is not checked when python3 has no tomllib, as with this template image's system python3 3.10; a pass establishes only the checks it names. Run the docker-backed acceptance suite on demand, not per commit:
 
 ```bash
 bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}/.devcontainer/verify-template.sh"

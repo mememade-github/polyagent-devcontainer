@@ -140,6 +140,23 @@ To roll back, restore the earlier version's hook files, registrations, adapter,
 checker, skills, session-start hooks, ignore lines, and documents together. An
 old marker is not evidence that the current tree was checked.
 
+`scripts/meta/completion-checker.sh` now reports what it could not check
+instead of passing it. A failed `git ls-files` fails the shell-syntax check
+rather than leaving it with nothing to check. A pattern file that exists but
+cannot be read, a `scripts/meta/leak-patterns.txt` with no patterns, a
+`git grep` that exits above 1 or writes any error, and a
+`sync-agents-mirror.sh --dry` error each fail with their own message, and the
+checker prints which pattern sources it used. Without
+python3 `tomllib` (Python 3.10 and older, including this template image's
+system python3) the TOML parse is printed as `NOT CHECKED` and left out of the
+`OK:` line, and the run still exits 0 when the other checks pass. The script
+checks the checkout that contains it, so a worktree's copy checks that
+worktree. Take the new script together with the `AGENTS.md` checker bullet,
+the `verify` skill, and REFERENCE §Verification and §Shared status and
+verification, then run `bash scripts/sync-agents-mirror.sh`. A tool of your own
+that parsed the old `OK:` line must read the new `OK:`, `NOT CHECKED:`,
+`FAILED:`, and `Leak patterns:` lines. No container rebuild is needed.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
