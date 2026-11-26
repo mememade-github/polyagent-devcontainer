@@ -2,273 +2,149 @@
 
 ## Unreleased
 
-The pre-push gates now check every span from an unquoted `push` word to the
-next `;`, `|`, `&`, `(`, `)` or newline instead of only the text after the
-last `push`, so `git push --force origin feature/push` and a force push
-followed by another push now block, and `git push origin feature/push-fix` no
-longer does; take both gates and REFERENCE §Hooks, no rebuild needed.
+Changes since `v3.3.3-rebuild`, as steps for a project built on this
+template. Make steps 1 to 8 in one adoption commit: a registration left
+without its hook file, a caller left without the file it calls, or a marker
+reader left without its writer breaks or blocks commands. REFERENCE.md
+describes the resulting behavior; this section lists only what to do.
 
-`scripts/sync-agents-mirror.sh` no longer fails when the generated mirror
-contains the text `$CLAUDE_PROJECT_DIR` or `${CLAUDE_PROJECT_DIR}`; it copies
-such text verbatim like any other, and the fast checker no longer reports
-"mirror drift" for it. Take the new script, `completion-checker.sh`, and
-REFERENCE §Polyagent parity; no container rebuild is needed.
+1. **Keep what is yours.** Your project rules under `.claude/rules/project/`,
+   your `PROJECT.md`, your own hooks, and the Git hooks under
+   `core.hooksPath` stay. Nothing below removes them.
 
-`/refine` and its Stop-hook loop are removed. Consumers who copy template files
-must explicitly delete `.claude/skills/refine/` (and regenerate the mirror so
-`.agents/skills/refine/` disappears), `.claude/hooks/refinement-gate.sh`, and
-`.codex/hooks/refinement-gate.sh`; drop the `Stop` registrations from
-`.claude/settings.json`, `.codex/hooks.json`, and `.agents/hooks.json`; and
-remove the obsolete local state (`.claude/.refinement-active`,
-`.claude/.stop-blocked-refinement.*`, `.claude/.refine-output`,
-`.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, and the
-matching `.codex/state/` entries `refinement-active`, `stop-blocked-refinement.*`,
-`.refine-output`, `.refine-eval.json`, `refinement/`) together with their ignore
-entries. Verification markers are covered by the commit-gate removal below.
+2. **Move shared duties into `AGENTS.md`.** All three vendors now read the
+   shared duties and the four behavioral rules from `AGENTS.md` only.
+   - Merge the duties of your `CLAUDE.md` into `AGENTS.md` once. A duty left
+     in both files is read twice by Claude; a duty left only in `CLAUDE.md`
+     never reaches Codex or Antigravity.
+   - Reduce `CLAUDE.md` to `@AGENTS.md`, `@PROJECT.md`, and what applies to
+     Claude Code alone.
+   - Take the template's `AGENTS.md` sections and keep, if you rewrite them,
+     the sentences that make Codex read `PROJECT.md` and every `.md` file
+     under `.agents/rules/project/` at session start, and the one that says
+     Antigravity receives `PROJECT.md` from the hook adapter. Keep
+     `.agents/rules.json`.
+   - Drop from your `CLAUDE.md` and `AGENTS.md`: the `MEMORY.md` clause of
+     the session-start bullet, the `@` import and read instruction for
+     `devcontainer-patterns.md`, the `karpathy-guidelines` invocation, the
+     duty to run the checker before every commit, and any "Preserve
+     verification markers" instruction. The removed check concerned a
+     `MEMORY.md` at the repository root, which no template component
+     creates; Claude Code's automatic memory is stored outside the
+     repository and is not affected. A project that keeps its own memory
+     file names its path and purpose in its own governance.
+   - Where your documents or scripts ran `docker compose --project-directory
+     <HOST_PATH>` from inside the container, set `HOST_WORKSPACE_PATH` alone
+     (REFERENCE §Docker from inside the container): `--project-directory`
+     also moves the build context to a path the CLI there cannot read.
 
-Update `CLAUDE.md`, `AGENTS.md`, `.claude/agents/evaluator.md`,
-`scripts/meta/run-isolated-role.sh`, the session-start hooks,
-`.devcontainer/verify-template.sh` (its refinement-gate and Antigravity Stop
-cases are gone), and the hand-maintained `.agents/hooks/claude-hooks-adapter.sh`,
-then regenerate `.agents/rules` and `.agents/skills` with
-`bash scripts/sync-agents-mirror.sh`.
+3. **Delete the removed files.** Copying the new template files over yours
+   does not remove these.
 
-Independent evaluation receives the authorized request, acceptance conditions,
-actual diff, relevant repository facts, and execution evidence, without the
-modifier's reasoning. Custom Codex callers must use
-`scripts/meta/run-isolated-role.sh evaluate <project-root> <prompt-file> <output-file>`
-and supply the evaluator role body, permitted inputs, repository location, and
-matching report destination in the prompt. Consume the report's conclusion and
-evidence; the helper requires a newly written, non-empty report without imposing
-a content or format gate. No container rebuild is needed.
+   | Kind | Paths |
+   |------|-------|
+   | Skills | `.claude/skills/refine/`, `.claude/skills/karpathy-guidelines/` |
+   | Hooks | `.claude/hooks/refinement-gate.sh`, `.codex/hooks/refinement-gate.sh`, `.claude/hooks/pre-commit-gate.sh`, `.codex/hooks/pre-commit-gate.sh` |
+   | Rules | `.claude/rules/behavioral-core.md`, `.claude/rules/devcontainer-patterns.md` |
+   | Scripts | `scripts/meta/karpathy-consistency-check.sh`, `scripts/meta/lib/detect-root.sh`, and `scripts/meta/lib/` if it is then empty |
 
-The session-start check of a repository-root `MEMORY.md` is removed: no
-template component creates that file. Drop the `MEMORY.md` clause from the
-session-start bullet in `CLAUDE.md` and `AGENTS.md`, and the "Known issues from
-auto memory" block from `.codex/hooks/session-start.sh`. A project that keeps
-its own memory file names its path and purpose in its own governance. Claude
-Code's automatic memory is stored outside the repository and is not this file.
+   Their generated copies under `.agents/skills/` and `.agents/rules/` go in
+   step 7.
 
-The `karpathy-guidelines` skill, its copy-equality check, and the root
-detection helper only that check used are removed. Delete
-`.claude/skills/karpathy-guidelines/`, `scripts/meta/karpathy-consistency-check.sh`,
-and `scripts/meta/lib/detect-root.sh` (and `scripts/meta/lib/` if it is now
-empty). Remove the checker call from `scripts/meta/completion-checker.sh` and
-the "karpathy pair" case from the leak-scan section of `.devcontainer/verify-template.sh`,
-the `karpathy-guidelines` invocation from `AGENTS.md`, and the skill from README
-and REFERENCE skill lists. The "Source of truth" blockquote of
-`.claude/rules/behavioral-core.md` named the skill and the check; that file is
-removed below. After these edits, run `bash scripts/sync-agents-mirror.sh` so
-`.agents/skills/karpathy-guidelines/` disappears;
-`bash scripts/sync-agents-mirror.sh --dry` then reports 0 changes. Any project
-script or setting that still calls the removed files breaks and must be changed
-with them.
+4. **Remove their registrations and callers.**
+   - The `Stop` entries in `.claude/settings.json`, `.codex/hooks.json` and
+     `.agents/hooks.json`.
+   - The `PreToolUse` entries for `pre-commit-gate.sh` in
+     `.claude/settings.json` and `.codex/hooks.json`.
+   - The skill rows for `refine` and `karpathy-guidelines` in your README
+     and REFERENCE.
+   - Any script or setting of your own that calls a deleted file, and any
+     tool of your own that waits for a verification marker: no template
+     component writes one now.
 
-The always-loaded `.claude/rules/devcontainer-patterns.md` rule is removed; its
-operating notes now live in REFERENCE.md §Docker from inside the container,
-without the old `docker compose --project-directory <HOST_PATH>` instruction,
-which also moved the build context to the host path. Delete the rule file, run
-`bash scripts/sync-agents-mirror.sh` so `.agents/rules/devcontainer-patterns.md`
-disappears, and drop its `@` import from `CLAUDE.md` and its read instruction
-from `AGENTS.md`. Set `HOST_WORKSPACE_PATH` alone when the daemon cannot see the
-container's paths.
+5. **Remove the old local state, then its ignore lines.** Delete these if
+   they exist, then remove their lines from `.gitignore`. A marker left
+   behind without its ignore line is an untracked file that `git add -A`
+   commits.
 
-The shared duties and the four behavioral rules now have one hand-maintained
-source, `AGENTS.md`, which Codex loads by itself and Claude imports.
-`CLAUDE.md` keeps only `@AGENTS.md`, `@PROJECT.md`, and Claude Code specifics,
-and `.claude/rules/behavioral-core.md` is removed; its rules and the Karpathy
-source and license notice are now the "Behavioral rules" section of
-`AGENTS.md`. To adopt:
+   | Where | Paths |
+   |-------|-------|
+   | `.claude/` | `.refinement-active`, `.stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `agent-memory/refinement/`, `.last-verification.*` |
+   | `.codex/state/` | `refinement-active`, `stop-blocked-refinement.*`, `.refine-output`, `.refine-eval.json`, `refinement/`, `last-verification.*` |
+   | `.gitignore` lines | `.claude/.last-verification*`, `.claude/.stop-blocked*`, `.claude/.refinement-active`, `.claude/.refine-output`, `.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, and the `.codex/state/` lines `last-verification*`, `stop-blocked*`, `refinement-active`, `.refine-output`, `.refine-eval.json`, `refinement/` |
 
-1. Merge the duties of your `CLAUDE.md` into `AGENTS.md` once. A duty left in
-   both files is read twice by Claude, and a duty left only in `CLAUDE.md`
-   never reaches Codex or Antigravity.
-2. Reduce `CLAUDE.md` to the two imports plus anything that applies to Claude
-   Code alone.
-3. Delete `.claude/rules/behavioral-core.md` and run
-   `bash scripts/sync-agents-mirror.sh` so `.agents/rules/behavioral-core.md`
-   disappears.
-4. Keep `.agents/rules.json`. `AGENTS.md` now tells Codex to read `PROJECT.md`
-   and every `.md` file under `.agents/rules/project/` at session start, and
-   tells Antigravity to read `PROJECT.md`; keep those sentences if you rewrite
-   the file.
-5. Start new agent sessions. No container rebuild is needed.
+   Keep the single-use force-push approval markers
+   (`.claude/.allow-force-push.*`, `.codex/state/allow-force-push.*`), their
+   ignore lines, and `.codex/state/.gitkeep`.
 
-The evaluation duty in `AGENTS.md` now states its boundaries: a change is
-meaningful when it alters behavior, a duty, an interface, an operating
-procedure, or a generation relationship, including in documentation alone,
-and an evaluation is incomplete when no fresh evaluator context can be created,
-when no report is left, or when the report does not judge the actual diff.
-`.claude/agents/evaluator.md` drops `maxTurns: 20` (a full-repository
-evaluation once hit that limit and ended without a report) and says an
-unavailable fresh context means an incomplete evaluation. Copy both changes and run
-`bash scripts/sync-agents-mirror.sh` to regenerate
-`.agents/skills/evaluator/SKILL.md`.
+6. **Take these files together.**
+   - Hooks: `.claude/hooks/pre-push-gate.sh`, `.codex/hooks/pre-push-gate.sh`,
+     both `session-start.sh` (no `MEMORY.md` block, no marker pruning),
+     `.claude/settings.json`, `.codex/hooks.json`,
+     `.agents/hooks.json`, and `.agents/hooks/claude-hooks-adapter.sh`. The
+     adapter now calls only `pre-push-gate.sh` and `session-start.sh` and
+     appends the repository root `PROJECT.md`, when it is non-empty and
+     readable, to Antigravity's session-start message; agy 1.5.18 kept only
+     about the first 48 KB of that message.
+   - Roles and skills: `.claude/agents/evaluator.md`, the `status` and
+     `verify` skills.
+   - Scripts: `scripts/meta/run-isolated-role.sh`,
+     `scripts/meta/completion-checker.sh`, `scripts/sync-agents-mirror.sh`,
+     `scripts/git/git-status.sh`, `.devcontainer/verify-template.sh`.
+   - Image files: `.devcontainer/Dockerfile` (its mount-point `mkdir -p`
+     line now lists `${HOME}/.codex`; add it to the same line if you keep
+     your own Dockerfile), `.devcontainer/setup-env.sh`,
+     `.devcontainer/codex-launcher.sh`, `.devcontainer/entrypoint.sh`.
+   - Configuration and documents: `.codex/config.toml`, `.gitignore`,
+     `.gitattributes`, README, REFERENCE, and the `AGENTS.md` and `CLAUDE.md`
+     of step 2.
 
-The commit gate and its verification markers are removed. Running
-`scripts/meta/completion-checker.sh` no longer writes a marker, no template hook
-blocks a commit (for a missing or old marker or for `--no-verify`), and
-`AGENTS.md` no longer requires the checker before every commit: it is run for a
-change that touches what it checks, and the report says which checks ran,
-failed, or were skipped. The fast checks and independent evaluation remain;
-neither is evidence of completion beyond what it observed, and a passing
-`/verify` or `verify-template.sh` run establishes only the properties it checks. The
-pre-push gate, its single-use force-push approval markers
-(`.claude/.allow-force-push.*`, `.codex/state/allow-force-push.*`), their ignore
-entries, and `.codex/state/.gitkeep` are unchanged. Make all of the following
-changes in one adoption commit; a registration left without its hook file, or a
-marker reader left without its writer, breaks or blocks commands:
+7. **Regenerate the mirror** once, after steps 2 to 6:
+   `bash scripts/sync-agents-mirror.sh`. It removes `.agents/skills/refine/`,
+   `.agents/skills/karpathy-guidelines/`, `.agents/rules/behavioral-core.md`
+   and `.agents/rules/devcontainer-patterns.md` and rewrites the evaluator,
+   status and verify copies; `--dry` then reports 0 changes. It leaves
+   `.agents/hooks.json`, `.agents/hooks/` and `.agents/rules.json` alone.
 
-1. Delete `.claude/hooks/pre-commit-gate.sh` and `.codex/hooks/pre-commit-gate.sh`.
-   Copying the new template files over yours does not remove them.
-2. Remove their `PreToolUse` entries from `.claude/settings.json` and
-   `.codex/hooks.json`. Keep `.agents/hooks.json`, and take the new
-   `.agents/hooks/claude-hooks-adapter.sh`, which now calls only
-   `pre-push-gate.sh`.
-3. Take the new `scripts/meta/completion-checker.sh` (no marker write), both
-   session-start hooks (no marker pruning), the `status` and `verify` skills,
-   and `.devcontainer/verify-template.sh` (its commit cases and its
-   checker-marker-hook round-trip section are gone), then run
-   `bash scripts/sync-agents-mirror.sh`.
-4. Replace the commit-check bullet, the `status`/`verify` bullet, and the
-   marker sentences of the trust model in `AGENTS.md`, and the hook lists and
-   verification table in README and REFERENCE. The "Preserve verification
-   markers" instruction in earlier versions of this file no longer applies.
-5. Delete existing verification markers (`.claude/.last-verification.*`,
-   `.codex/state/last-verification.*`) and then remove the
-   `.claude/.last-verification*` and `.codex/state/last-verification*` lines
-   from `.gitignore`; markers left behind become untracked files that
-   `git add -A` would commit. Leftover `/refine` state is a separate cleanup,
-   listed above.
-6. Do not remove your project's own hooks or the Git hooks under
-   `core.hooksPath` because of this list; it covers only the two template
-   files above. Change any tool of your own that waited for a verification
-   marker, because none will appear.
-7. Start new agent sessions; on Codex, review the changed hooks in `/hooks`.
-   No container rebuild is needed: the hooks and scripts run from the mounted
-   checkout, not from the image.
+8. **Update your own callers for the changed contracts.**
 
-To roll back, restore the earlier version's hook files, registrations, adapter,
-checker, skills, session-start hooks, ignore lines, and documents together. An
-old marker is not evidence that the current tree was checked.
+   | Component | What a caller must now read |
+   |-----------|-----------------------------|
+   | Pre-push gates | Exit 2 blocks. The Claude gate exits 1 when it could not check a command and Claude Code still runs the command; treat only 2 as a block. The Codex gate exits 0 for both checked and unchecked. The cause is the stderr line `pre-push gate: not checked: <cause>`. Force text now counts in every push span, so `git push --force origin feature/push` and a force push followed by another push block, and `git push origin feature/push-fix` does not. |
+   | Antigravity adapter | Gate exit 2 answers `deny`; every other result answers `ask`, which is not an approval, and an unchecked run writes the not-checked line to the adapter's stderr. For a `Cwd` outside any repository the gate gets `Cwd`, so a push there is not checked. |
+   | `run-isolated-role.sh evaluate <project-root> <prompt-file> <output-file>` | The prompt supplies the evaluator role body, the permitted inputs (authorized request, acceptance conditions, actual diff, relevant repository facts, execution evidence) and the repository location; the helper appends a line naming `<output-file>` as the report path, which overrides any report path in the prompt. It fails when the evaluator process fails or leaves no non-empty report at `<output-file>`, and it does not check the report's content or format. |
+   | `completion-checker.sh` | Writes no marker. Prints `Leak patterns:`, then `NOT CHECKED:` for a check that could not run (the TOML parse without python3 `tomllib`, as in this image's python3 3.10), then `OK:` or `FAILED:`. Exits 1 when a check failed or could not read its input, including a missing `jq`, an unreadable pattern file, a `scripts/meta/leak-patterns.txt` with no patterns, and a `git grep` error. |
+   | `verify-template.sh` | No `RESULT: N PASS / N FAIL / N SKIP` line and no Compose section. Exits 0 (all required checks ran and passed), 1 (a check failed) or 2 (nothing failed but a required check did not run); a missing optional tool, including Docker, does not change the exit code. |
+   | `sync-agents-mirror.sh` | Exits 1 when `find`, `diff` or `stat` fails, before printing a result or changing files. Rejects symlinks only in `.agents/rules/`, `.agents/skills/` and their `.claude/` sources. No longer rejects text naming `CLAUDE_PROJECT_DIR`. |
+   | `codex-launcher --update-only` | 0: reinstalled or already latest, or `SKIP_CODEX_UPDATE=1` is set, in which case nothing was checked or changed. 3: nothing checked or changed (npm missing, or the registry unreachable while the real binary is executable). 4: the reinstall failed and a working previous `codex` was restored. 5: the reinstall failed and no working `codex` is installed. Run the binary yourself when you need to know that it works. |
+   | Antigravity in this container | In `agy -p` sessions (agy 1.5.18) commands did not run without `--dangerously-skip-permissions` or a session setting that replaces it (`"toolPermission": "always-proceed"`, or `--mode accept-edits` with a matching `permissions.allow` rule): they went to the terminal sandbox, which fails under Docker's default seccomp profile. Commands run that way are not sandboxed; see REFERENCE §Antigravity CLI (agy). |
+   | Startup steps 3 and 4 | Step 3 prints a "not installed" WARN and skips the update when `claude` is not on PATH; step 4 does the same when the real `codex` binary is not executable and npm is missing. Otherwise `SKIP_CLAUDE_UPDATE=1` or `SKIP_CODEX_UPDATE=1` makes the step print `Skipped (...)`, and the step does not check for or install an update. When the update runs, "already latest" appears only after a checked update, and a failed update, or a Codex update whose latest version could not be checked, prints a WARN. |
 
-`scripts/meta/completion-checker.sh` now reports what it could not check
-instead of passing it. A failed `git ls-files` fails the shell-syntax check
-rather than leaving it with nothing to check. A pattern file that exists but
-cannot be read, a `scripts/meta/leak-patterns.txt` with no patterns, a
-`git grep` that exits above 1 or writes any error, and a
-`sync-agents-mirror.sh --dry` error each fail with their own message, and the
-checker prints which pattern sources it used. Without
-python3 `tomllib` (Python 3.10 and older, including this template image's
-system python3) the TOML parse is printed as `NOT CHECKED` and left out of the
-`OK:` line, and the run still exits 0 when the other checks pass. The script
-checks the checkout that contains it, so a worktree's copy checks that
-worktree. Take the new script together with the `AGENTS.md` checker bullet,
-the `verify` skill, and REFERENCE §Verification and §Shared status and
-verification, then run `bash scripts/sync-agents-mirror.sh`. A tool of your own
-that parsed the old `OK:` line must read the new `OK:`, `NOT CHECKED:`,
-`FAILED:`, and `Leak patterns:` lines. No container rebuild is needed.
+9. **Ignore and line-ending rules.** `.gitignore` now ignores every `.env.*`
+   file except `.env.example`, in place of `.env.local` and `.env.*.local`.
+   Files already tracked stay tracked; `git ls-files -ci --exclude-standard`
+   lists any that the new line covers. `.gitattributes` now keeps `*.json`,
+   `*.yml`, `*.yaml`, `.gitattributes` and `.gitignore` LF;
+   `git add --renormalize .` stages any of them stored with CRLF.
 
-`scripts/sync-agents-mirror.sh` now rejects symlinks only in `.agents/rules/`,
-`.agents/skills/` and their `.claude/` sources, so a symlink under a
-hand-maintained path such as `.agents/hooks/` no longer stops the sync or the
-fast checker. A failed `find`, `grep`, `diff` or `stat` now exits 1 before the
-sync reports a result or changes files; before, a `diff` error read as "no
-difference". Its comments and closing note no longer call `.claude/` the
-ground truth: `AGENTS.md` holds the shared duties, and `.claude/` is the source
-of the generated trees. Take the new script with REFERENCE §Polyagent parity.
-No container rebuild is needed.
+10. **Rebuild only for the image files.** The image copies `setup-env.sh`,
+    `codex-launcher.sh` and `entrypoint.sh` into `/usr/local/bin/`, and the
+    Dockerfile creates the `~/.codex` mount point. Rebuild the image and
+    recreate the container for those (A: **Dev Containers: Rebuild
+    Container**; B: the `up -d --build --force-recreate` command in REFERENCE
+    §DevContainer lifecycle). An existing `codex-config` volume keeps its
+    owner. Everything else runs from the mounted checkout: start new agent
+    sessions, and on Codex review the changed hooks in `/hooks`.
 
-`.devcontainer/verify-template.sh` is reduced to what it observes. Its Compose
-section, which replaced the entrypoint with Bash and therefore never showed a
-normal start or the healthcheck, is removed; observe a normal start
-separately. Its own mirror, leak and shell-syntax sections are replaced by
-one run of `scripts/meta/completion-checker.sh`, so the leak policy and
-pattern files are the checker's (the suite's fixed pattern copy, its
-`git grep` error swallowing and its printing of matched lines are gone), and
-the checker no longer excludes `verify-template.sh` from its leak scan. The
-hook cases are unchanged and show the hook scripts' and adapter's output for
-synthetic input only. The count line is replaced by a summary of what failed
-and what did not run; exit 2 now means a required check did not run, and a
-missing optional tool, including Docker, is listed as absent. Update the `AGENTS.md`
-bullet, the `verify` skill, the README initialization prompt and REFERENCE
-§Verification with it, then run `bash scripts/sync-agents-mirror.sh`. A tool of
-your own that read the `RESULT: N PASS / N FAIL / N SKIP` line or treated a
-missing Docker as a skip must change. No container rebuild is needed.
+11. **Check.** Run `bash scripts/meta/completion-checker.sh` and
+    `bash .devcontainer/verify-template.sh`. They check the files and feed
+    synthetic input to the hooks; observe a normal container start and an
+    agent session separately.
 
-Startup step 3 of `.devcontainer/setup-env.sh` no longer prints "already
-latest" when `claude update` fails. Before, the update's exit status and output
-were discarded, so a failed update with an unchanged version read as already
-latest. Now a failed update prints a WARN, the version still in use, and the
-last 20 lines of its output, and startup continues as before. Take the new
-`setup-env.sh` with REFERENCE §DevContainer lifecycle and §Tool versioning
-policy. The image copies `setup-env.sh` to `/usr/local/bin/`, so rebuild the
-container for the new startup output.
-
-The Codex launcher (`.devcontainer/codex-launcher.sh`) and startup step 4 no
-longer report "already latest" when the latest version was not checked or a
-reinstall failed. Before, `--update-only` exited 0 when npm was missing, when
-the registry was unreachable, and when a failed reinstall was rolled back to a
-working previous install. Now `--update-only` exits 0 (reinstalled or already
-at the latest version), 3 (latest version not checked: npm missing, or the
-registry unreachable while the real binary is executable; the install is left
-as it was, working or not), 4 (reinstall failed; a working previous install was
-restored), or 5 (reinstall failed; no working `codex`), and step 4 prints a
-WARN for every status but 0. With the registry unreachable and no executable binary, the
-reinstall is still tried, and its failure line says "no previous install to
-keep" instead of "keeping previous install" when there was none. A normal `codex` run prints one line on stderr
-when the reinstall fails and nothing more on stdout. Restoring the previous
-install, the offline guard, and the update lock are unchanged. A script of
-your own that called `codex-launcher --update-only` and treated any non-zero
-status as a missing `codex` must now read 4 as "a working previous `codex` was
-restored" and 3 as "nothing was checked or changed", and run the binary itself
-when it needs to know whether it works. Take the new launcher and
-`setup-env.sh` with REFERENCE §DevContainer lifecycle and §Tool versioning
-policy, and rebuild the container: the image copies both files to
-`/usr/local/bin/`.
-
-The pre-push gate (`.claude/hooks/pre-push-gate.sh`,
-`.codex/hooks/pre-push-gate.sh`) no longer exits 0 silently when it could not
-check a command. When its input cannot be read or parsed, `jq` or `git` is
-missing, `sed`, `grep`, or `git config` fails, no repository is found for a
-push-shaped command, or an approval marker that allowed a force push cannot be
-removed, it writes `pre-push gate: not checked: <cause>` to stderr
-and does not block. The Claude gate now exits 1 in that case, which Claude
-Code shows as a non-blocking hook error; the Codex gate still exits 0, because
-the Codex hooks documentation defines only exit 0 and exit 2. The Antigravity
-adapter still answers `ask` for every exit but 2, and now writes the same
-line to its stderr when the gate exits with anything but 0 or 2 (including a
-timeout) or when the adapter cannot run the gate. For a `Cwd` outside any
-repository the adapter now passes `Cwd` to the gate instead of the project
-root, so a push there is reported as not checked. Block decisions, the
-patterns, and the approval markers and their names are unchanged. The force-push block
-message now says that the command text matched and that the approval's branch
-is the one checked out, not the refspec's, and the credential block message
-says the command text matched. A wrapper of your own that read a non-zero
-exit from the Claude gate as a block must treat only 2 as a block. Take both
-gates, `.agents/hooks/claude-hooks-adapter.sh`, `.devcontainer/verify-template.sh`
-(two new cases for the exit codes), the `AGENTS.md` trust-model section, and
-REFERENCE §Hooks and §Codex sandbox bypass. No container rebuild is needed:
-the hooks run from the mounted checkout.
-
-`.gitignore` now ignores every `.env.*` file except `.env.example` (in place of
-`.env.local` and `.env.*.local`), so another instance's env file such as
-`.devcontainer/.env.project-b` is no longer offered for commit; take the new
-line, no container rebuild is needed. Files already tracked stay tracked, and
-`git ls-files -ci --exclude-standard` lists any that the new line covers.
-
-The Dockerfile's mount-point `mkdir -p` now lists `${HOME}/.codex`, so a new
-`codex-config` volume no longer depends on the Codex install layer having
-created that directory; add it to the same line in your Dockerfile and rebuild
-(an existing volume keeps its owner).
-
-`AGENTS.md` now allows a compatibility measure that an environment constraint
-requires when its condition and remaining limits are stated, while still
-forbidding a defect hidden behind a workaround, and the Codex sandbox bypass is
-described as such a measure under Docker's default seccomp profile. Copy the
-two `AGENTS.md` bullets, the `.codex/config.toml` and `run-isolated-role.sh`
-comments, `.claude/agents/evaluator.md`, and REFERENCE §Codex sandbox bypass,
-then run `bash scripts/sync-agents-mirror.sh`; no container rebuild is needed.
+To roll back, restore the earlier version's hook files, registrations,
+adapter, scripts, skills, roles, ignore lines, image files and documents
+together, run the sync, and rebuild if you had rebuilt. An old verification
+marker is not evidence that the current tree was checked.
 
 ## v3.3.3-rebuild
 
