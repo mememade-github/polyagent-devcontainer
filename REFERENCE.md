@@ -457,29 +457,24 @@ Two tiers, split by cost:
 | Fast checks | `bash scripts/meta/completion-checker.sh` | For a change that touches what it checks; report which checks ran, failed, or were skipped |
 | Template checks | `bash .devcontainer/verify-template.sh` | On demand, not per commit: tools present on the runner, the fast checks once, hook scripts and the Antigravity adapter on synthetic input |
 
-`completion-checker.sh` needs no Docker, network, or canonical checkout path.
-It checks the checkout that contains the script (a worktree's copy checks that
-worktree), names each check that passed or failed and the leak-pattern
-sources it used, and exits 1 when any check
-failed or could not read its input, including a failed `git ls-files`. The
-Codex TOML parse needs python3 with `tomllib` (Python 3.11 or later). This
-template's image uses Ubuntu 22.04's python3 3.10, which has no `tomllib`, so in
-the container that check always prints `NOT CHECKED` and the run can still exit
-0; the TOML is parsed only where a newer python3 is on `PATH`.
+`completion-checker.sh` needs no Docker, network, or canonical checkout path,
+and it checks the checkout that contains the script (a worktree's copy checks
+that worktree). It exits 1 when any check failed or could not read its input.
+The Codex TOML parse needs python3 with `tomllib` (Python 3.11 or later). This
+template's image uses Ubuntu 22.04's python3 3.10, so in the container that
+check is `NOT CHECKED` and the run can still exit 0.
 
-`verify-template.sh` prints PASS, FAIL, NOT RUN and ABSENT lines and a
-summary naming what failed and what did not run. It exits 0 when every
-required check ran and passed, 1 when a check failed, and 2 when nothing
-failed but a required check (the fast checks or the hook cases) could not
-run. An optional tool missing from the runner (Docker, the agent CLIs, node,
-python3, uv) is listed as absent and does not change the exit code; git and
-jq are needed by the fast checks and the hook cases, so without them those
-checks fail or do not run. Its hook cases show only the hook scripts' and
-the adapter's output for synthetic input, not a real agent session's rule
+`verify-template.sh` exits 0 when every required check ran and passed, 1 when
+a check failed, and 2 when nothing failed but a required check (the fast
+checks or the hook cases) could not run. An optional tool missing from the
+runner (Docker, the agent CLIs, node, python3, uv) does not change the exit
+code; the fast checks and the hook cases need git and jq and fail or do not
+run without them. Its hook cases show only the hook scripts' and the
+adapter's output for synthetic input, not a real agent session's rule
 loading, hook invocation, or blocking. It starts no container and creates no
-Docker objects, so a normal container start and the healthcheck are observed
-separately, by starting the container as README describes. Run it after
-changes to the hooks, the adapter, or the fast checker.
+Docker objects, so observe a normal container start and the healthcheck by
+starting the container as README describes. Run it after changes to the
+hooks, the adapter, or the fast checker.
 
 ## Polyagent parity
 
