@@ -23,7 +23,9 @@ DevContainer inside a VM or on a dedicated machine.
 
 Template build and startup configuration lives in `.devcontainer/.env`;
 [Quick start](README.md#quick-start) covers initial setup
-(compose defaults apply when `.env` is absent).
+(compose defaults apply when `.env` is absent). For every variable below
+except `TYPESAFE_API_KEY`, a variable of the same name in the shell that runs
+`docker compose` takes precedence over the file's value.
 
 | Variable | Default | Used by | Purpose |
 |----------|---------|---------|---------|
