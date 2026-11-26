@@ -109,7 +109,9 @@ Aliases:
 
 ```
 Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
-  └── setup-env.sh (idempotent; postCreateCommand runs it once on first build)
+  └── setup-env.sh (path A's postCreateCommand runs it once more when the
+        container is created; the two runs can overlap in time, and only the
+        Codex update in step 4 is serialized, by the launcher's flock)
         [1/6] Permissions   — Docker socket ownership, git core.filemode,
                               git safe.directory '*' (for mounts whose owner
                               differs from the container user; it turns off
