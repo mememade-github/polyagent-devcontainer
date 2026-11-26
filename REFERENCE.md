@@ -544,10 +544,27 @@ inside the `gemini-config` volume.
 
 | Feature | Requirement | Template configuration |
 |---------|-------------|------------------------|
-| Terminal sandbox (`--sandbox`) | Host permission for kernel namespaces | Off by default in this template |
+| Terminal sandbox (`--sandbox`; also agent mode `auto`, the default, for commands agy runs without review) | Kernel namespaces, which Docker's default seccomp profile denies | Unavailable in this container: a sandboxed command fails with `Command failed to run: fork/exec /home/vscode/.local/bin/agy: operation not permitted` |
 | Browser | Google Chrome | Not installed |
 | Voice | Microphone | No microphone device configured |
 | Remote control | Eligible account and paired external device | Supplied separately by the user |
+
+Observed with agy 1.5.18 in `agy -p` sessions in this container: without
+`--dangerously-skip-permissions`, `echo hi` went to the terminal sandbox and
+failed with that error, in a trusted workspace and also with
+`enableTerminalSandbox: false`; agy's documentation says the sandbox has no
+effect where it is unavailable, but here the command failed instead. With
+`--mode accept-edits` and no other setting, print mode denied the command
+because it cannot prompt for the `command` permission. The command ran with
+`--dangerously-skip-permissions`; with `"toolPermission": "always-proceed"`,
+both in the default mode and with `--mode accept-edits`; and with
+`--mode accept-edits` plus a matching `permissions.allow` rule such as
+`command(echo hi)` (a rule without `--mode accept-edits` was not tried). The
+settings were passed with `--settings`. Running agy commands outside the sandbox is a
+compatibility measure for a container under Docker's default seccomp profile,
+as for Codex (§Codex sandbox bypass): the commands then run with the
+container's access, including the host Docker socket, so it is not a security
+boundary.
 
 ### Registering deeper rule folders
 
