@@ -247,6 +247,14 @@ The Dockerfile's mount-point `mkdir -p` now lists `${HOME}/.codex`, so a new
 created that directory; add it to the same line in your Dockerfile and rebuild
 (an existing volume keeps its owner).
 
+`AGENTS.md` now allows a compatibility measure that an environment constraint
+requires when its condition and remaining limits are stated, while still
+forbidding a defect hidden behind a workaround, and the Codex sandbox bypass is
+described as such a measure under Docker's default seccomp profile. Copy the
+two `AGENTS.md` bullets, the `.codex/config.toml` and `run-isolated-role.sh`
+comments, `.claude/agents/evaluator.md`, and REFERENCE §Codex sandbox bypass,
+then run `bash scripts/sync-agents-mirror.sh`; no container rebuild is needed.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

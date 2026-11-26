@@ -60,7 +60,10 @@ ARGS=(
 )
 
 if [ -f /.dockerenv ]; then
-    # Existing DevContainer compatibility fallback: bubblewrap unavailable.
+    # Compatibility measure: under Docker's default seccomp profile bubblewrap
+    # cannot create namespaces, so inside a container the evaluator runs
+    # unsandboxed with the container's access. /.dockerenv marks any Docker
+    # container; one that would allow bubblewrap is bypassed as well.
     ARGS+=(--dangerously-bypass-approvals-and-sandbox)
 else
     ARGS+=(--sandbox workspace-write --add-dir "$(dirname "$OUTPUT_FILE")")

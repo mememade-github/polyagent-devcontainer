@@ -6,15 +6,17 @@
 # - on-request: asks for approval only when the model deems it necessary
 #
 # IMPORTANT — DevContainer execution:
-#   The bubblewrap sandbox cannot create user namespaces inside Docker
-#   (kernel policy). Interactive `codex` from a DevContainer shell will fail
-#   with "bwrap: No permissions to create a new namespace".
-#   Use the README/REFERENCE.md flag for headless invocations from inside the
-#   container:
+#   Under Docker's default seccomp profile, which the template's Compose file
+#   keeps, the bubblewrap sandbox cannot create user namespaces, and
+#   sandboxed shell calls from a DevContainer shell fail with
+#   "bwrap: No permissions to create new namespace".
+#   In that case use the README/REFERENCE.md flag for headless invocations
+#   from inside the container:
 #     codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox "<prompt>" </dev/null
-#   This is a compatibility workaround, not a security boundary: docker.sock
-#   grants host-level power. Outside containers, keep this workspace-write
-#   default. See REFERENCE.md §"Codex sandbox bypass (DevContainer only)".
+#   This is a compatibility measure, not a security boundary: commands run
+#   unsandboxed, and docker.sock grants host-level power. Outside containers,
+#   keep this workspace-write default.
+#   See REFERENCE.md §"Codex sandbox bypass (DevContainer only)".
 #
 # NOTE: per TOML rules, top-level keys must precede any [section] header.
 sandbox_mode = "workspace-write"

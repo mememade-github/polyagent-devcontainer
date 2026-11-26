@@ -465,15 +465,15 @@ file is changed.
 
 ### Codex sandbox bypass (DevContainer only)
 
-Codex CLI sandboxes commands with [bubblewrap](https://github.com/containers/bubblewrap), which requires unprivileged user namespaces. Docker kernel policy blocks namespace creation, so every shell call from the sandbox fails (`bwrap: No permissions to create a new namespace`).
+Codex CLI sandboxes commands with [bubblewrap](https://github.com/containers/bubblewrap), which needs to create unprivileged user namespaces. Docker's [default seccomp profile](https://docs.docker.com/engine/security/seccomp/) denies `unshare` and namespace-creating `clone` calls to a container without `CAP_SYS_ADMIN`, and the template's Compose file sets no other profile and adds no capability. In a container started that way, `bwrap` fails with `bwrap: No permissions to create new namespace`, `unshare -U true` fails with `Operation not permitted`, and so every sandboxed Codex shell call fails. A daemon or container with another seccomp profile or added capabilities, or a host that restricts unprivileged user namespaces, can behave differently; the template does not detect which case applies.
 
 | Environment | Sandbox works | Recommended |
 |-------------|:-------------:|-------------|
-| Host Linux directly | ✓ | (default) `--sandbox workspace-write` |
-| **DevContainer** | ✗ (kernel) | `--dangerously-bypass-approvals-and-sandbox` |
+| Linux host that allows unprivileged user namespaces | ✓ | (default) `--sandbox workspace-write` |
+| **DevContainer** under Docker's default seccomp profile | ✗ (seccomp) | `--dangerously-bypass-approvals-and-sandbox` |
 
-The bypass makes the DevContainer the command-execution compatibility boundary,
-not a security or trust boundary. The mounted Docker socket grants host-level
+The bypass is a compatibility measure, not a security or trust boundary: Codex
+commands then run unsandboxed with the container's access. The mounted Docker socket grants host-level
 power; outside containers, keep the default sandbox.
 
 In a project that is not trusted, Codex runs neither the project

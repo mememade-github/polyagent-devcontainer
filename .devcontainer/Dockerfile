@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep fd-find fzf tree htop vim nano zsh tmux jq unzip zip man-db gh \
     # Python — general development
     python3 python3-pip python3-venv \
-    # bubblewrap — Codex CLI sandbox runtime (DevContainer kernel blocks namespaces;
+    # bubblewrap — Codex CLI sandbox runtime (cannot create namespaces under Docker's default seccomp profile;
     # vendored fallback used at runtime, but installation removes the PATH warning)
     bubblewrap \
     docker.io \
