@@ -1,11 +1,11 @@
 #!/bin/bash
 # =============================================================================
-# verify-template.sh — on-demand / CI acceptance suite for the polyagent
+# verify-template.sh — on-demand acceptance suite for the polyagent
 # DevContainer template.
 #
 # NOT a per-commit gate. Pre-commit verification is the fast,
 # environment-independent scripts/meta/completion-checker.sh; this suite is
-# the deep proof that the template WORKS, run on demand and in CI.
+# the deep proof that the template WORKS, run on demand.
 #
 # Sections:
 #   [1/7] environment presence      — missing essentials FAIL, missing

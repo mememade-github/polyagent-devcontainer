@@ -14,7 +14,7 @@ For `all`, run the fast checker:
 bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}/scripts/meta/completion-checker.sh"
 ```
 
-A successful run writes the per-branch marker used by the pre-commit gate. Run the docker-backed acceptance suite on demand or in CI, not per commit:
+A successful run writes the per-branch marker used by the pre-commit gate. Run the docker-backed acceptance suite on demand, not per commit:
 
 ```bash
 bash "${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-$(git rev-parse --show-toplevel)}}/.devcontainer/verify-template.sh"

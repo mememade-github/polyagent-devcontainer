@@ -8,8 +8,6 @@
 
 Workspace-scoped environment for running Claude Code, Codex CLI, and Antigravity CLI in parity on the same project. One ground truth (`.claude/`) feeds per-vendor mirrors (`.agents/rules`, `.agents/skills`, `.codex/`). New vendors are added by mirroring, not by rewriting governance.
 
-Default loadout: 2 sub-agents · 3 hooks · 4 skills (status, verify, karpathy-guidelines, typesafe-ai).
-
 ## Tech Stack
 
 | Category | Technology |
@@ -38,7 +36,3 @@ Sync: `bash scripts/sync-agents-mirror.sh` — `.claude/` → `.agents/rules`, `
 ## Distribution
 
 - **GitHub** (origin): `mememade-github/polyagent-devcontainer` — development ground truth
-
----
-
-*Last updated: 2026-10-17*

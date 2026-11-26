@@ -214,7 +214,7 @@ To skip startup refresh, pass `SKIP_CLAUDE_UPDATE=1`, `SKIP_CODEX_UPDATE=1`, or
 
 ## Agent system
 
-### Governance roles (2)
+### Governance roles
 
 | Agent | Purpose | Invocation |
 |-------|---------|------------|
@@ -235,7 +235,7 @@ missing or empty report, without validating report content or format.
 consumes the mirror directly, so do not delete it as a mere convention. Mirrored
 `SKILL.md` frontmatter (`tools`, `model`, `maxTurns`, `color`) is Claude-host
 metadata that Codex ignores.
-Antigravity discovers six mirrored skills, including the two governance roles.
+Antigravity discovers the mirrored skills, including the evaluator and wip-manager roles.
 Independent evaluation uses a fresh built-in `self` subagent supplied with the
 evaluator role body and the same permitted inputs, excluding the parent
 conversation and modifier's reasoning. Children retain repository rules and
@@ -243,9 +243,9 @@ hooks and need no `.agents/agents/*.md` definition file.
 
 ### Hooks
 
-Claude (3): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
+Claude: `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
 
-Codex (3): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
+Codex: `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
 Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 `Write`; these commit/push gates intentionally inspect `Bash` commands.
 
@@ -280,7 +280,7 @@ These gates do not scan staged file contents.
 Codex project trust and hook review are covered in
 [Codex sandbox bypass](#codex-sandbox-bypass-devcontainer-only).
 
-### Skills (4)
+### Skills
 
 | Skill | Description |
 |-------|-------------|
@@ -303,10 +303,10 @@ Two tiers, split by cost:
 | Tier | Command | When |
 |------|---------|------|
 | Fast checks | `bash scripts/meta/completion-checker.sh` | Before each commit — writes the per-branch marker the pre-commit gate reads |
-| Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand and in CI, not per commit — full template integrity, including docker-backed checks |
+| Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand, not per commit — full template integrity, including docker-backed checks |
 
-`completion-checker.sh` is environment-independent: it works in fresh clones,
-CI, and temp checkouts, and does not require docker or a canonical checkout
+`completion-checker.sh` is environment-independent: it works in fresh clones
+and temp checkouts, and does not require docker or a canonical checkout
 path. The acceptance suite is the deep oracle; run it after structural changes
 to the template (hooks, mirror, devcontainer) and before releases.
 
@@ -399,10 +399,6 @@ evidence that a rule loads.
 | Hook test fails | `export CLAUDE_PROJECT_DIR=/workspaces` (Codex: `CODEX_PROJECT_DIR`) |
 | Git permission errors | `git config core.filemode false` |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
-
----
-
-*Last updated: 2026-10-17*
 
 ## Shared status and verification
 

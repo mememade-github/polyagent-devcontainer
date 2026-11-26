@@ -1,7 +1,7 @@
 #!/bin/bash
 # completion-checker.sh — fast, environment-independent pre-commit verification.
 # Seconds-scale checks only: no docker, no network, no canonical checkout path;
-# works in fresh clones, CI, and temp checkouts. All checks pass -> touch both
+# works in fresh clones and temp checkouts. All checks pass -> touch both
 # vendors' per-branch markers (existence + age contract read by the pre-commit
 # gates) and exit 0. Any failure -> name it and exit 1 (no marker is written).
 set -u
