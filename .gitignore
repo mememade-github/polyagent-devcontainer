@@ -44,8 +44,5 @@ Thumbs.db
 # Serena MCP — per-project state (auto-generated, do not track)
 .serena/
 
-# Local-only CI file; not part of the template.
-/.gitlab-ci.yml
-
 # Session state belongs to the local workspace, never the template history.
 /wip/

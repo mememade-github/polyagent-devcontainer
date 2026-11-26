@@ -122,7 +122,10 @@ describes the resulting behavior; this section lists only what to do.
 9. **Ignore and line-ending rules.** `.gitignore` now ignores every `.env.*`
    file except `.env.example`, in place of `.env.local` and `.env.*.local`.
    Files already tracked stay tracked; `git ls-files -ci --exclude-standard`
-   lists any that the new line covers. `.gitattributes` now keeps `*.json`,
+   lists any that the new line covers. `.gitignore` no longer ignores
+   `/.gitlab-ci.yml`, so a local-only `.gitlab-ci.yml` now shows as an
+   untracked file; to keep it local, add `/.gitlab-ci.yml` to your
+   `.gitignore` or to `.git/info/exclude`. `.gitattributes` now keeps `*.json`,
    `*.yml`, `*.yaml`, `.gitattributes` and `.gitignore` LF;
    `git add --renormalize .` stages any of them stored with CRLF.
 
