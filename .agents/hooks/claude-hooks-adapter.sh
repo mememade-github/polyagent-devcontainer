@@ -65,10 +65,20 @@ case "$EVENT" in
     unchecked "pre-push-gate.sh exited $RC${LAST:+: ${LAST#pre-push gate: not checked: }} (adapter)"
     ;;
   session-start)
-    [ -f "$HOOKS/session-start.sh" ] || fallback
-    OUT=$(cd "$ROOT" && printf '%s' '{"source":"startup"}' |
-      CLAUDE_PROJECT_DIR="$ROOT" timeout 10 bash "$HOOKS/session-start.sh" 2>/dev/null)
-    CTX=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null) || fallback
+    CTX=""
+    if [ -f "$HOOKS/session-start.sh" ]; then
+      OUT=$(cd "$ROOT" && printf '%s' '{"source":"startup"}' |
+        CLAUDE_PROJECT_DIR="$ROOT" timeout 10 bash "$HOOKS/session-start.sh" 2>/dev/null)
+      CTX=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null) || CTX=""
+    fi
+    # Antigravity does not follow an instruction to read PROJECT.md, so its
+    # contents ride in the session-start message. --rawfile, not --arg: a large
+    # file would exceed the single-argument size limit.
+    if [ -s "$ROOT/PROJECT.md" ] && [ -r "$ROOT/PROJECT.md" ]; then
+      jq -cn --arg c "$CTX" --rawfile p "$ROOT/PROJECT.md" \
+        '{injectSteps: [{systemMessage: {systemMessage: ((if $c == "" then "" else $c + "\n" end) + "Project instructions from PROJECT.md at the repository root; follow them as you follow AGENTS.md:\n\n" + $p)}}]}' 2>/dev/null &&
+        exit 0
+    fi
     [ -n "$CTX" ] || fallback
     jq -cn --arg m "$CTX" '{injectSteps: [{systemMessage: {systemMessage: $m}}]}' || fallback
     ;;

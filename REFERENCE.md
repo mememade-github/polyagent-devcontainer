@@ -368,7 +368,7 @@ or to `Cwd` itself when it is not inside a repository:
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|
 | PreToolUse `run_command` | `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; exit 0 → `{"decision":"ask"}`; any other exit (including a 124 timeout), or the adapter cannot run the gate (no `jq`, unreadable input, no hook file) → `{"decision":"ask"}` plus `pre-push gate: not checked: <cause>` on the adapter's stderr |
-| SessionStart | `session-start.sh` (`{"source":"startup"}`) | `additionalContext` → `injectSteps[0].systemMessage.systemMessage` |
+| SessionStart | `session-start.sh` (`{"source":"startup"}`) | `additionalContext`, followed by the contents of the repository root `PROJECT.md` when that file is non-empty and readable, → `injectSteps[0].systemMessage.systemMessage`; with neither, `{"injectSteps":[]}`. agy 1.5.18 kept about the first 48 KB of that message and replaced the rest with `<truncated N bytes>` |
 
 `ask` hands the call to agy's own permission settings and is not an approval;
 agy treats an empty
