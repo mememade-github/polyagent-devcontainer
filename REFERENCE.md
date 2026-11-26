@@ -130,11 +130,13 @@ postStartCommand (every start, devcontainer.json)
 
 Both `docker compose up` and VS Code "Reopen in Container" route through
 `entrypoint.sh`, so the 6 steps run regardless of how the container was started.
-The container healthcheck requires all three agent CLIs (`--version` only: no
-login, no network call) and a recognizable
-`/workspaces` project marker (`.git`, `AGENTS.md`, `CLAUDE.md`, `README.md`, or
-`.devcontainer/`). A container with an empty or mis-mounted workspace stays
-`unhealthy` instead of reporting a false green status.
+The container healthcheck runs `--version` of the three agent CLIs (no login,
+no network call; Codex with `SKIP_CODEX_UPDATE=1`) and checks that
+`/workspaces` has at least one of `.git`, `AGENTS.md`, `CLAUDE.md`,
+`README.md`, or `.devcontainer/`. It shows only that the CLIs run and that the
+mounted path looks like a project. It does not check that the intended project
+is mounted: another project's `README.md` satisfies it too. An empty
+`/workspaces`, or one with none of those entries, stays `unhealthy`.
 
 A is VS Code "Reopen in Container". B uses Docker Compose and does not read
 `devcontainer.json`. Both paths use the Dockerfile and Compose declarations below.
