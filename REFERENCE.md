@@ -504,7 +504,7 @@ evidence that a rule loads.
 
 | Symptom | Fix |
 |---------|-----|
-| Build fails | `docker compose build --no-cache` |
+| Build fails | From the repository root: `docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml build --no-cache` |
 | Claude re-auth needed | check named volume: `docker volume ls \| grep claude-config` |
 | Codex re-auth needed | check named volume: `docker volume ls \| grep codex-config` |
 | Antigravity re-auth needed | check named volumes: `docker volume ls \| grep -E 'gemini-config\|antigravity-secrets'` |

@@ -102,7 +102,7 @@ Antigravity configuration that the sync never touches.
 
 | Symptom | Fix |
 |---------|-----|
-| Build fails | `docker compose -f .devcontainer/docker-compose.yml build --no-cache` |
+| Build fails | From the repository root: `docker compose --env-file .devcontainer/.env -f .devcontainer/docker-compose.yml build --no-cache` |
 | Files invisible or container is unhealthy | A: use Reopen in Container. B: set `HOST_WORKSPACE_PATH` to a project path accessible to the Docker daemon. See [Configuration](REFERENCE.md#configuration-devcontainerenv). |
 | Reopen menu missing | Install the Dev Containers extension |
 | Claude re-auth needed | `docker volume ls \| grep claude-config` |
