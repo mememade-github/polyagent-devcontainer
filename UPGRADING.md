@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+`scripts/sync-agents-mirror.sh` no longer fails when the generated mirror
+contains the text `$CLAUDE_PROJECT_DIR` or `${CLAUDE_PROJECT_DIR}`; it copies
+such text verbatim like any other, and the fast checker no longer reports
+"mirror drift" for it. Take the new script, `completion-checker.sh`, and
+REFERENCE §Polyagent parity; no container rebuild is needed.
+
 `/refine` and its Stop-hook loop are removed. Consumers who copy template files
 must explicitly delete `.claude/skills/refine/` (and regenerate the mirror so
 `.agents/skills/refine/` disappears), `.claude/hooks/refinement-gate.sh`, and

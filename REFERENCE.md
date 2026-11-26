@@ -460,8 +460,10 @@ metadata and deletions, not just additions. Other `.agents/` entries
 files; the sync neither compares, checks for symlinks, nor removes them.
 Symlinks are rejected only in the two generated trees and their `.claude/`
 sources. `--dry` exits 0 and prints the number of differences; a failed
-`find`, `grep`, `diff` or `stat` exits 1 before any result is printed or any
-file is changed.
+`find`, `diff` or `stat` exits 1 before any result is printed or any file is
+changed. The sync copies file content verbatim and does not judge what it
+says; text that only one vendor can use must be made vendor-neutral in the
+`.claude/` source.
 
 ### Codex sandbox bypass (DevContainer only)
 

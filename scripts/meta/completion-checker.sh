@@ -103,7 +103,7 @@ end "leak scan"
 begin
 DRC=0; DRY=$(bash scripts/sync-agents-mirror.sh --dry 2>&1) || DRC=$?
 if [ "$DRC" -ne 0 ]; then
-  # Only the ERROR lines: the sync may quote matching file content after them.
+  # Only the ERROR lines; running the sync shows its full output.
   printf '%s\n' "$DRY" | grep '^ERROR:' >&2
   fail "sync-agents-mirror.sh --dry exited $DRC; mirror not compared (run it for detail)"
 elif ! printf '%s\n' "$DRY" | grep -q '^Dry run complete\. 0 change(s) detected\.$'; then

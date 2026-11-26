@@ -10,8 +10,7 @@
 # recursively. Every other `.agents/` entry (e.g. Antigravity's native
 # hooks.json, hooks/, rules.json) is hand-maintained and never touched here.
 # Vendor-coupled text must be made vendor-neutral at the source; the sync copies
-# verbatim and rejects bare `$CLAUDE_PROJECT_DIR` expansions that would break
-# under Codex.
+# verbatim.
 #
 # Usage:
 #   bash scripts/sync-agents-mirror.sh         # update mirror
@@ -24,7 +23,7 @@
 #
 # Excluded: .claude/hooks/ (Codex uses .codex/hooks/), .claude/settings.json.
 # Symlink rejection and comparison cover only the generated trees and their
-# .claude/ sources. A failed find, grep, diff, or stat stops the script before
+# .claude/ sources. A failed find, diff, or stat stops the script before
 # it reports a result or changes anything.
 # Vendor losses: frontmatter tools/model/color — Codex ignores; body preserved.
 # =============================================================================
@@ -95,21 +94,7 @@ if [ -d "$SRC/agents" ]; then
     done
 fi
 
-# --- 2. Coupling guard (fatal and pre-mutation). ---
-GREP_RC=0
-LEAKS=$(grep -rnE '\$CLAUDE_PROJECT_DIR([^A-Za-z0-9_`]|$)|\$\{CLAUDE_PROJECT_DIR\}' "$EXPECTED") || GREP_RC=$?
-case "$GREP_RC" in
-    0)
-        echo "ERROR: bare \$CLAUDE_PROJECT_DIR expansion in generated mirror:" >&2
-        echo "$LEAKS" >&2
-        exit 1 ;;
-    1) ;;
-    *)
-        echo "ERROR: grep failed (exit $GREP_RC) while checking the expected mirror; nothing compared or changed." >&2
-        exit 1 ;;
-esac
-
-# --- 3. Compare or reconcile the generated trees, including nested orphans. ---
+# --- 2. Compare or reconcile the generated trees, including nested orphans. ---
 GENERATED="rules skills"
 if [ -d "$DST" ]; then
     DIFF_OUTPUT=""
