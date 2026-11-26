@@ -21,13 +21,21 @@ DevContainer inside a VM or on a dedicated machine.
 
 ## Configuration (`.devcontainer/.env`)
 
-Template build and startup configuration lives in `.devcontainer/.env`;
-[Quick start](README.md#quick-start) covers initial setup
-(compose defaults apply when `.env` is absent). For every variable below
+Template build and startup configuration lives in `.devcontainer/.env`, a
+copy of `.devcontainer/.env.example`; [Quick start](README.md#quick-start)
+covers initial setup. The Compose commands in README and this file pass
+`--env-file .devcontainer/.env` and fail with `Couldn't find env file` when it
+is absent. `COMPOSE_PROJECT_NAME` is set only in that file: a Compose command
+run without it names the project, and the volume prefix, after the
+`.devcontainer` directory (`devcontainer`). For every variable below
 except `TYPESAFE_API_KEY`, a variable of the same name in the shell that runs
 `docker compose` takes precedence over the file's value.
 
-| Variable | Default | Used by | Purpose |
+The second column is the value in effect with an unedited copy of
+`.env.example`; where that file leaves a variable empty, the fallback in
+`docker-compose.yml` applies (`DNS_PRIMARY`).
+
+| Variable | With `.env.example` | Used by | Purpose |
 |----------|---------|---------|---------|
 | `COMPOSE_PROJECT_NAME` | `polyagent-devcontainer` | docker-compose.yml | Docker namespace |
 | `CONTAINER_NAME` | `polyagent-dev` | docker-compose.yml | Container name |
