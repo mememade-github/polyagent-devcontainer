@@ -105,4 +105,4 @@ drift, and other symptoms, see [REFERENCE troubleshooting](REFERENCE.md#troubles
 
 Licensed under the MIT License. See [LICENSE](LICENSE).
 
-Renamed from `claude-devcontainer` on 2026-04-30 when Codex parity was generalized into the Polyagent model. Git history is preserved.
+Formerly `claude-devcontainer`; Git history is preserved.
