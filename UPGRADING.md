@@ -236,6 +236,12 @@ gates, `.agents/hooks/claude-hooks-adapter.sh`, `.devcontainer/verify-template.s
 REFERENCE §Hooks and §Codex sandbox bypass. No container rebuild is needed:
 the hooks run from the mounted checkout.
 
+`.gitignore` now ignores every `.env.*` file except `.env.example` (in place of
+`.env.local` and `.env.*.local`), so another instance's env file such as
+`.devcontainer/.env.project-b` is no longer offered for commit; take the new
+line, no container rebuild is needed. Files already tracked stay tracked, and
+`git ls-files -ci --exclude-standard` lists any that the new line covers.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
