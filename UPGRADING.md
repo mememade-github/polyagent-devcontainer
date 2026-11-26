@@ -44,11 +44,10 @@ and `scripts/meta/lib/detect-root.sh` (and `scripts/meta/lib/` if it is now
 empty). Remove the checker call from `scripts/meta/completion-checker.sh` and
 the "karpathy pair" case from section [6/7] of `.devcontainer/verify-template.sh`,
 the `karpathy-guidelines` invocation from `AGENTS.md`, and the skill from README
-and REFERENCE skill lists. Replace the "Source of truth" blockquote of
-`.claude/rules/behavioral-core.md`, which named the skill and the check, with
-the source and license notice. After these edits, run
-`bash scripts/sync-agents-mirror.sh` so `.agents/skills/karpathy-guidelines/`
-disappears and `.agents/rules/behavioral-core.md` follows its source;
+and REFERENCE skill lists. The "Source of truth" blockquote of
+`.claude/rules/behavioral-core.md` named the skill and the check; that file is
+removed below. After these edits, run `bash scripts/sync-agents-mirror.sh` so
+`.agents/skills/karpathy-guidelines/` disappears;
 `bash scripts/sync-agents-mirror.sh --dry` then reports 0 changes. Any project
 script or setting that still calls the removed files breaks and must be changed
 with them.
@@ -61,6 +60,27 @@ which also moved the build context to the host path. Delete the rule file, run
 disappears, and drop its `@` import from `CLAUDE.md` and its read instruction
 from `AGENTS.md`. Set `HOST_WORKSPACE_PATH` alone when the daemon cannot see the
 container's paths.
+
+The shared duties and the four behavioral rules now have one hand-maintained
+source, `AGENTS.md`, which Codex loads by itself and Claude imports.
+`CLAUDE.md` keeps only `@AGENTS.md`, `@PROJECT.md`, and Claude Code specifics,
+and `.claude/rules/behavioral-core.md` is removed; its rules and the Karpathy
+source and license notice are now the "Behavioral rules" section of
+`AGENTS.md`. To adopt:
+
+1. Merge the duties of your `CLAUDE.md` into `AGENTS.md` once. A duty left in
+   both files is read twice by Claude, and a duty left only in `CLAUDE.md`
+   never reaches Codex or Antigravity.
+2. Reduce `CLAUDE.md` to the two imports plus anything that applies to Claude
+   Code alone.
+3. Delete `.claude/rules/behavioral-core.md` and run
+   `bash scripts/sync-agents-mirror.sh` so `.agents/rules/behavioral-core.md`
+   disappears.
+4. Keep `.agents/rules.json`. `AGENTS.md` now tells Codex to read `PROJECT.md`
+   and every `.md` file under `.agents/rules/project/` at session start, and
+   tells Antigravity to read `PROJECT.md`; keep those sentences if you rewrite
+   the file.
+5. Start new agent sessions. No container rebuild is needed.
 
 ## v3.3.3-rebuild
 

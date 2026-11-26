@@ -362,7 +362,7 @@ bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/ generated mir
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 
-`.claude/` is ground truth; `.agents/rules/` and `.agents/skills/` are
+`.claude/` is the source of `.agents/rules/` and `.agents/skills/`, which are
 generated. The sync copies content and file modes, and **prunes** entries in
 those two trees whose `.claude/` source was deleted, so the mirror tracks
 metadata and deletions, not just additions. Other `.agents/` entries

@@ -2,9 +2,9 @@
 
 DevContainer template for running multiple AI coding agents (Claude Code · Codex CLI · Antigravity CLI) in parity on the same project. The container is workspace-scoped, not a security sandbox — see [REFERENCE.md § Privilege boundary](REFERENCE.md#privilege-boundary) for the docker.sock / docker-group implications.
 
-Single ground truth (`.claude/`) + per-vendor mirror (`.agents/rules`, `.agents/skills`, `.codex/`). Antigravity reuses the same mirror plus a small native layer in `.agents/` (a hook adapter that runs the Claude hooks, and a rule-folder registration). Adding a new vendor reuses the mirror pattern instead of rewriting governance.
+Shared duties live in one hand-maintained `AGENTS.md` that all three agents read. `.claude/` is the source of the rules, skills, and roles from which `scripts/sync-agents-mirror.sh` generates `.agents/rules` and `.agents/skills`. `.codex/` and a small native layer in `.agents/` (a hook adapter that runs the Claude hooks, and a rule-folder registration) are hand-maintained per vendor. Adding a new vendor reuses `AGENTS.md` and the generated copies instead of rewriting governance.
 
-Behavioral foundation: [Karpathy 4-rule](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution) auto-loaded for Claude (`@import` in `CLAUDE.md`); for Codex, `AGENTS.md` instructs an explicit `Read` of the rule files under `.agents/rules/` at session start; Antigravity loads them automatically through their `trigger: always_on` frontmatter.
+Behavioral foundation: four rules adapted from [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (Think Before Coding · Simplicity First · Surgical Changes · Goal-Driven Execution), kept in `AGENTS.md` with the other shared duties. Claude reads `AGENTS.md` through `@AGENTS.md` in `CLAUDE.md`; Codex and Antigravity read `AGENTS.md` directly. Project rules in `.claude/rules/project/` load automatically for Claude, through `.agents/rules.json` for Antigravity, and for Codex because `AGENTS.md` tells it to read them at session start.
 
 ## Requirements
 
@@ -83,7 +83,7 @@ REFERENCE.md, .devcontainer/.env, and
 .claude/rules/project/. Verify with .devcontainer/verify-template.sh.
 ```
 
-During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/hooks/`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts. Keep the `trigger: always_on` frontmatter on the rule files and give every new rule in `.claude/rules/project/` the same three lines, or Antigravity silently skips that file; customize the six update targets named before “Verify with” in the prompt above, while `.devcontainer/verify-template.sh` is the verification command rather than an update target.
+During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/hooks/`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts. Start every rule file in `.claude/rules/project/` with the three frontmatter lines `---`, `trigger: always_on`, `---`, or Antigravity silently skips that file; customize the six update targets named before “Verify with” in the prompt above, while `.devcontainer/verify-template.sh` is the verification command rather than an update target.
 
 ## Vendor parity sync
 
@@ -92,7 +92,7 @@ bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/rules, .agents
 bash scripts/sync-agents-mirror.sh --dry   # diff only
 ```
 
-`.claude/` is the ground truth. `.agents/rules/` and `.agents/skills/` are
+`.claude/` is the source of the generated trees. `.agents/rules/` and `.agents/skills/` are
 generated with matching content and file modes; do not edit them by hand. The
 other `.agents/` files (`hooks.json`, `hooks/`, `rules.json`) are hand-maintained
 Antigravity configuration that the sync never touches.
