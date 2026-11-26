@@ -49,7 +49,9 @@ codex_clean_install() {
 }
 
 # Status codes (exit status of --update-only, read by setup-env.sh step 4):
-#   0  up to date: reinstalled to the latest version, or already at it
+#   0  reinstalled to the latest version, or already at it; or
+#      SKIP_CODEX_UPDATE=1, in which case the install was neither checked
+#      nor changed
 #   3  latest version not checked (npm missing, or registry unreachable while
 #      the real binary is executable); the current install is left as it is.
 #      Registry unreachable with no executable binary: a reinstall is tried.

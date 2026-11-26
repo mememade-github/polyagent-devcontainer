@@ -293,7 +293,8 @@ The template intentionally pulls latest releases at build/run time:
   updates the real binary with `npm install -g --prefix ~/.npm-global
   @openai/codex@latest`, unless `SKIP_CODEX_UPDATE=1` is set. Its exit status
   tells startup what happened: 0 when Codex was reinstalled or already matched
-  the latest version, 3 when the latest version could not be checked (npm
+  the latest version (or, with `SKIP_CODEX_UPDATE=1`, when the install was
+  neither checked nor changed), 3 when the latest version could not be checked (npm
   missing, or the registry unreachable while `~/.npm-global/bin/codex` is
   executable) and the install was left as it was, 4 when
   the reinstall failed and a working previous install was restored, and 5 when
