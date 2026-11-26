@@ -88,15 +88,8 @@ During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.age
 
 ## Vendor parity sync
 
-```bash
-bash scripts/sync-agents-mirror.sh         # .claude/ → .agents/rules, .agents/skills (prunes deleted-source orphans)
-bash scripts/sync-agents-mirror.sh --dry   # diff only
-```
-
-`.claude/` is the source of the generated trees. `.agents/rules/` and `.agents/skills/` are
-generated with matching content and file modes; do not edit them by hand. The
-other `.agents/` files (`hooks.json`, `hooks/`, `rules.json`) are hand-maintained
-Antigravity configuration that the sync never touches.
+After editing `.claude/`, run `bash scripts/sync-agents-mirror.sh` (`--dry` only
+reports drift). See [Polyagent parity](REFERENCE.md#polyagent-parity).
 
 ## Troubleshooting
 
