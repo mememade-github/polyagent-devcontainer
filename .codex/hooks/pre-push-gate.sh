@@ -16,17 +16,19 @@
 #      runs (fail-open is unchanged).
 #
 # Blocks:
-#  1. Text shaped like a plain force push (--force / -f / +refspec) after an
-#     unquoted `git ... push`, without a scoped single-use approval marker in
-#     the target repo root (.codex/state/allow-force-push.<remote>.<branch>),
+#  1. Force-push text (--force / -f / +refspec) after an unquoted standalone
+#     `push` word, up to the next ; | & ( ) or newline, without a single-use
+#     approval marker in the target repo root
+#     (.codex/state/allow-force-push.<remote>.<branch>),
 #     consumed on allow. Matching is on the text with quoted spans removed:
 #     force text inside quotes is ignored, but an unquoted `git push --force`
 #     blocks even where it is only printed (e.g. `echo git push --force ...`),
 #     while a push hidden in a variable, eval, alias or script file is not seen.
-#     <remote> is the first non-option word after `push`, else the upstream's
-#     remote, else origin. <branch> is the branch currently checked out in the
-#     target repo, as `git rev-parse --abbrev-ref HEAD` prints it (HEAD when
-#     detached or before the first commit, unknown when it prints nothing),
+#     <remote> is the first non-option word after `push` in the first such
+#     span, else the upstream's remote, else origin. <branch> is the branch
+#     currently checked out in the target repo, as `git rev-parse --abbrev-ref
+#     HEAD` prints it (HEAD when detached or before the first commit, unknown
+#     when it prints nothing),
 #     not the refspec named in the command. These fallbacks define the scope:
 #     no upstream (or an unreadable one) means origin.
 #     Decision: --force-with-lease passes WITHOUT a marker — it is the
@@ -87,8 +89,13 @@ if [ -n "$STORED" ]; then
 fi
 
 # Block 1: plain force push text requires a scoped single-use marker.
-TAIL=$(printf '%s' "${QUOTELESS//$'\n'/;}" | sed -E 's/.*\bpush\b//; s/[;|&()].*//') || not_checked "sed failed"
-match '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' "$TAIL" || exit 0
+SPANS=$(printf '%s' "${QUOTELESS//$'\n'/;}" | grep -oE '(^|[[:space:]])push([[:space:]][^;|&()]*|$)'); rc=$?
+[ "$rc" -le 1 ] || not_checked "grep exited $rc"
+TAIL=""
+while IFS= read -r S; do
+  match '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' "${S#*push}" && { TAIL=${S#*push}; break; }
+done <<< "$SPANS"
+[ -n "$TAIL" ] || exit 0
 
 REMOTE=""
 for w in $TAIL; do case "$w" in -*|+*) ;; *) REMOTE="$w"; break ;; esac; done

@@ -132,6 +132,8 @@ else
         try 0 "$V pre-push: plain push allowed"                      "$PPG" "$R" 'git push origin main'
         try 0 "$V pre-push: force-with-lease allowed without marker" "$PPG" "$R" 'git push --force-with-lease origin main'
         try 2 "$V pre-push: force push without marker blocked"       "$PPG" "$R" 'git push --force origin main'
+        try 2 "$V pre-push: force push before a later push blocked"  "$PPG" "$R" 'git push --force origin feature/push; git push origin x'
+        try 0 "$V pre-push: push word inside a ref name not force"   "$PPG" "$R" 'git push origin feature/push-fix'
         if mkdir -p "${FM%/*}" && touch "$FM"; then
             try 0 "$V pre-push: force push with single-use marker allowed" "$PPG" "$R" 'git push --force origin main'
             [ ! -f "$FM" ] && pass "$V pre-push: marker consumed on allow" || fail "$V pre-push: marker not consumed"

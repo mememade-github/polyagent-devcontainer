@@ -366,14 +366,16 @@ the shell will run. It blocks (exit 2) only on a match: a credential pattern
 in the raw text of any command (including `git commit`), a literal credential
 in the `remote.*`, `url.*`, or `credential.*` git config visible from the
 target repository when the text contains `git … push`, or force-push text
-(`--force`, `-f`, `+refspec` after `git … push`) without a single-use approval
-marker. Quoted spans are removed before the push and force checks, so
+(`--force`, `-f`, `+refspec`) without a single-use approval marker, in a
+command with `git … push` text. Force text counts after any unquoted
+standalone `push` word, up to the next `;`, `|`, `&`, `(`, `)` or newline. Quoted spans are removed before the push and force checks, so
 `echo "git push --force origin main"` is not blocked, while unquoted text blocks even when the command only prints it
 (`echo git push --force origin main`). A push hidden in a variable, `eval`, an
 alias, or a script file is not seen. The target repository is the path of a
 literal `git -C <path>`, else `CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`),
 else the current directory. The approval marker and the block message name
-the remote (the first non-option word after `push`, else the upstream's
+the remote (the first non-option word after `push` in the first span with
+force text, else the upstream's
 remote, else `origin`) and the branch checked out in the
 target repository as `git rev-parse --abbrev-ref HEAD` prints it (`HEAD`
 when detached or before the first commit, `unknown` when it prints nothing),

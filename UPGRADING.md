@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+The pre-push gates now check every span from an unquoted `push` word to the
+next `;`, `|`, `&`, `(`, `)` or newline instead of only the text after the
+last `push`, so `git push --force origin feature/push` and a force push
+followed by another push now block, and `git push origin feature/push-fix` no
+longer does; take both gates and REFERENCE §Hooks, no rebuild needed.
+
 `scripts/sync-agents-mirror.sh` no longer fails when the generated mirror
 contains the text `$CLAUDE_PROJECT_DIR` or `${CLAUDE_PROJECT_DIR}`; it copies
 such text verbatim like any other, and the fast checker no longer reports
