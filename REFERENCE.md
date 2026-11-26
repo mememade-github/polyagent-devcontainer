@@ -184,7 +184,6 @@ A also has these declarations in `devcontainer.json`:
 | `shutdownAction: stopCompose` | `devcontainer.json` `shutdownAction` |
 | Host `~/.ssh` bind to `/home/vscode/.ssh` | `devcontainer.json` `mounts` |
 | `NODE_OPTIONS=--max-old-space-size=4096` | `devcontainer.json` `containerEnv` |
-| `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0` | `devcontainer.json` `remoteEnv` |
 | VS Code editor settings and four extensions | `devcontainer.json` `customizations.vscode` |
 
 For configuration values and workspace path conditions, see

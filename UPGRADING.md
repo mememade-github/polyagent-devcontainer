@@ -97,6 +97,13 @@ describes the resulting behavior; this section lists only what to do.
    - Configuration and documents: `.codex/config.toml`, `.gitignore`,
      `.gitattributes`, README, REFERENCE, and the `AGENTS.md` and `CLAUDE.md`
      of step 2.
+   - Automatic memory: `.claude/settings.json` (`env`) and
+     `.devcontainer/devcontainer.json` (`remoteEnv`) no longer set
+     `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0`, which forced Claude Code's
+     automatic memory on. The default is still on, and a user setting that
+     turns it off (`autoMemoryEnabled: false`, `--bare`) now takes effect.
+     A project that wants it forced on keeps that variable in its own
+     settings. On path A this takes effect after the rebuild of step 10.
 
 7. **Regenerate the mirror** once, after steps 2 to 6:
    `bash scripts/sync-agents-mirror.sh`. It removes `.agents/skills/refine/`,
@@ -129,14 +136,18 @@ describes the resulting behavior; this section lists only what to do.
    `*.yml`, `*.yaml`, `.gitattributes` and `.gitignore` LF;
    `git add --renormalize .` stages any of them stored with CRLF.
 
-10. **Rebuild only for the image files.** The image copies `setup-env.sh`,
-    `codex-launcher.sh` and `entrypoint.sh` into `/usr/local/bin/`, and the
-    Dockerfile creates the `~/.codex` mount point. Rebuild the image and
-    recreate the container for those (A: **Dev Containers: Rebuild
-    Container**; B: the `up -d --build --force-recreate` command in REFERENCE
-    §DevContainer lifecycle). An existing `codex-config` volume keeps its
-    owner. Everything else runs from the mounted checkout: start new agent
-    sessions, and on Codex review the changed hooks in `/hooks`.
+10. **Rebuild only for the image files and path A's configuration.** The
+    image copies `setup-env.sh`, `codex-launcher.sh` and `entrypoint.sh` into
+    `/usr/local/bin/`, and the Dockerfile creates the `~/.codex` mount point.
+    Rebuild the image and recreate the container for those (A: **Dev
+    Containers: Rebuild Container**; B: the `up -d --build --force-recreate`
+    command in REFERENCE §DevContainer lifecycle). On A the same rebuild
+    applies the `devcontainer.json` of step 6; until then, terminals of the
+    existing container and every process started from them, Claude
+    sessions included, keep `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0`. An
+    existing `codex-config` volume keeps its owner. Everything else runs
+    from the mounted checkout: start new agent sessions, and on Codex review
+    the changed hooks in `/hooks`.
 
 11. **Check.** Run `bash scripts/meta/completion-checker.sh` and
     `bash .devcontainer/verify-template.sh`. They check the files and feed
