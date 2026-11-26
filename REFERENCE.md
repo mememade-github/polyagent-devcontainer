@@ -229,8 +229,10 @@ shells.
 When a command in the file exits non-zero, or the file has a syntax error,
 `setup-env.sh` stops at that point. On a start through the entrypoint, the
 container's command starts anyway after
-`[entrypoint] WARN: setup-env.sh exited with error (non-fatal)`; neither Bash
-nor the entrypoint names the failed command. The healthcheck does not reflect
+`[entrypoint] WARN: setup-env.sh exited with error (non-fatal)`. The
+entrypoint does not name the failed command; Bash names it only when it
+reports the error itself, as for a command that is not found, so a command
+that exits non-zero without a message, such as `false`, leaves no name. The healthcheck does not reflect
 the failure.
 
 ## Persistent volumes
