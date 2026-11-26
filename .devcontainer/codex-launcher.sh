@@ -12,7 +12,9 @@ codex_real_version() {
 
 codex_latest_version() {
     command -v npm >/dev/null 2>&1 || return 0
-    npm view @openai/codex version 2>/dev/null || true
+    # A failed lookup yields nothing, even if npm printed a version first.
+    out=$(npm view @openai/codex version 2>/dev/null) || return 0
+    printf '%s\n' "$out"
 }
 
 codex_healthy() {
@@ -45,9 +47,16 @@ codex_clean_install() {
     return 1
 }
 
+# Status codes (exit status of --update-only, read by setup-env.sh step 4):
+#   0  up to date: reinstalled to the latest version, or already at it
+#   3  latest version not checked (npm missing or registry unreachable);
+#      the current install is left as it is
+#   4  reinstall failed; the previous install was restored and runs
+#   5  reinstall failed; no working codex is installed
+# Any other non-zero status is an unexpected failure.
 codex_update_if_needed() {
     [ "${SKIP_CODEX_UPDATE:-}" = "1" ] && return 0
-    command -v npm >/dev/null 2>&1 || return 0
+    command -v npm >/dev/null 2>&1 || return 3
     mkdir -p "$CODEX_NPM_PREFIX"
 
     current="$(codex_real_version)"
@@ -58,17 +67,18 @@ codex_update_if_needed() {
     # delete the old package and then fail (no registry), removing codex
     # entirely. Never delete while offline.
     if [ -z "$latest" ] && [ -x "$CODEX_REAL_BIN" ]; then
-        return 0
+        return 3
     fi
-    # Version drift OR half-install (unhealthy) -> clean reinstall. Do not let a
-    # failed reinstall abort under set -e: codex_clean_install restores the prior
-    # install on failure, and the functional gate below is the real arbiter.
+    # Version drift OR half-install (unhealthy) -> clean reinstall. A failed
+    # reinstall must not abort under set -e: codex_clean_install restores the
+    # prior install on failure, and running the binary decides between 4 and 5.
     if [ -z "$latest" ] || ! codex_healthy || { [ -n "$current" ] && [ "$current" != "$latest" ]; }; then
-        codex_clean_install || true
+        codex_clean_install && return 0
+        codex_healthy && return 4
+        return 5
     fi
     # Functional gate: npm can exit 0 yet leave a half-install on 9p, so judge
-    # by actually running the binary. This return propagates through
-    # --update-only to setup-env's WARN + npm-log-tail path.
+    # by actually running the binary.
     codex_healthy
 }
 
@@ -86,7 +96,17 @@ if [ "${1:-}" = "--update-only" ]; then
     exit $?
 fi
 
-codex_update_locked >/dev/null 2>&1 || true
+# Keep npm output out of the session; stdout belongs to codex (`codex exec`
+# output is piped). A failed reinstall gets one line on stderr; a skipped or
+# unchecked update stays quiet.
+update_status=0
+codex_update_locked >/dev/null 2>&1 || update_status=$?
+case "$update_status" in
+    0|3) ;;
+    4) echo "codex launcher: update failed; running previous codex $(codex_real_version)" >&2 ;;
+    5) echo "codex launcher: update failed; no working codex is installed" >&2 ;;
+    *) echo "codex launcher: update failed (status $update_status)" >&2 ;;
+esac
 
 if [ ! -x "$CODEX_REAL_BIN" ]; then
     echo "codex launcher: missing executable: $CODEX_REAL_BIN" >&2

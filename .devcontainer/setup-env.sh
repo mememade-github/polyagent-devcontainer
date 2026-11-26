@@ -115,7 +115,9 @@ fi
 # =============================================================================
 # Parity with Claude (step 3): keep the Codex CLI current on each container
 # start instead of frozen at the image-build snapshot. Failure is soft (does
-# not block startup). Skip with SKIP_CODEX_UPDATE=1.
+# not block startup) but visible: "already latest" is printed only when the
+# latest version was checked. An unchecked latest version or a failed reinstall
+# prints a WARN. Skip with SKIP_CODEX_UPDATE=1.
 #
 # Do NOT use `codex update`: its built-in updater runs `npm install -g
 # @openai/codex` against the default global prefix, which the unprivileged
@@ -154,17 +156,34 @@ elif [ "${SKIP_CODEX_UPDATE:-}" = "1" ]; then
 else
     BEFORE=$(codex_version)
     CODEX_UPDATE_LOG=$(mktemp)
-    if "$CODEX_LAUNCHER" --update-only >"$CODEX_UPDATE_LOG" 2>&1; then
-        AFTER=$(codex_version)
-        if [ "$BEFORE" = "$AFTER" ]; then
-            echo "      $AFTER (already latest)"
-        else
-            echo "      $BEFORE → $AFTER"
-        fi
-    else
-        echo "      WARN: Codex update failed; continuing with ${BEFORE:-unknown}"
-        tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
-    fi
+    # Status codes are defined in codex-launcher.sh above codex_update_if_needed.
+    CODEX_UPDATE_STATUS=0
+    "$CODEX_LAUNCHER" --update-only >"$CODEX_UPDATE_LOG" 2>&1 || CODEX_UPDATE_STATUS=$?
+    AFTER=$(codex_version)
+    case "$CODEX_UPDATE_STATUS" in
+        0)
+            if [ "$BEFORE" = "$AFTER" ]; then
+                echo "      $AFTER (already latest)"
+            else
+                echo "      $BEFORE → $AFTER"
+            fi
+            ;;
+        3)
+            echo "      WARN: could not check the latest Codex version (npm missing or registry unreachable); continuing with ${AFTER:-unknown}"
+            ;;
+        4)
+            echo "      WARN: Codex reinstall failed; restored previous ${AFTER:-unknown}"
+            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
+            ;;
+        5)
+            echo "      WARN: Codex reinstall failed; no working codex is installed"
+            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
+            ;;
+        *)
+            echo "      WARN: Codex update failed (status $CODEX_UPDATE_STATUS); continuing with ${AFTER:-unknown}"
+            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
+            ;;
+    esac
     rm -f "$CODEX_UPDATE_LOG"
 fi
 

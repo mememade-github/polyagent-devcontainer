@@ -193,6 +193,25 @@ last 20 lines of its output, and startup continues as before. Take the new
 policy. The image copies `setup-env.sh` to `/usr/local/bin/`, so rebuild the
 container for the new startup output.
 
+The Codex launcher (`.devcontainer/codex-launcher.sh`) and startup step 4 no
+longer report "already latest" when the latest version was not checked or a
+reinstall failed. Before, `--update-only` exited 0 when npm was missing, when
+the registry was unreachable, and when a failed reinstall was rolled back to a
+working previous install. Now `--update-only` exits 0 (reinstalled or already
+at the latest version), 3 (latest version not checked; the install is left as
+it was, working or not), 4 (reinstall failed; a working previous install was
+restored), or 5 (reinstall failed; no working `codex`), and step 4 prints a
+WARN for every status but 0. A normal `codex` run prints one line on stderr
+when the reinstall fails and nothing more on stdout. Restoring the previous
+install, the offline guard, and the update lock are unchanged. A script of
+your own that called `codex-launcher --update-only` and treated any non-zero
+status as a missing `codex` must now read 4 as "a working previous `codex` was
+restored" and 3 as "nothing was checked or changed", and run the binary itself
+when it needs to know whether it works. Take the new launcher and
+`setup-env.sh` with REFERENCE §DevContainer lifecycle and §Tool versioning
+policy, and rebuild the container: the image copies both files to
+`/usr/local/bin/`.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

@@ -115,7 +115,9 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
                               version in use, and the output tail
                               (skip with SKIP_CLAUDE_UPDATE=1)
         [4/6] Codex CLI      — reconcile PATH-first launcher, then refresh the
-                              real ~/.npm-global/bin/codex with npm --prefix
+                              real ~/.npm-global/bin/codex with npm --prefix;
+                              an unchecked latest version or a failed
+                              reinstall prints a WARN
                               (skip with SKIP_CODEX_UPDATE=1)
         [5/6] Codex config   — validate project config; preserve user config without copying
         [6/6] Antigravity    — `agy update`; a failure prints a WARN and the
@@ -240,8 +242,20 @@ The template intentionally pulls latest releases at build/run time:
 - **Codex update**: every container start reconciles the launcher symlinks and
   delegates refresh to `/usr/local/bin/codex-launcher --update-only`, which
   updates the real binary with `npm install -g --prefix ~/.npm-global
-  @openai/codex@latest`, unless `SKIP_CODEX_UPDATE=1` is set. The same launcher
-  performs the preflight before every new `codex` process. Codex's built-in
+  @openai/codex@latest`, unless `SKIP_CODEX_UPDATE=1` is set. Its exit status
+  tells startup what happened: 0 when Codex was reinstalled or already matched
+  the latest version, 3 when the latest version could not be checked (npm
+  missing or registry unreachable) and the install was left as it was, 4 when
+  the reinstall failed and a working previous install was restored, and 5 when
+  the reinstall failed and no working `codex` is installed. Startup prints "already
+  latest" only for 0 with an unchanged version; 3, 4, 5, and any other status
+  print a WARN, and 4, 5, and other statuses add the tail of the npm output.
+  Startup continues in every case. A failed reinstall moves the previous
+  package aside first and restores it, and with the registry unreachable an
+  existing executable is never removed. The same launcher
+  performs the preflight before every new `codex` process; there a failed
+  reinstall prints one line on stderr, nothing is added to stdout, and a
+  skipped or unchecked update is silent. Codex's built-in
   `codex update` is **not** used: it targets the root-owned default npm prefix
   (`/usr/lib/node_modules`) and fails as the unprivileged `vscode` user.
 - **Antigravity updates**: `agy update` runs on every container start
