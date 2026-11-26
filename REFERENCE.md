@@ -336,8 +336,9 @@ Current Codex supports in-process subagents and project
 skills for portable discovery. Independent evaluation uses
 `scripts/meta/run-isolated-role.sh evaluate` in a fresh `codex exec --ephemeral`
 process supplied with the evaluator role body, authorized request, acceptance
-conditions, actual diff, relevant repository facts, execution evidence,
-repository location, and report destination, without the modifier's reasoning.
+conditions, actual diff, relevant repository facts, execution evidence, and
+repository location in the prompt file, without the modifier's reasoning; the
+helper appends the report destination (its `<output-file>` argument) to the prompt.
 The report destination must be outside the repository or gitignored. The helper
 clears any previous report before execution and fails on process failure or a
 missing or empty report, without validating report content or format.

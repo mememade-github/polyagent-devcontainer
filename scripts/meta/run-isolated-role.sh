@@ -2,6 +2,8 @@
 # Run Codex evaluation in a fresh context outside the repository.
 # Reports must be outside the repository or gitignored.
 # Clear prior report contents before execution.
+# The evaluator receives the prompt file followed by one line naming the report
+# path, so the caller need not repeat it in the prompt.
 set -euo pipefail
 
 ROLE="${1:-}"
@@ -69,7 +71,9 @@ else
     ARGS+=(--sandbox workspace-write --add-dir "$(dirname "$OUTPUT_FILE")")
 fi
 
-if "$CODEX_BIN" "${ARGS[@]}" - < "$PROMPT_FILE" >/dev/null; then
+if { cat "$PROMPT_FILE" &&
+     printf '\nWrite the evaluation report to %s. This path overrides any other report path given above.\n' "$OUTPUT_FILE"; } |
+    "$CODEX_BIN" "${ARGS[@]}" - >/dev/null; then
     :
 else
     STATUS=$?
