@@ -82,6 +82,17 @@ source and license notice are now the "Behavioral rules" section of
    the file.
 5. Start new agent sessions. No container rebuild is needed.
 
+The evaluation duty in `AGENTS.md` now states its boundaries: a change is
+meaningful when it alters behavior, a duty, an interface, an operating
+procedure, or a generation relationship, including in documentation alone,
+and an evaluation is incomplete when no fresh evaluator context can be created,
+when no report is left, or when the report does not judge the actual diff.
+`.claude/agents/evaluator.md` drops `maxTurns: 20` (a full-repository
+evaluation once hit that limit and ended without a report) and says an
+unavailable fresh context means an incomplete evaluation. Copy both changes and run
+`bash scripts/sync-agents-mirror.sh` to regenerate
+`.agents/skills/evaluator/SKILL.md`.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

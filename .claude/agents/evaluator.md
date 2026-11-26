@@ -3,7 +3,6 @@ name: evaluator
 description: Independent, context-isolated evaluation of authorized outcomes from observed evidence.
 tools: ["Read", "Write", "Bash", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
-maxTurns: 20
 color: yellow
 ---
 
@@ -19,7 +18,7 @@ Claude Code runs this role in a fresh evaluator subagent. Antigravity uses a fre
 
 Codex runs `scripts/meta/run-isolated-role.sh evaluate` in a fresh `codex exec --ephemeral` process outside the repository, with user configuration and hooks disabled. Supply this role body and the permitted inputs in the prompt file. The report destination must be outside the repository or gitignored. The helper clears any previous report before execution and fails on process failure or a missing or empty report; it does not validate report content or format. Its DevContainer sandbox-bypass fallback preserves compatibility where bubblewrap is unavailable and is not a security boundary.
 
-If a fresh evaluator context is unavailable, report that limitation; do not describe an in-context review as isolated.
+If a fresh evaluator context is unavailable, the evaluation is incomplete: report that limitation, and do not describe an in-context review as isolated or as a completed evaluation.
 
 ## Judgment
 
