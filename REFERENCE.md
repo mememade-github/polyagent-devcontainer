@@ -422,7 +422,13 @@ writes `pre-push gate: not checked: <cause>` to stderr and does not block. The C
 defines as a non-blocking error for PreToolUse. The Codex gate exits 0,
 because the Codex hooks documentation defines only exit 0 and exit 2 for
 PreToolUse, so on Codex an unchecked command has the same exit code as a
-checked one. No hook requires a verification step before a commit, and none
+checked one. In the sessions observed (Claude Code 2.1.332, codex-cli 0.172.0,
+agy 1.5.18) the line never reached the agent: Claude Code recorded it as a hook
+error in its debug log and `stream-json` hook events, `codex exec` showed it
+nowhere in its output, and Antigravity wrote it only to its own log file
+(`--log-file`). To learn whether the gate checked a command, read the Claude Code or
+Antigravity record; the observed `codex exec` output does not tell an
+unchecked command from a checked one. No hook requires a verification step before a commit, and none
 scans file contents.
 
 Codex project trust and hook review are covered in
