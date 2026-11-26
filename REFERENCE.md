@@ -85,18 +85,20 @@ docker inspect <container_name> \
   --format '{{range .Mounts}}{{if eq .Destination "/workspaces"}}{{.Source}}{{end}}{{end}}'
 ```
 
-## Runtime isolation
+## Runtime layout
 
 ```
-AI agent infrastructure (kept separate from project code):
+AI agent infrastructure:
   Claude Code → native binary (~/.local/bin/claude, auto-updated)
-  Codex CLI   → npm global (~/.npm-global/bin/codex)
+  Codex CLI   → npm global (~/.npm-global/bin/codex), a `#!/usr/bin/env node`
+                script run by the first `node` on PATH
   Antigravity → native binary (~/.local/bin/agy, self-updating)
-  Node.js     → Node 22 LTS for Codex CLI infrastructure
+  Node.js     → Node 22 LTS at /usr/bin/node
   Python      → system python3 + uv (general development)
 
 Project code (when PROJECT_NODE_VERSION is set):
-  Node.js → project-node (nvm alias, .nvmrc auto-applied)
+  Node.js → project-node (nvm alias; interactive bash runs `nvm use`,
+            which applies .nvmrc when present)
   Python  → install via deadsnakes / pyenv / etc.
   Other   → Go, Rust, etc. installed freely.
 
@@ -104,6 +106,15 @@ Aliases:
   project-node → Node ${PROJECT_NODE_VERSION}
   default      → project-node
 ```
+
+With `PROJECT_NODE_VERSION` set, interactive bash (`vscode`'s shell and the
+VS Code terminal's default profile) puts the project Node first on PATH, so
+`node`, `npm`, and Codex with its launcher's npm update run on the project
+Node there, and so does any shell or script started from it, because it
+inherits that PATH. Processes started without that PATH keep Node 22: the
+startup setup, and a non-interactive bash or a zsh started directly by
+`docker exec`. Without `PROJECT_NODE_VERSION`, nvm is not installed and
+`node` is Node 22.
 
 ## DevContainer lifecycle
 

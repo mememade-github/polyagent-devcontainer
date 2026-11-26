@@ -8,7 +8,9 @@
 #   Claude Code — native binary (~/.local/bin/claude, auto-updated)
 #   Codex CLI   — npm global (~/.npm-global/bin/codex)
 #   Antigravity — native binary (~/.local/bin/agy, self-updating)
-#   Node.js     — Node 22 LTS for Codex CLI infrastructure
+#   Node.js     — Node 22 LTS; Codex runs on the first node on PATH, the project
+#                 Node in interactive bash when PROJECT_NODE_VERSION is set
+#                 (REFERENCE §Runtime layout)
 #   Python      — system python3 + uv (general development)
 #   Project Node.js can be installed via PROJECT_NODE_VERSION
 # =============================================================================
