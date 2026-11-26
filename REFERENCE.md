@@ -585,7 +585,7 @@ evidence that a rule loads.
 | Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
-| Git permission errors | `git config core.filemode false` |
+| Files with only a mode change show as modified in a repository cloned under `/workspaces` after the container started | `git config core.filemode false` in that repository; restarting the container also works outside `node_modules` and `.venv` |
 | `.agents/` drift | `bash scripts/sync-agents-mirror.sh` |
 
 ## Shared status and verification
