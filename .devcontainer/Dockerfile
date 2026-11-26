@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Python — general development
     python3 python3-pip python3-venv \
     # bubblewrap — Codex CLI sandbox runtime (cannot create namespaces under Docker's default seccomp profile;
-    # vendored fallback used at runtime, but installation removes the PATH warning)
+    # see REFERENCE.md §Codex sandbox bypass)
     bubblewrap \
     docker.io \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
