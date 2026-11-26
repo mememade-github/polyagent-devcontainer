@@ -606,11 +606,9 @@ project can replace it with its own extended regexes in
 `.env/leak-patterns`. Matches report filenames without copying secret values.
 A pattern file that exists as a directory entry must be readable, and
 `scripts/meta/leak-patterns.txt` must hold at least one pattern; otherwise the
-scan fails. The scan also fails when `git grep` exits above 1 or writes any
-error, including for a pattern it rejects or a tracked file it cannot read; its
-messages are not printed because they can quote the patterns. The checker
-prints which pattern source it used and whether `.env/leak-patterns` was
-present; a local file it cannot see is reported as `none`. An
-`.env/leak-patterns` with no patterns adds nothing. Repositories that already own
+scan fails. A `git grep` error, such as a pattern it rejects or a tracked file
+it cannot read, also fails the scan; its messages are not printed because they
+can quote the patterns. In the checker's `Leak patterns:` line, a local file it
+cannot see is reported as `none`. Repositories that already own
 `scripts/meta/verify-env-sync.sh` run it when their `.env` exists. Others have no
 additional synchronization check.
