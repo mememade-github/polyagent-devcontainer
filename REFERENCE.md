@@ -219,12 +219,11 @@ variables it exports do not reach the container's main process or later
 shells.
 
 When a command in the file exits non-zero, or the file has a syntax error,
-`setup-env.sh` stops at that point and does not print "Setup Complete!". On a
-start through the entrypoint, the log then shows
-`[entrypoint] WARN: setup-env.sh exited with error (non-fatal)`, preceded by
-Bash's message for a syntax error but by no message naming a failed command,
-and the container's command starts anyway. The healthcheck does not reflect
-the failure. An `exit 0` in the file ends the setup with no message.
+`setup-env.sh` stops at that point. On a start through the entrypoint, the
+container's command starts anyway after
+`[entrypoint] WARN: setup-env.sh exited with error (non-fatal)`; neither Bash
+nor the entrypoint names the failed command. The healthcheck does not reflect
+the failure.
 
 ## Persistent volumes
 
