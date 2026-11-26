@@ -545,7 +545,8 @@ evidence that a rule loads.
 ## Shared status and verification
 
 `scripts/git/git-status.sh` and `scripts/meta/completion-checker.sh` are maintained
-here. Receivers take these files unchanged when updating their base. Status finds
+here. Each receiving project decides when to adopt a new version and may keep its
+own changes; contract changes are listed in [UPGRADING.md](UPGRADING.md). Status finds
 nested Git repositories and worktrees, excluding `node_modules` and `.venv`.
 Full and brief output show each repository’s branch, changes and upstream state.
 
