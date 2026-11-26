@@ -10,8 +10,8 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || { echo "FAIL: cannot cd to $ROOT" >&2; exit 1; }
-FAIL=0; CUR=0; PASSED=""; FAILED=""; SKIPPED=""
-fail() { echo "FAIL: $1" >&2; FAIL=1; CUR=1; }
+CUR=0; PASSED=""; FAILED=""; SKIPPED=""
+fail() { echo "FAIL: $1" >&2; CUR=1; }
 begin() { CUR=0; }
 end() { if [ "$CUR" -eq 0 ]; then PASSED="$PASSED, $1"; else FAILED="$FAILED, $1"; fi; }
 
@@ -127,7 +127,7 @@ fi
 
 echo "Leak patterns: $PATTERNS; local .env/leak-patterns: $LOCAL"
 [ -z "$SKIPPED" ] || echo "NOT CHECKED: ${SKIPPED#, }"
-if [ "$FAIL" -ne 0 ]; then
+if [ -n "$FAILED" ]; then
   echo "FAILED: ${FAILED#, }${PASSED:+; passed: ${PASSED#, }}"
   exit 1
 fi
