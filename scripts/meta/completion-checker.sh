@@ -15,11 +15,13 @@ begin() { CUR=0; }
 end() { if [ "$CUR" -eq 0 ]; then PASSED="$PASSED, $1"; else FAILED="$FAILED, $1"; fi; }
 
 begin
-if SH_FILES=$(git ls-files -- '*.sh'); then
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
+# NUL-separated, so paths arrive as they are, not quoted per core.quotepath.
+SH_FILES=()
+while IFS= read -r -d '' f; do SH_FILES+=("$f"); done < <(git ls-files -z -- '*.sh')
+if wait "$!"; then
+  for f in ${SH_FILES[@]+"${SH_FILES[@]}"}; do
     bash -n "$f" 2>/dev/null || fail "bash -n $f"
-  done <<< "$SH_FILES"
+  done
 else
   fail "git ls-files failed; shell syntax not checked"
 fi
