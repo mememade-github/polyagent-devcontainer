@@ -188,6 +188,29 @@ Every Compose command selects that file with `--env-file`.
 
 See [Persistent volumes](#persistent-volumes) for volume deletion behavior.
 
+### Project setup file
+
+After step 6, `setup-env.sh` sources `/usr/local/bin/setup-env.project.sh` if
+that file exists. The template image does not contain it. A project that needs
+its own startup steps keeps the script as `.devcontainer/setup-env.project.sh`,
+adds `COPY setup-env.project.sh /usr/local/bin/` to the Dockerfile next to the
+`setup-env.sh` copy, and rebuilds; edits to the file take effect only after a
+rebuild.
+
+The file then runs on every container start, at the end of `setup-env.sh` and
+in the same Bash process, and on path A once more through `postCreateCommand`.
+It runs under `setup-env.sh`'s `set -e`, an `exit` in it ends the setup, and
+variables it exports do not reach the container's main process or later
+shells.
+
+When a command in the file exits non-zero, or the file has a syntax error,
+`setup-env.sh` stops at that point and does not print "Setup Complete!". On a
+start through the entrypoint, the log then shows
+`[entrypoint] WARN: setup-env.sh exited with error (non-fatal)`, preceded by
+Bash's message for a syntax error but by no message naming a failed command,
+and the container's command starts anyway. The healthcheck does not reflect
+the failure. An `exit 0` in the file ends the setup with no message.
+
 ## Persistent volumes
 
 | Volume | Mount | Purpose |
