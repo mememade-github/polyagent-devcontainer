@@ -28,7 +28,9 @@
 #     HEAD` prints it (HEAD when detached or before the first commit, unknown
 #     when it prints nothing),
 #     not the refspec named in the command. These fallbacks define the scope:
-#     no upstream (or an unreadable one) means origin.
+#     no upstream (or an unreadable one) means origin. The marker name turns
+#     each run of characters outside [A-Za-z0-9._-] into `_`, so names such as
+#     feature/a and feature_a share one marker.
 #     Decision: --force-with-lease passes WITHOUT a marker — it is the
 #     narrower alternative and fails instead of clobbering remote work it
 #     has not seen.
@@ -65,7 +67,9 @@ fi
 QUOTELESS=$(printf '%s' "$COMMAND" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g") || not_checked "sed failed"
 match '(^|[;&|([:space:]])git[[:space:]]([^;|&]*[[:space:]])?push([[:space:];|&)]|$)' "$QUOTELESS" || exit 0
 
-# Resolve the target repo: honor a clear `git -C <path>`, else the session dir.
+# Resolve the target repo: `git -C <path>` up to the first space ; | or &,
+# quotes removed (a path with a space is cut there; the repo containing the cut
+# path is used, or none is found and it is not checked), else the session dir.
 TARGET_DIR=$(printf '%s' "$COMMAND" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p') || not_checked "sed failed"
 TARGET_DIR=${TARGET_DIR%%$'\n'*}
 TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)') TARGET_DIR=$PWD ;; '$CLAUDE_PROJECT_DIR'|'${CLAUDE_PROJECT_DIR}') TARGET_DIR="${CLAUDE_PROJECT_DIR:-.}" ;; esac

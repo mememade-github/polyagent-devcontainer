@@ -371,8 +371,12 @@ command with `git … push` text. Force text counts after any unquoted
 standalone `push` word, up to the next `;`, `|`, `&`, `(`, `)` or newline. Quoted spans are removed before the push and force checks, so
 `echo "git push --force origin main"` is not blocked, while unquoted text blocks even when the command only prints it
 (`echo git push --force origin main`). A push hidden in a variable, `eval`, an
-alias, or a script file is not seen. The target repository is the path of a
-literal `git -C <path>`, else `CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`),
+alias, or a script file is not seen. The target repository is the text after
+a literal `git -C` up to the first space, `;`, `|` or `&`, with quotes removed;
+a quoted path with a space is cut there, and the gate uses the repository that
+contains the cut path or, when there is none, reports
+`no git repository found at <cut path>` as not checked. Without `git -C` it is
+`CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`),
 else the current directory. The approval marker and the block message name
 the remote (the first non-option word after `push` in the first span with
 force text, else the upstream's
@@ -381,7 +385,10 @@ target repository as `git rev-parse --abbrev-ref HEAD` prints it (`HEAD`
 when detached or before the first commit, `unknown` when it prints nothing),
 not the branch named in the command's refspec. These fallbacks are the scope
 itself: when no upstream remote can be read, the remote is `origin`. The
-block message shows that scope, and the marker it names approves it.
+block message shows that scope, and the marker it names approves it. The
+marker name turns each run of characters outside `[A-Za-z0-9._-]` into `_`,
+so branches such as `feature/a` and `feature_a` share one marker: a marker
+created for one approves a force push from the other.
 
 Exit 0 means the gate did not block: it checked and found no match, or the
 command has no `git … push` text. It is not an approval and not evidence that
