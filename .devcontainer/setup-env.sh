@@ -86,10 +86,8 @@ fi
 # =============================================================================
 # 3. Claude CLI — idempotent latest-version sync
 # =============================================================================
-# Run `claude update` on every container start to prevent CLI version drift
-# from the image-build snapshot. Failure is soft (does not block startup) but
-# visible, as in step 6: a warning, the version still in use, and the output
-# tail. Skip with SKIP_CLAUDE_UPDATE=1.
+# Skip with SKIP_CLAUDE_UPDATE=1. REFERENCE.md §Tool versioning policy states
+# the output and failure handling of steps 3, 4 and 6.
 step "Claude CLI version..."
 if ! command -v claude &>/dev/null; then
     echo "      WARN: claude CLI not installed — skipping update"
@@ -116,12 +114,7 @@ fi
 # =============================================================================
 # 4. Codex CLI — idempotent latest-version sync
 # =============================================================================
-# Parity with Claude (step 3): keep the Codex CLI current on each container
-# start instead of frozen at the image-build snapshot. Failure is soft (does
-# not block startup) but visible: "already latest" is printed only when the
-# latest version was checked. An unchecked latest version or a failed reinstall
-# prints a WARN. Skip with SKIP_CODEX_UPDATE=1.
-#
+# Skip with SKIP_CODEX_UPDATE=1.
 # Do NOT use `codex update`: its built-in updater runs `npm install -g
 # @openai/codex` against the default global prefix, which the unprivileged
 # vscode user cannot write. The Dockerfile installs Codex to ~/.npm-global, so
@@ -224,11 +217,7 @@ fi
 # =============================================================================
 # 6. Antigravity CLI — idempotent latest-version sync
 # =============================================================================
-# Parity with Claude (step 3): try `agy update` on every container start so the
-# CLI is not frozen at the image-build snapshot. Failure is soft (does not
-# block startup) but visible, as in step 4: a warning and the output tail.
-# Skip with SKIP_AGY_UPDATE=1. The CLI also updates in the background during
-# sessions, independently of this startup step.
+# Skip with SKIP_AGY_UPDATE=1.
 step "Antigravity CLI version..."
 if ! command -v agy &>/dev/null; then
     echo "      WARN: agy CLI not installed — skipping update"
