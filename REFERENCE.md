@@ -289,11 +289,11 @@ hooks and need no `.agents/agents/*.md` definition file.
 
 ### Hooks
 
-Claude: `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
+Claude: `session-start.sh`, `pre-push-gate.sh`.
 
-Codex: `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
+Codex: `session-start.sh`, `pre-push-gate.sh`.
 Codex matchers support `Bash`, `apply_patch`, `Edit`, and
-`Write`; these commit/push gates intentionally inspect `Bash` commands.
+`Write`; the push gate intentionally inspects `Bash` commands.
 
 Antigravity runs the adapter after workspace trust. `.agents/hooks.json` registers
 SessionStart and PreToolUse (`run_command`), calling
@@ -302,26 +302,24 @@ hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`:
 
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|
-| PreToolUse `run_command` | `pre-commit-gate.sh`, then `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; otherwise `{"decision":"ask"}` |
+| PreToolUse `run_command` | `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; otherwise `{"decision":"ask"}` |
 | SessionStart | `session-start.sh` (`{"source":"startup"}`) | `additionalContext` → `injectSteps[0].systemMessage.systemMessage` |
 
 `ask` hands the call to agy's own permission settings; agy treats an empty
 `{}` as a block, so the adapter never emits one for a registered event. The adapter never runs the
 command itself and always exits 0 with valid JSON; that is the response format,
-and the Claude hooks keep their fail-open policy. Antigravity uses the Claude hooks'
-verification markers in `.claude/`.
+and the Claude hooks keep their fail-open policy. Antigravity uses the Claude hook's
+force-push approval markers in `.claude/`.
 The adapter intercepts `run_command`, not file-editing tools. A hook `deny`
 still blocks under `--dangerously-skip-permissions`.
 
-All gates are advisory policy tripwires (see §Privilege boundary), not a
-security sandbox. A gate blocks (exit 2) only on a positive match — a
-`--no-verify`/`-n` commit bypass, a credential pattern in raw command text,
-credential-bearing stored git config on a push, a force
-push, or a missing/stale verification marker. On any parse failure, internal
-error, or unrecognized command shape the gate exits 0 (fail-open). The
-verification marker is per-branch and considered fresh for 24 hours from its
-mtime; `scripts/meta/completion-checker.sh` writes it (see §Verification).
-These gates do not scan staged file contents.
+The pre-push gate is an advisory policy tripwire (see §Privilege boundary),
+not a security sandbox. It blocks (exit 2) only on a positive match — a
+credential pattern in the raw text of any command (including `git commit`),
+credential-bearing stored git config on a push, or a force push without a
+single-use approval marker. On any parse failure, internal error, or
+unrecognized command shape it exits 0 (fail-open). No hook requires a
+verification step before a commit, and none scans file contents.
 
 Codex project trust and hook review are covered in
 [Codex sandbox bypass](#codex-sandbox-bypass-devcontainer-only).
@@ -331,7 +329,7 @@ Codex project trust and hook review are covered in
 | Skill | Description |
 |-------|-------------|
 | /status | Workspace status |
-| /verify | Pre-commit verification |
+| /verify | Run the checks relevant to a change and report what ran, failed, or was skipped |
 | typesafe-ai | TypeSafe workflow skill from [typesafe-ai/skills](https://github.com/typesafe-ai/skills), commit `65a39f393687675ce170e6094757de20370365b9`; MIT; vendored with one local delta: an offline snapshot of the HTTP API reference at `reference/api.md` and the SKILL.md sentence that names it; generated mirror for Codex |
 
 ### TypeSafe (optional)
@@ -347,13 +345,15 @@ Two tiers, split by cost:
 
 | Tier | Command | When |
 |------|---------|------|
-| Fast checks | `bash scripts/meta/completion-checker.sh` | Before each commit — writes the per-branch marker the pre-commit gate reads |
-| Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand, not per commit — full template integrity, including docker-backed checks |
+| Fast checks | `bash scripts/meta/completion-checker.sh` | For a change that touches what it checks; report which checks ran, failed, or were skipped |
+| Acceptance suite | `bash .devcontainer/verify-template.sh` | On demand, not per commit — environment presence, a Compose boot smoke when Docker is reachable, hook scripts on synthetic inputs, mirror drift, leak scan, shell syntax |
 
 `completion-checker.sh` is environment-independent: it works in fresh clones
 and temp checkouts, and does not require docker or a canonical checkout
-path. The acceptance suite is the deep oracle; run it after structural changes
-to the template (hooks, mirror, devcontainer) and before releases.
+path. A passing acceptance suite covers only the checks it runs: its hook cases
+show the hook scripts' input and output, not a real agent session, and its boot
+smoke is not a normal container start. Run it after structural changes to the
+template (hooks, mirror, devcontainer) and before releases.
 
 ## Polyagent parity
 
@@ -437,7 +437,6 @@ evidence that a rule loads.
 | Antigravity re-auth needed | check named volumes: `docker volume ls \| grep -E 'gemini-config\|antigravity-secrets'` |
 | Antigravity files are root-owned after using an older image | `sudo chown -R vscode:vscode ~/.gemini ~/.config/antigravity` |
 | Antigravity ignores a rule | See [Registering deeper rule folders](#registering-deeper-rule-folders) |
-| `/status` stops with exit 2 under agy | `ANTIGRAVITY_AGENT=1` is missing from the command environment; set `AGENT_VENDOR=antigravity` |
 | Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
@@ -458,5 +457,4 @@ project can replace it with its own extended regexes in
 `.env/leak-patterns`. Matches report filenames without copying secret values.
 An invalid pattern or failed scan is an error. Repositories that already own
 `scripts/meta/verify-env-sync.sh` run it when their `.env` exists. Others have no
-additional synchronization check. Successful checks write both vendor markers
-for the current branch, including an initial branch without commits.
+additional synchronization check.

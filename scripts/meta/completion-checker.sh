@@ -1,9 +1,8 @@
 #!/bin/bash
-# completion-checker.sh — fast, environment-independent pre-commit verification.
+# completion-checker.sh — fast, environment-independent checks.
 # Seconds-scale checks only: no docker, no network, no canonical checkout path;
-# works in fresh clones and temp checkouts. All checks pass -> touch both
-# vendors' per-branch markers (existence + age contract read by the pre-commit
-# gates) and exit 0. Any failure -> name it and exit 1 (no marker is written).
+# works in fresh clones and temp checkouts. All checks pass -> exit 0.
+# Any failure -> name it and exit 1.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || { echo "FAIL: cannot cd to $ROOT" >&2; exit 1; }
@@ -47,8 +46,4 @@ if [ -d .env ] && [ -f scripts/meta/verify-env-sync.sh ]; then
   bash scripts/meta/verify-env-sync.sh >/dev/null 2>&1 || fail "env-sync: run scripts/meta/verify-env-sync.sh for detail"
 fi
 [ "$FAIL" -eq 0 ] || exit 1
-BRANCH=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || echo HEAD)
-SAFE=$(printf '%s' "$BRANCH" | tr '/' '-')
-mkdir -p .claude .codex/state
-touch ".claude/.last-verification.$SAFE" ".codex/state/last-verification.$SAFE"
-echo "OK: all checks passed; verification markers written for branch '$BRANCH'."
+echo "OK: shell syntax, JSON parse, leak scan, and mirror drift passed; TOML parse passed or was skipped (no python3 tomllib); env-sync ran only where present."

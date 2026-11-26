@@ -27,7 +27,6 @@ yarn-error.log*
 # -----------------------------------------------------------------------------
 # Claude Code (runtime markers — never committed)
 # -----------------------------------------------------------------------------
-.claude/.last-verification*
 .claude/.allow-force-push*
 .claude/settings.local.json
 .claude/worktrees/
@@ -36,7 +35,6 @@ yarn-error.log*
 # -----------------------------------------------------------------------------
 # Codex CLI (runtime markers — never committed; keep only .gitkeep)
 # -----------------------------------------------------------------------------
-.codex/state/last-verification*
 .codex/state/allow-force-push*
 
 # -----------------------------------------------------------------------------

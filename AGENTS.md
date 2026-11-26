@@ -10,9 +10,9 @@
 
 ## Trust model: advisory gates
 
-The container and its host-mounted `docker.sock` are not a security sandbox (see [REFERENCE.md](REFERENCE.md) §Privilege boundary). Hooks are policy tripwires: they block only positive matches and fail open on ambiguity. Positive matches are commit bypass (`--no-verify`/`-n`), credential patterns in command text or push configuration, force push, or a missing/stale marker. `completion-checker.sh` writes a per-branch marker; the pre-commit gate accepts it by existence and age (under 24 hours), not by content fingerprint. Do not commit credentials or run untrusted code expecting host isolation.
+The container and its host-mounted `docker.sock` are not a security sandbox (see [REFERENCE.md](REFERENCE.md) §Privilege boundary). Hooks are policy tripwires: they block only positive matches and fail open on ambiguity. Positive matches are credential patterns in command text or push configuration, and force push. Do not commit credentials or run untrusted code expecting host isolation.
 
-Codex command hooks run only after project trust and `/hooks` review; changed hooks require review. Until then, run the gates manually; use `--dangerously-bypass-hook-trust` only for automation that independently vets them. Codex hook matchers inspect `Bash`; accepted editor tool names are `Bash`, `apply_patch`, `Edit`, and `Write`.
+Codex command hooks run only after project trust and `/hooks` review; changed hooks require review. Until then, run the pre-push gate manually; use `--dangerously-bypass-hook-trust` only for automation that independently vets them. Codex hook matchers inspect `Bash`; accepted editor tool names are `Bash`, `apply_patch`, `Edit`, and `Write`.
 
 ## Automated workflow
 
@@ -27,9 +27,9 @@ Codex command hooks run only after project trust and `/hooks` review; changed ho
 - Fix root causes — diagnose across infra/config/deploy/code; no workarounds.
 - Explicit failure — every operation must succeed or fail visibly.
 - Before a meaningful change, state the authorized requirement and acceptance conditions; make trivial edits directly. A change is meaningful when it alters behavior, a duty, an interface, an operating procedure, or a generation relationship, including in documentation alone; a typo fix that changes no meaning is a trivial edit. For that change, have an evaluator in a fresh context, never the modifier's, judge the actual diff against those conditions using observed evidence and the permitted inputs in the evaluator role (`.claude/agents/evaluator.md`, generated as `.agents/skills/evaluator/SKILL.md`), using a fresh **evaluator** subagent on Claude Code, `scripts/meta/run-isolated-role.sh evaluate` on Codex, or a fresh built-in `self` subagent on Antigravity. The evaluation is incomplete when no fresh evaluator context can be created, when the evaluator leaves no report, or when its report does not judge the actual diff; report it as incomplete and do not treat the change as evaluated. Repeat only for an evidenced gap in the authorized outcome; no count, score, or pass rate decides acceptance.
-- Invoke `status` for repository/worktree/WIP/upstream/marker state and `verify` for pre-commit checks.
+- Invoke `status` for repository/worktree/WIP/upstream state and `verify` for the fast checks.
 - For work likely to span sessions, manage the work at `wip/task-YYYYMMDD-description/README.md` with the wip-manager role (the **wip-manager** agent on Claude Code; load `.agents/skills/wip-manager/SKILL.md` on Codex and Antigravity); delete the WIP directory when complete.
-- Before an agent-issued commit, `bash scripts/meta/completion-checker.sh` must pass; it is environment-independent across fresh clones and temp checkouts. Never bypass verification. Run the docker-backed `.devcontainer/verify-template.sh` on demand, not per commit.
+- When a change touches what `bash scripts/meta/completion-checker.sh` checks (shell syntax, the hook and rule JSON, the Codex TOML, the tracked-content leak scan, mirror drift), run it; it is environment-independent across fresh clones and temp checkouts. Report which checks ran, which failed, and which were skipped; a pass establishes only those properties. Do not skip a repository's own Git hooks with `--no-verify`. Run the docker-backed `.devcontainer/verify-template.sh` on demand, not per commit.
 
 ## Antigravity
 

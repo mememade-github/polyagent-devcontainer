@@ -12,7 +12,7 @@ remove the obsolete local state (`.claude/.refinement-active`,
 `.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, and the
 matching `.codex/state/` entries `refinement-active`, `stop-blocked-refinement.*`,
 `.refine-output`, `.refine-eval.json`, `refinement/`) together with their ignore
-entries. Preserve verification markers.
+entries. Verification markers are covered by the commit-gate removal below.
 
 Update `CLAUDE.md`, `AGENTS.md`, `.claude/agents/evaluator.md`,
 `scripts/meta/run-isolated-role.sh`, the session-start hooks,
@@ -42,7 +42,7 @@ detection helper only that check used are removed. Delete
 `.claude/skills/karpathy-guidelines/`, `scripts/meta/karpathy-consistency-check.sh`,
 and `scripts/meta/lib/detect-root.sh` (and `scripts/meta/lib/` if it is now
 empty). Remove the checker call from `scripts/meta/completion-checker.sh` and
-the "karpathy pair" case from section [6/7] of `.devcontainer/verify-template.sh`,
+the "karpathy pair" case from the leak-scan section of `.devcontainer/verify-template.sh`,
 the `karpathy-guidelines` invocation from `AGENTS.md`, and the skill from README
 and REFERENCE skill lists. The "Source of truth" blockquote of
 `.claude/rules/behavioral-core.md` named the skill and the check; that file is
@@ -92,6 +92,53 @@ evaluation once hit that limit and ended without a report) and says an
 unavailable fresh context means an incomplete evaluation. Copy both changes and run
 `bash scripts/sync-agents-mirror.sh` to regenerate
 `.agents/skills/evaluator/SKILL.md`.
+
+The commit gate and its verification markers are removed. Running
+`scripts/meta/completion-checker.sh` no longer writes a marker, no template hook
+blocks a commit (for a missing or old marker or for `--no-verify`), and
+`AGENTS.md` no longer requires the checker before every commit: it is run for a
+change that touches what it checks, and the report says which checks ran,
+failed, or were skipped. The fast checks and independent evaluation remain;
+neither is evidence of completion beyond what it observed, and a passing
+`/verify` or acceptance suite establishes only the properties it checks. The
+pre-push gate, its single-use force-push approval markers
+(`.claude/.allow-force-push.*`, `.codex/state/allow-force-push.*`), their ignore
+entries, and `.codex/state/.gitkeep` are unchanged. Make all of the following
+changes in one adoption commit; a registration left without its hook file, or a
+marker reader left without its writer, breaks or blocks commands:
+
+1. Delete `.claude/hooks/pre-commit-gate.sh` and `.codex/hooks/pre-commit-gate.sh`.
+   Copying the new template files over yours does not remove them.
+2. Remove their `PreToolUse` entries from `.claude/settings.json` and
+   `.codex/hooks.json`. Keep `.agents/hooks.json`, and take the new
+   `.agents/hooks/claude-hooks-adapter.sh`, which now calls only
+   `pre-push-gate.sh`.
+3. Take the new `scripts/meta/completion-checker.sh` (no marker write), both
+   session-start hooks (no marker pruning), the `status` and `verify` skills,
+   and `.devcontainer/verify-template.sh` (its commit cases and its
+   checker-marker-hook round-trip section are gone), then run
+   `bash scripts/sync-agents-mirror.sh`.
+4. Replace the commit-check bullet, the `status`/`verify` bullet, and the
+   marker sentences of the trust model in `AGENTS.md`, and the hook lists and
+   verification table in README and REFERENCE. The "Preserve verification
+   markers" instruction in earlier versions of this file no longer applies.
+5. Delete existing verification markers (`.claude/.last-verification.*`,
+   `.codex/state/last-verification.*`) and then remove the
+   `.claude/.last-verification*` and `.codex/state/last-verification*` lines
+   from `.gitignore`; markers left behind become untracked files that
+   `git add -A` would commit. Leftover `/refine` state is a separate cleanup,
+   listed above.
+6. Do not remove your project's own hooks or the Git hooks under
+   `core.hooksPath` because of this list; it covers only the two template
+   files above. Change any tool of your own that waited for a verification
+   marker, because none will appear.
+7. Start new agent sessions; on Codex, review the changed hooks in `/hooks`.
+   No container rebuild is needed: the hooks and scripts run from the mounted
+   checkout, not from the image.
+
+To roll back, restore the earlier version's hook files, registrations, adapter,
+checker, skills, session-start hooks, ignore lines, and documents together. An
+old marker is not evidence that the current tree was checked.
 
 ## v3.3.3-rebuild
 

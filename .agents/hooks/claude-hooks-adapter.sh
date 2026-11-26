@@ -42,15 +42,13 @@ case "$EVENT" in
       P=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) && PROJ="$P"
     fi
     CLAUDE_INPUT=$(jq -n --arg c "$CMD" '{tool_name: "Bash", tool_input: {command: $c}}') || fallback
-    for GATE in pre-commit-gate pre-push-gate; do
-      [ -f "$HOOKS/$GATE.sh" ] || continue
-      ERR=$(cd "$RUN_DIR" && printf '%s' "$CLAUDE_INPUT" |
-        CLAUDE_PROJECT_DIR="$PROJ" timeout 5 bash "$HOOKS/$GATE.sh" 2>&1 >/dev/null)
-      if [ $? -eq 2 ]; then
-        jq -cn --arg r "$ERR" '{decision: "deny", reason: $r}' || fallback
-        exit 0
-      fi
-    done
+    [ -f "$HOOKS/pre-push-gate.sh" ] || fallback
+    ERR=$(cd "$RUN_DIR" && printf '%s' "$CLAUDE_INPUT" |
+      CLAUDE_PROJECT_DIR="$PROJ" timeout 5 bash "$HOOKS/pre-push-gate.sh" 2>&1 >/dev/null)
+    if [ $? -eq 2 ]; then
+      jq -cn --arg r "$ERR" '{decision: "deny", reason: $r}' || fallback
+      exit 0
+    fi
     fallback
     ;;
   session-start)
