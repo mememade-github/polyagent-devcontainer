@@ -84,8 +84,9 @@ fi
 # 3. Claude CLI — idempotent latest-version sync
 # =============================================================================
 # Run `claude update` on every container start to prevent CLI version drift
-# from the image-build snapshot. Failure is soft (does not block startup).
-# Skip with SKIP_CLAUDE_UPDATE=1.
+# from the image-build snapshot. Failure is soft (does not block startup) but
+# visible, as in step 6: a warning, the version still in use, and the output
+# tail. Skip with SKIP_CLAUDE_UPDATE=1.
 step "Claude CLI version..."
 if ! command -v claude &>/dev/null; then
     echo "      WARN: claude CLI not installed — skipping update"
@@ -93,13 +94,20 @@ elif [ "${SKIP_CLAUDE_UPDATE:-}" = "1" ]; then
     echo "      Skipped (SKIP_CLAUDE_UPDATE=1), current: $(claude --version 2>/dev/null)"
 else
     BEFORE=$(claude --version 2>/dev/null | awk '{print $1}')
-    claude update >/dev/null 2>&1 || true
-    AFTER=$(claude --version 2>/dev/null | awk '{print $1}')
-    if [ "$BEFORE" = "$AFTER" ]; then
-        echo "      $AFTER (already latest)"
+    CLAUDE_UPDATE_LOG=$(mktemp)
+    if claude update >"$CLAUDE_UPDATE_LOG" 2>&1; then
+        AFTER=$(claude --version 2>/dev/null | awk '{print $1}')
+        if [ "$BEFORE" = "$AFTER" ]; then
+            echo "      $AFTER (already latest)"
+        else
+            echo "      $BEFORE -> $AFTER"
+        fi
     else
-        echo "      $BEFORE -> $AFTER"
+        AFTER=$(claude --version 2>/dev/null | awk '{print $1}')
+        echo "      WARN: claude update failed; continuing with ${AFTER:-unknown}"
+        tail -20 "$CLAUDE_UPDATE_LOG" | sed 's/^/      claude: /'
     fi
+    rm -f "$CLAUDE_UPDATE_LOG"
 fi
 
 # =============================================================================

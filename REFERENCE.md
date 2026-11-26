@@ -111,7 +111,9 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
         [1/6] Permissions   — Docker socket ownership, git core.filemode,
                               git safe.directory, command-history setup
         [2/6] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
-        [3/6] Claude CLI     — `claude update` (skip with SKIP_CLAUDE_UPDATE=1)
+        [3/6] Claude CLI     — `claude update`; a failure prints a WARN, the
+                              version in use, and the output tail
+                              (skip with SKIP_CLAUDE_UPDATE=1)
         [4/6] Codex CLI      — reconcile PATH-first launcher, then refresh the
                               real ~/.npm-global/bin/codex with npm --prefix
                               (skip with SKIP_CODEX_UPDATE=1)
@@ -231,7 +233,10 @@ The template intentionally pulls latest releases at build/run time:
   lines from the installer's final `agy install` step. A nonzero installer exit
   or any `E`/`W`/`F`-level prefix keeps the full raw log.
 - **`claude update`**: runs on every container start (`setup-env.sh` step 3),
-  unless `SKIP_CLAUDE_UPDATE=1` is set.
+  unless `SKIP_CLAUDE_UPDATE=1` is set. Startup reports "already latest" only
+  when `claude update` exits 0 and the version is unchanged; a failed update
+  prints a WARN, the version still in use, and the tail of its output, and
+  startup continues.
 - **Codex update**: every container start reconciles the launcher symlinks and
   delegates refresh to `/usr/local/bin/codex-launcher --update-only`, which
   updates the real binary with `npm install -g --prefix ~/.npm-global

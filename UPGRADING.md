@@ -184,6 +184,15 @@ bullet, the `verify` skill, the README initialization prompt and REFERENCE
 your own that read the `RESULT: N PASS / N FAIL / N SKIP` line or treated a
 missing Docker as a skip must change. No container rebuild is needed.
 
+Startup step 3 of `.devcontainer/setup-env.sh` no longer prints "already
+latest" when `claude update` fails. Before, the update's exit status and output
+were discarded, so a failed update with an unchanged version read as already
+latest. Now a failed update prints a WARN, the version still in use, and the
+last 20 lines of its output, and startup continues as before. Take the new
+`setup-env.sh` with REFERENCE §DevContainer lifecycle and §Tool versioning
+policy. The image copies `setup-env.sh` to `/usr/local/bin/`, so rebuild the
+container for the new startup output.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex
