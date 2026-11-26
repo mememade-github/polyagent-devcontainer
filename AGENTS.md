@@ -23,6 +23,7 @@ In an untrusted project Codex runs neither the project hooks nor the project `.c
 - Create, retain, or enforce checks only to obtain relevant evidence for authorized requirements, and make them gates only when those requirements are prerequisites for the work they block.
 - On failure, distinguish an actual requirement violation, a faulty or inapplicable check, and missing evidence; act within scope on what is established, and report what remains unobserved.
 - Ground progress and completion claims in tool results from this session. State failed or skipped checks plainly.
+- After a change, the documents, rules, and implementation it touches must direct the same action for the same request and conditions; where they disagree, decide by their purpose which side to change. Write a statement only if an agent's or operator's action would differ without it, state it in one place, and leave one-time history to the commit message.
 - Get explicit approval before `rm -rf`, overwriting `mv`/`cp`, `git push --force`, `git reset --hard`, or database `DROP`/`DELETE`.
 - Fix root causes — diagnose across infra/config/deploy/code; do not hide a defect behind a workaround. A compatibility measure that an environment constraint requires is allowed when the condition under which it applies and its remaining limits are stated where it is applied.
 - Explicit failure — every operation must succeed or fail visibly.
