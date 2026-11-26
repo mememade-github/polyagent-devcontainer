@@ -100,7 +100,7 @@ blocks a commit (for a missing or old marker or for `--no-verify`), and
 change that touches what it checks, and the report says which checks ran,
 failed, or were skipped. The fast checks and independent evaluation remain;
 neither is evidence of completion beyond what it observed, and a passing
-`/verify` or acceptance suite establishes only the properties it checks. The
+`/verify` or `verify-template.sh` run establishes only the properties it checks. The
 pre-push gate, its single-use force-push approval markers
 (`.claude/.allow-force-push.*`, `.codex/state/allow-force-push.*`), their ignore
 entries, and `.codex/state/.gitkeep` are unchanged. Make all of the following
@@ -166,6 +166,23 @@ difference". Its comments and closing note no longer call `.claude/` the
 ground truth: `AGENTS.md` holds the shared duties, and `.claude/` is the source
 of the generated trees. Take the new script with REFERENCE §Polyagent parity.
 No container rebuild is needed.
+
+`.devcontainer/verify-template.sh` is reduced to what it observes. Its Compose
+section, which replaced the entrypoint with Bash and therefore never showed a
+normal start or the healthcheck, is removed; observe a normal start
+separately. Its own mirror, leak and shell-syntax sections are replaced by
+one run of `scripts/meta/completion-checker.sh`, so the leak policy and
+pattern files are the checker's (the suite's fixed pattern copy, its
+`git grep` error swallowing and its printing of matched lines are gone), and
+the checker no longer excludes `verify-template.sh` from its leak scan. The
+hook cases are unchanged and show the hook scripts' and adapter's output for
+synthetic input only. The count line is replaced by a summary of what failed
+and what did not run; exit 2 now means a required check did not run, and a
+missing optional tool, including Docker, is listed as absent. Update the `AGENTS.md`
+bullet, the `verify` skill, the README initialization prompt and REFERENCE
+§Verification with it, then run `bash scripts/sync-agents-mirror.sh`. A tool of
+your own that read the `RESULT: N PASS / N FAIL / N SKIP` line or treated a
+missing Docker as a skip must change. No container rebuild is needed.
 
 ## v3.3.3-rebuild
 

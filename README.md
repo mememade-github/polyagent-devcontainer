@@ -80,10 +80,11 @@ Initialize this project. Ask me about: project name, languages/frameworks,
 required services, server info, test framework, CI/CD,
 commit message language. Then update CLAUDE.md/AGENTS.md/PROJECT.md/
 REFERENCE.md, .devcontainer/.env, and
-.claude/rules/project/. Verify with .devcontainer/verify-template.sh.
+.claude/rules/project/. Then run .devcontainer/verify-template.sh and report
+what it ran, what failed, and what did not run.
 ```
 
-During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/hooks/`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts. Start every rule file in `.claude/rules/project/` with the three frontmatter lines `---`, `trigger: always_on`, `---`, or Antigravity silently skips that file; customize the six update targets named before “Verify with” in the prompt above, while `.devcontainer/verify-template.sh` is the verification command rather than an update target.
+During initialization, leave `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/hooks/`, `.devcontainer/Dockerfile`, and agent frontmatter unchanged because they define hook, build, and role contracts. Start every rule file in `.claude/rules/project/` with the three frontmatter lines `---`, `trigger: always_on`, `---`, or Antigravity silently skips that file; customize the six update targets named before “Then run” in the prompt above, while `.devcontainer/verify-template.sh` is a check command rather than an update target. It checks the hook scripts and the fast checks only, not the content you write during initialization.
 
 ## Vendor parity sync
 

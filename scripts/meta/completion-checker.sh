@@ -89,7 +89,7 @@ if [ "$CUR" -eq 0 ]; then
   SCAN_ERR=$(mktemp) || { echo "FAIL: mktemp failed" >&2; exit 1; }
   trap 'rm -f "$SCAN_ERR"' EXIT
   SCAN_RC=0
-  HITS=$(git grep -l -I -i -E -e "$LEAK" -- ':!.devcontainer/verify-template.sh' ':!scripts/meta/completion-checker.sh' ':!scripts/meta/leak-patterns.txt' 2>"$SCAN_ERR") || SCAN_RC=$?
+  HITS=$(git grep -l -I -i -E -e "$LEAK" -- ':!scripts/meta/completion-checker.sh' ':!scripts/meta/leak-patterns.txt' 2>"$SCAN_ERR") || SCAN_RC=$?
   if [ "$SCAN_RC" -gt 1 ] || [ -s "$SCAN_ERR" ]; then
     fail "tracked-content scan failed (exit $SCAN_RC; git messages not shown)"
   elif [ "$SCAN_RC" -eq 0 ]; then
