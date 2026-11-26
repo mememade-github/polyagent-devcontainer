@@ -10,9 +10,9 @@
 
 ## Trust model: advisory gates
 
-The container and its host-mounted `docker.sock` are not a security sandbox (see [REFERENCE.md](REFERENCE.md) §Privilege boundary). Hooks are policy tripwires: they block only positive matches and fail open on ambiguity. Positive matches are credential patterns in command text or push configuration, and force push. Do not commit credentials or run untrusted code expecting host isolation.
+The container and its host-mounted `docker.sock` are not a security sandbox (see [REFERENCE.md](REFERENCE.md) §Privilege boundary). Hooks are policy tripwires. The pre-push gate reads the command text, not what the shell will run, and blocks only on a match: a credential pattern in the command text or in the push target's git config, or unquoted force-push text without a single-use approval marker. Not being blocked is not an approval or evidence of safety. When the gate cannot check a command, it writes `pre-push gate: not checked: <cause>` to stderr and lets the command run (REFERENCE §Hooks). Do not commit credentials or run untrusted code expecting host isolation.
 
-Codex command hooks run only after project trust and `/hooks` review; changed hooks require review. Until then, run the pre-push gate manually; use `--dangerously-bypass-hook-trust` only for automation that independently vets them. Codex hook matchers inspect `Bash`; accepted editor tool names are `Bash`, `apply_patch`, `Edit`, and `Write`.
+In an untrusted project Codex runs neither the project hooks nor the project `.codex/config.toml`, and `--dangerously-bypass-hook-trust` does not change that. The Codex hooks documentation says project hooks load only from a trusted project and each must also be reviewed and trusted in `/hooks`; new or changed hooks are skipped until then. Until both are done, run the pre-push gate manually. Codex hook matchers inspect `Bash`; accepted editor tool names are `Bash`, `apply_patch`, `Edit`, and `Write`.
 
 ## Automated workflow
 

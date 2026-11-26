@@ -1,13 +1,32 @@
 #!/bin/bash
 # Pre-push gate (PreToolUse, matcher: Bash) — a policy tripwire, not a security
-# sandbox. Positive-match blocks only (exit 2); anything else — parse ambiguity,
-# non-push commands, missing tools, internal errors — exits 0 (fail-open by
-# design; the container is a workspace boundary, not a trust boundary).
+# sandbox. It reads the command TEXT; it does not work out what the shell will
+# actually run. Exit codes:
+#   2  blocked: a positive match below (stderr is the reason).
+#   0  not blocked: checked with no match, or not a push-shaped command. This is
+#      not an approval and not evidence that the command is safe.
+#   1  not checked: a step the result depends on failed (input unreadable or
+#      not JSON, no command in it, jq/git missing, sed/grep/git config error,
+#      no repository found for a push-shaped command), or an approval marker
+#      was used but could not be removed. One line
+#      "pre-push gate: not checked: <cause>" goes to stderr. Claude Code treats
+#      a PreToolUse exit other than 0 and 2 as a non-blocking error, so the
+#      command still runs (fail-open is unchanged).
 #
 # Blocks:
-#  1. Clear plain force push (--force / -f / +refspec) without a scoped
-#     single-use approval marker in the target repo root
-#     (.claude/.allow-force-push.<remote>.<branch>), consumed on allow.
+#  1. Text shaped like a plain force push (--force / -f / +refspec) after an
+#     unquoted `git ... push`, without a scoped single-use approval marker in
+#     the target repo root (.claude/.allow-force-push.<remote>.<branch>),
+#     consumed on allow. Matching is on the text with quoted spans removed:
+#     force text inside quotes is ignored, but an unquoted `git push --force`
+#     blocks even where it is only printed (e.g. `echo git push --force ...`),
+#     while a push hidden in a variable, eval, alias or script file is not seen.
+#     <remote> is the first non-option word after `push`, else the upstream's
+#     remote, else origin. <branch> is the branch currently checked out in the
+#     target repo, as `git rev-parse --abbrev-ref HEAD` prints it (HEAD when
+#     detached or before the first commit, unknown when it prints nothing),
+#     not the refspec named in the command. These fallbacks define the scope:
+#     no upstream (or an unreadable one) means origin.
 #     Decision: --force-with-lease passes WITHOUT a marker — it is the
 #     narrower alternative and fails instead of clobbering remote work it
 #     has not seen.
@@ -20,59 +39,70 @@
 #     (e.g. "password=${GITHUB_PAT}") is the sanctioned pattern and passes.
 set -uf
 
-INPUT=$(cat) || exit 0
-command -v jq >/dev/null 2>&1 || exit 0
-command -v git >/dev/null 2>&1 || exit 0
-COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
-[ -n "$COMMAND" ] || exit 0
+not_checked() { echo "pre-push gate: not checked: $1" >&2; exit 1; }
+# match <regex> <text>: grep -Eq, where an exit above 1 is a grep error, not "no match".
+match() { printf '%s' "$2" | grep -Eq "$1"; local rc=$?; [ "$rc" -le 1 ] || not_checked "grep exited $rc"; return "$rc"; }
+
+INPUT=$(cat) || not_checked "could not read the hook input"
+command -v jq >/dev/null 2>&1 || not_checked "jq not found"
+command -v git >/dev/null 2>&1 || not_checked "git not found"
+COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) || not_checked "jq could not read the hook input as JSON"
+[ -n "$COMMAND" ] || not_checked "no tool_input.command in the hook input"
 
 # Block 2: credential-looking secret in the raw command text.
 CRED_RE='ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{16,}|oauth2:[^@[:space:]]+@|x-access-token:[^@[:space:]]+@|[A-Za-z][A-Za-z0-9+.-]*://[^/@:[:space:]]+:[^/@[:space:]]+@'
-if printf '%s' "$COMMAND" | grep -Eq "$CRED_RE"; then
-  echo "Blocked: credential-looking secret in the command text." >&2
+if match "$CRED_RE" "$COMMAND"; then
+  echo "Blocked: the command text matches a credential-looking secret." >&2
   echo "Keep tokens in gitignored files; supply them via a credential helper at call time." >&2
   exit 2
 fi
 
-# Everything below applies only to a clear `git ... push` in command position
-# (start or after ; | & ( or whitespace) in a quote-stripped view: quoted spans
-# are removed first, so force-looking text inside string arguments never matches.
-QUOTELESS=$(printf '%s' "$COMMAND" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
-printf '%s' "$QUOTELESS" | grep -Eq '(^|[;&|([:space:]])git[[:space:]]([^;|&]*[[:space:]])?push([[:space:];|&)]|$)' || exit 0
+# Everything below applies only to `git ... push` text at the start or after
+# ; | & ( or whitespace, in a view with quoted spans removed: text inside
+# quotes is ignored, while unquoted push text matches even as an argument.
+QUOTELESS=$(printf '%s' "$COMMAND" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g") || not_checked "sed failed"
+match '(^|[;&|([:space:]])git[[:space:]]([^;|&]*[[:space:]])?push([[:space:];|&)]|$)' "$QUOTELESS" || exit 0
 
 # Resolve the target repo: honor a clear `git -C <path>`, else the session dir.
-TARGET_DIR=$(printf '%s' "$COMMAND" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p' | head -1)
+TARGET_DIR=$(printf '%s' "$COMMAND" | sed -nE 's/.*git[[:space:]]+-C[[:space:]]+([^[:space:];|&]+).*/\1/p') || not_checked "sed failed"
+TARGET_DIR=${TARGET_DIR%%$'\n'*}
 TARGET_DIR=${TARGET_DIR//[\"\']/}; case "$TARGET_DIR" in '$PWD'|'${PWD}'|'$(pwd)') TARGET_DIR=$PWD ;; '$CLAUDE_PROJECT_DIR'|'${CLAUDE_PROJECT_DIR}') TARGET_DIR="${CLAUDE_PROJECT_DIR:-.}" ;; esac
 [ -n "$TARGET_DIR" ] || TARGET_DIR="${CLAUDE_PROJECT_DIR:-.}"
-REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
+REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null) || not_checked "no git repository found at $TARGET_DIR"
 
 # Block 3: stored-config credential (remote URLs, credential-helper values).
-STORED=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null | grep -E "$CRED_RE" || true)
+# git config exits 1 when no key matches; any other non-zero status is an error.
+CONFIG=$(git -C "$REPO_ROOT" config --get-regexp '^(remote\.|credential\.|url\.)' 2>/dev/null); rc=$?
+[ "$rc" -le 1 ] || not_checked "git config exited $rc"
+STORED=$(printf '%s\n' "$CONFIG" | grep -E "$CRED_RE"); rc=$?
+[ "$rc" -le 1 ] || not_checked "grep exited $rc"
 if [ -n "$STORED" ]; then
   echo "Blocked: git config visible from $REPO_ROOT stores a literal credential in:" >&2
-  printf '%s\n' "$STORED" | awk '{print "  " $1}' | sort -u >&2
+  KEYS=$(printf '%s\n' "$STORED" | awk '!seen[$1]++ {print "  " $1}') || KEYS="  (could not list the keys: awk failed)"
+  printf '%s\n' "$KEYS" >&2
   echo "Fix: keep remote URLs clean; let a credential helper read the token from a gitignored file (variable-reference helper values pass)." >&2
   exit 2
 fi
 
-# Block 1: clear plain force push requires a scoped single-use marker.
-TAIL=$(printf '%s' "$QUOTELESS" | tr '\n' ';' | sed -E 's/.*\bpush\b//; s/[;|&()].*//')
-printf '%s' "$TAIL" | grep -Eq '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' || exit 0
+# Block 1: plain force push text requires a scoped single-use marker.
+TAIL=$(printf '%s' "${QUOTELESS//$'\n'/;}" | sed -E 's/.*\bpush\b//; s/[;|&()].*//') || not_checked "sed failed"
+match '(^|[[:space:]])(--force|-[A-Za-z]*f[A-Za-z]*|\+[A-Za-z0-9][^[:space:]]*)([[:space:]]|$)' "$TAIL" || exit 0
 
 REMOTE=""
 for w in $TAIL; do case "$w" in -*|+*) ;; *) REMOTE="$w"; break ;; esac; done
-[ -n "$REMOTE" ] || REMOTE=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | cut -d/ -f1)
+if [ -z "$REMOTE" ]; then U=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) && REMOTE=${U%%/*}; fi
 [ -n "$REMOTE" ] || REMOTE=origin
 BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
 [ -n "$BRANCH" ] || BRANCH=unknown
-R=$(printf '%s' "$REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
-B=$(printf '%s' "$BRANCH" | sed -E 's/[^A-Za-z0-9._-]+/_/g')
+R=$(printf '%s' "$REMOTE" | sed -E 's/[^A-Za-z0-9._-]+/_/g') || not_checked "sed failed"
+B=$(printf '%s' "$BRANCH" | sed -E 's/[^A-Za-z0-9._-]+/_/g') || not_checked "sed failed"
 MARKER="$REPO_ROOT/.claude/.allow-force-push.${R:-unnamed}.${B:-unnamed}"
 if [ -f "$MARKER" ]; then
-  rm -f "$MARKER"
+  rm -f "$MARKER" || not_checked "approved by $MARKER, but could not remove it, so it was not consumed"
   exit 0
 fi
-echo "Blocked: force push requires explicit single-use approval (remote '$REMOTE', branch '$BRANCH')." >&2
+echo "Blocked: the command text matches a force push, which requires explicit single-use approval." >&2
+echo "Approval scope: remote '$REMOTE', branch '$BRANCH' (checked out in $REPO_ROOT; not read from the command's refspec)." >&2
 echo "Narrower alternative: --force-with-lease passes without a marker." >&2
 echo "To approve exactly once, create the marker file and retry:" >&2
 echo "  touch '$MARKER'" >&2

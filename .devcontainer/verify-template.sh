@@ -197,6 +197,10 @@ else
     else
         fail "pre-push: stored-token cases (git config failed)"
     fi
+    # A push-shaped command whose repository cannot be found is not checked:
+    # one stderr line, exit 1 from the Claude gate and 0 from the Codex gate.
+    try 1 "claude pre-push: push in a missing directory not checked (exit 1)" "$PROJECT_DIR/.claude/hooks/pre-push-gate.sh" "$R" "git -C $TMP/missing push origin main"
+    try 0 "codex pre-push: push in a missing directory not checked (exit 0)"  "$PROJECT_DIR/.codex/hooks/pre-push-gate.sh" "$R" "git -C $TMP/missing push origin main"
 fi
 
 # --- Summary ---

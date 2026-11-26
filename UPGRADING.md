@@ -212,6 +212,30 @@ when it needs to know whether it works. Take the new launcher and
 policy, and rebuild the container: the image copies both files to
 `/usr/local/bin/`.
 
+The pre-push gate (`.claude/hooks/pre-push-gate.sh`,
+`.codex/hooks/pre-push-gate.sh`) no longer exits 0 silently when it could not
+check a command. When its input cannot be read or parsed, `jq` or `git` is
+missing, `sed`, `grep`, or `git config` fails, no repository is found for a
+push-shaped command, or an approval marker that allowed a force push cannot be
+removed, it writes `pre-push gate: not checked: <cause>` to stderr
+and does not block. The Claude gate now exits 1 in that case, which Claude
+Code shows as a non-blocking hook error; the Codex gate still exits 0, because
+the Codex hooks documentation defines only exit 0 and exit 2. The Antigravity
+adapter still answers `ask` for every exit but 2, and now writes the same
+line to its stderr when the gate exits with anything but 0 or 2 (including a
+timeout) or when the adapter cannot run the gate. For a `Cwd` outside any
+repository the adapter now passes `Cwd` to the gate instead of the project
+root, so a push there is reported as not checked. Block decisions, the
+patterns, and the approval markers and their names are unchanged. The force-push block
+message now says that the command text matched and that the approval's branch
+is the one checked out, not the refspec's, and the credential block message
+says the command text matched. A wrapper of your own that read a non-zero
+exit from the Claude gate as a block must treat only 2 as a block. Take both
+gates, `.agents/hooks/claude-hooks-adapter.sh`, `.devcontainer/verify-template.sh`
+(two new cases for the exit codes), the `AGENTS.md` trust-model section, and
+REFERENCE §Hooks and §Codex sandbox bypass. No container rebuild is needed:
+the hooks run from the mounted checkout.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

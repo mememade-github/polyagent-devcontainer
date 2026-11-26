@@ -317,28 +317,57 @@ Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 Antigravity runs the adapter after workspace trust. `.agents/hooks.json` registers
 SessionStart and PreToolUse (`run_command`), calling
 `.agents/hooks/claude-hooks-adapter.sh` from `.agents/`. The unmodified Claude
-hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`:
+hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`,
+or to `Cwd` itself when it is not inside a repository:
 
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|
-| PreToolUse `run_command` | `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; otherwise `{"decision":"ask"}` |
+| PreToolUse `run_command` | `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; exit 0 → `{"decision":"ask"}`; any other exit (including a 124 timeout), or the adapter cannot run the gate (no `jq`, unreadable input, no hook file) → `{"decision":"ask"}` plus `pre-push gate: not checked: <cause>` on the adapter's stderr |
 | SessionStart | `session-start.sh` (`{"source":"startup"}`) | `additionalContext` → `injectSteps[0].systemMessage.systemMessage` |
 
-`ask` hands the call to agy's own permission settings; agy treats an empty
+`ask` hands the call to agy's own permission settings and is not an approval;
+agy treats an empty
 `{}` as a block, so the adapter never emits one for a registered event. The adapter never runs the
 command itself and always exits 0 with valid JSON; that is the response format,
-and the Claude hooks keep their fail-open policy. Antigravity uses the Claude hook's
-force-push approval markers in `.claude/`.
+and the Claude hooks keep their fail-open policy. An unchecked `ask` carries no
+`reason` field; the not-checked line is on the adapter's stderr only.
+Antigravity uses the Claude hook's force-push approval markers in `.claude/`.
 The adapter intercepts `run_command`, not file-editing tools. A hook `deny`
 still blocks under `--dangerously-skip-permissions`.
 
 The pre-push gate is an advisory policy tripwire (see §Privilege boundary),
-not a security sandbox. It blocks (exit 2) only on a positive match — a
-credential pattern in the raw text of any command (including `git commit`),
-credential-bearing stored git config on a push, or a force push without a
-single-use approval marker. On any parse failure, internal error, or
-unrecognized command shape it exits 0 (fail-open). No hook requires a
-verification step before a commit, and none scans file contents.
+not a security sandbox. It reads the command text and does not work out what
+the shell will run. It blocks (exit 2) only on a match: a credential pattern
+in the raw text of any command (including `git commit`), a literal credential
+in the `remote.*`, `url.*`, or `credential.*` git config visible from the
+target repository when the text contains `git … push`, or force-push text
+(`--force`, `-f`, `+refspec` after `git … push`) without a single-use approval
+marker. Quoted spans are removed before the push and force checks, so
+`echo "git push --force origin main"` is not blocked, while unquoted text blocks even when the command only prints it
+(`echo git push --force origin main`). A push hidden in a variable, `eval`, an
+alias, or a script file is not seen. The target repository is the path of a
+literal `git -C <path>`, else `CLAUDE_PROJECT_DIR` (Codex: `CODEX_PROJECT_DIR`),
+else the current directory. The approval marker and the block message name
+the remote (the first non-option word after `push`, else the upstream's
+remote, else `origin`) and the branch checked out in the
+target repository as `git rev-parse --abbrev-ref HEAD` prints it (`HEAD`
+when detached or before the first commit, `unknown` when it prints nothing),
+not the branch named in the command's refspec. These fallbacks are the scope
+itself: when no upstream remote can be read, the remote is `origin`. The
+block message shows that scope, and the marker it names approves it.
+
+Exit 0 means the gate did not block: it checked and found no match, or the
+command has no `git … push` text. It is not an approval and not evidence that
+the command is safe. When a step the result depends on fails (unreadable or
+non-JSON input, no command in it, `jq` or `git` missing, a `sed`, `grep`, or
+`git config` error, no repository found for a push-shaped command, or an
+approval marker that allowed the push but could not be removed), the gate
+writes `pre-push gate: not checked: <cause>` to stderr and does not block. The Claude gate then exits 1, which Claude Code's hooks documentation
+defines as a non-blocking error for PreToolUse. The Codex gate exits 0,
+because the Codex hooks documentation defines only exit 0 and exit 2 for
+PreToolUse, so on Codex an unchecked command has the same exit code as a
+checked one. No hook requires a verification step before a commit, and none
+scans file contents.
 
 Codex project trust and hook review are covered in
 [Codex sandbox bypass](#codex-sandbox-bypass-devcontainer-only).
@@ -422,11 +451,15 @@ The bypass makes the DevContainer the command-execution compatibility boundary,
 not a security or trust boundary. The mounted Docker socket grants host-level
 power; outside containers, keep the default sandbox.
 
-On first interactive use, Codex loads `.codex/config.toml` directly after the
-project is trusted. Project command hooks require review in `/hooks`, and
-changed definitions are skipped until reviewed again. The
-`--dangerously-bypass-hook-trust` flag is for automation that independently vets
-the hook source.
+In a project that is not trusted, Codex runs neither the project
+`.codex/config.toml` nor the project hooks, and `--dangerously-bypass-hook-trust`
+does not change that, even with `-c features.hooks=true`. The Codex hooks
+documentation says project hooks load only from a trusted project, each hook
+definition must also be reviewed and trusted in `/hooks`, new or changed
+definitions are skipped until trusted, and `--dangerously-bypass-hook-trust`
+skips only the stored hook trust for one invocation. That the hooks run once
+the project and its hooks are trusted rests on that documentation; this
+template's checks do not observe a Codex session.
 
 ### Codex commands
 
