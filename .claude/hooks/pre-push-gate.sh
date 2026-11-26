@@ -1,46 +1,17 @@
 #!/bin/bash
-# Pre-push gate (PreToolUse, matcher: Bash) — a policy tripwire, not a security
-# sandbox. It reads the command TEXT; it does not work out what the shell will
-# actually run. Exit codes:
-#   2  blocked: a positive match below (stderr is the reason).
-#   0  not blocked: checked with no match, or not a push-shaped command. This is
-#      not an approval and not evidence that the command is safe.
-#   1  not checked: a step the result depends on failed (input unreadable or
-#      not JSON, no command in it, jq/git missing, sed/grep/git config error,
-#      no repository found for a push-shaped command), or an approval marker
-#      was used but could not be removed. One line
-#      "pre-push gate: not checked: <cause>" goes to stderr. Claude Code treats
-#      a PreToolUse exit other than 0 and 2 as a non-blocking error, so the
-#      command still runs (fail-open is unchanged).
-#
-# Blocks:
-#  1. Force-push text (--force / -f / +refspec) after an unquoted standalone
-#     `push` word, up to the next ; | & ( ) or newline, without a single-use
-#     approval marker in the target repo root
-#     (.claude/.allow-force-push.<remote>.<branch>),
-#     consumed on allow. Matching is on the text with quoted spans removed:
-#     force text inside quotes is ignored, but an unquoted `git push --force`
-#     blocks even where it is only printed (e.g. `echo git push --force ...`),
-#     while a push hidden in a variable, eval, alias or script file is not seen.
-#     <remote> is the first non-option word after `push` in the first such
-#     span, else the upstream's remote, else origin. <branch> is the branch
-#     currently checked out in the target repo, as `git rev-parse --abbrev-ref
-#     HEAD` prints it (HEAD when detached or before the first commit, unknown
-#     when it prints nothing),
-#     not the refspec named in the command. These fallbacks define the scope:
-#     no upstream (or an unreadable one) means origin. The marker name turns
-#     each run of characters outside [A-Za-z0-9._-] into `_`, so names such as
-#     feature/a and feature_a share one marker.
-#     Decision: --force-with-lease passes WITHOUT a marker — it is the
-#     narrower alternative and fails instead of clobbering remote work it
-#     has not seen.
-#  2. Credential-looking secret in the raw command text of ANY command.
-#     Accepted cost: token-shaped fixture/doc text inline in a command also
-#     blocks — keep such strings in files.
-#  3. Stored-config credential visible from the resolved target repo:
-#     remote/url/credential config values carrying a literal token or
-#     user:pass@. A helper value that only references a shell variable
-#     (e.g. "password=${GITHUB_PAT}") is the sanctioned pattern and passes.
+# Pre-push gate (PreToolUse, matcher: Bash): a policy tripwire, not a security
+# sandbox. It judges the command TEXT, not what the shell will run; REFERENCE.md
+# §Hooks states the matching rules and their limits. Exit codes:
+#   2  blocked (stderr is the reason): a credential pattern in the raw text of
+#      ANY command (inline token-shaped fixture text blocks too; keep it in
+#      files); a literal credential in the target repo's remote/url/credential
+#      config; or unquoted force-push text without the single-use marker
+#      .claude/.allow-force-push.<remote>.<branch> in the target repo root,
+#      consumed on allow. --force-with-lease passes without a marker: it fails
+#      instead of overwriting remote work it has not seen.
+#   0  not blocked. Not an approval and not evidence that the command is safe.
+#   1  not checked: one line "pre-push gate: not checked: <cause>" on stderr.
+#      Claude Code treats it as a non-blocking error, so the command still runs.
 set -uf
 
 not_checked() { echo "pre-push gate: not checked: $1" >&2; exit 1; }
