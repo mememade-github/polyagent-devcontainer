@@ -37,6 +37,22 @@ auto memory" block from `.codex/hooks/session-start.sh`. A project that keeps
 its own memory file names its path and purpose in its own governance. Claude
 Code's automatic memory is stored outside the repository and is not this file.
 
+The `karpathy-guidelines` skill, its copy-equality check, and the root
+detection helper only that check used are removed. Delete
+`.claude/skills/karpathy-guidelines/`, `scripts/meta/karpathy-consistency-check.sh`,
+and `scripts/meta/lib/detect-root.sh` (and `scripts/meta/lib/` if it is now
+empty). Remove the checker call from `scripts/meta/completion-checker.sh` and
+the "karpathy pair" case from section [6/7] of `.devcontainer/verify-template.sh`,
+the `karpathy-guidelines` invocation from `AGENTS.md`, and the skill from README
+and REFERENCE skill lists. Replace the "Source of truth" blockquote of
+`.claude/rules/behavioral-core.md`, which named the skill and the check, with
+the source and license notice. After these edits, run
+`bash scripts/sync-agents-mirror.sh` so `.agents/skills/karpathy-guidelines/`
+disappears and `.agents/rules/behavioral-core.md` follows its source;
+`bash scripts/sync-agents-mirror.sh --dry` then reports 0 changes. Any project
+script or setting that still calls the removed files breaks and must be changed
+with them.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

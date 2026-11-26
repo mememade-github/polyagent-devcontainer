@@ -3,7 +3,7 @@ trigger: always_on
 ---
 # Behavioral Core
 
-> **Source of truth.** The canonical body is mirrored in `.claude/skills/karpathy-guidelines/SKILL.md`; `scripts/meta/karpathy-consistency-check.sh` automates the comparison. Rules 1–4 and the closing self-test stay synchronized; only frontmatter, title, attribution, and source-link text may differ.
+> Rules 1–4 and the closing self-test are adapted from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) as packaged in [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT).
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 

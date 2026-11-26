@@ -21,7 +21,7 @@
 #   [4/7] writer round-trip         — completion-checker in a scratch clone:
 #                                     exit 0, markers appear, readers allow
 #   [5/7] mirror drift              — sync-agents-mirror --dry reports clean
-#   [6/7] leak scan + karpathy pair — existing hygiene oracles pass
+#   [6/7] leak scan                 — existing hygiene oracle passes
 #   [7/7] shell syntax sweep        — bash -n over all tracked *.sh
 #
 # Oracle rule: every check exercises behavior on a fixture/probe or calls an
@@ -292,9 +292,9 @@ else
     printf '%s\n' "$DRY" | tail -5 | sed 's/^/      dry: /'
 fi
 
-# --- [6/7] Leak scan + behavioral-core pair ---
+# --- [6/7] Leak scan ---
 echo ""
-echo "=== [6/7] Leak scan + karpathy pair ==="
+echo "=== [6/7] Leak scan ==="
 # Same pattern and scope as completion-checker.sh's internal-leak grep (kept in sync).
 LEAK='products/[A-Za-z0-9._/-]*[A-Z][A-Z0-9_]*_ROOT|gitlab[.]local|cp[0-9]{3}[.]|172[.]10[.]'
 HITS=$(git -C "$PROJECT_DIR" grep -n -I -i -E "$LEAK" -- ':!.devcontainer/verify-template.sh' ':!scripts/meta/completion-checker.sh' 2>/dev/null || true)
@@ -303,11 +303,6 @@ if [ -z "$HITS" ]; then
 else
     record FAIL "internal-leak grep: pattern hits in tracked files"
     printf '%s\n' "$HITS" | head -5 | sed 's/^/      leak: /'
-fi
-if bash "$PROJECT_DIR/scripts/meta/karpathy-consistency-check.sh" "$PROJECT_DIR" >/dev/null 2>&1; then
-    record PASS "karpathy pair: behavioral-core.md and skill body match"
-else
-    record FAIL "karpathy pair: mismatch (run scripts/meta/karpathy-consistency-check.sh)"
 fi
 
 # --- [7/7] Shell syntax sweep ---

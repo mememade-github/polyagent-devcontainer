@@ -40,7 +40,6 @@ case "$SCAN_RC" in
   1) ;;
   *) fail "tracked-content scan failed (exit $SCAN_RC)" ;;
 esac
-bash scripts/meta/karpathy-consistency-check.sh "$ROOT" >/dev/null 2>&1 || fail "karpathy-consistency-check (run it directly for detail)"
 DRY=$(bash scripts/sync-agents-mirror.sh --dry 2>&1) || fail "sync-agents-mirror --dry errored"
 printf '%s\n' "$DRY" | grep -q '^Dry run complete\. 0 change(s) detected\.$' || fail "mirror drift — run: bash scripts/sync-agents-mirror.sh"
 # Only projects that own this existing check consume it.
