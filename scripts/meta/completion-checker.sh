@@ -5,7 +5,8 @@
 # path; works in fresh clones and temp checkouts.
 # Exit 0: every check that ran passed; a check that could not run for lack of a
 # tool (the TOML parse without python3 tomllib) is named as not checked.
-# Exit 1: a check failed or its input could not be read; each failure is named.
+# Exit 1: a check failed, its input could not be read, or jq (required for the
+# JSON parse) is missing; each failure is named.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT" || { echo "FAIL: cannot cd to $ROOT" >&2; exit 1; }
@@ -28,9 +29,13 @@ fi
 end "shell syntax"
 
 begin
-for f in .claude/settings.json .codex/hooks.json .agents/rules.json .agents/hooks.json; do
-  jq empty "$f" 2>/dev/null || fail "invalid JSON: $f"
-done
+if command -v jq >/dev/null 2>&1; then
+  for f in .claude/settings.json .codex/hooks.json .agents/rules.json .agents/hooks.json; do
+    jq empty "$f" 2>/dev/null || fail "invalid JSON: $f"
+  done
+else
+  fail "jq not found; JSON parse not run"
+fi
 end "JSON parse"
 
 # tomllib is in Python 3.11 and later; exit 3 marks only its absence.
