@@ -109,7 +109,10 @@ Aliases:
 Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
   └── setup-env.sh (idempotent; postCreateCommand runs it once on first build)
         [1/6] Permissions   — Docker socket ownership, git core.filemode,
-                              git safe.directory, command-history setup
+                              git safe.directory '*' (for mounts whose owner
+                              differs from the container user; it turns off
+                              Git's ownership check in every directory, on
+                              any filesystem), command-history setup
         [2/6] SSH            — chmod 700/600/644 on ~/.ssh keys (optional)
         [3/6] Claude CLI     — `claude update`; a failure prints a WARN, the
                               version in use, and the output tail

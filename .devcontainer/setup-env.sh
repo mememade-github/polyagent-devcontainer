@@ -43,7 +43,10 @@ WS="/workspaces"
 if ! workspace_marker_ok "$WS"; then
     echo "      ERROR: /workspaces has no project marker; set HOST_WORKSPACE_PATH for docker compose entrypoints"
 fi
-# 9p/drvfs: prevent dubious-ownership warnings on root:root mounts
+# Compatibility measure for mounts whose files appear owned by a user other
+# than the container user (e.g. root:root on 9p/drvfs), where Git refuses the
+# repository for dubious ownership. Limit: '*' turns Git's ownership check off
+# for every directory this user opens, on any filesystem, not only those mounts.
 git config --global safe.directory '*' 2>/dev/null || true
 
 # Include linked worktrees and nested application repos; skip dependency trees.
