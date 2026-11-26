@@ -176,17 +176,17 @@ else
             ;;
         4)
             echo "      WARN: Codex reinstall failed; restored previous ${AFTER:-unknown}"
-            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
             ;;
         5)
             echo "      WARN: Codex reinstall failed; no working codex is installed"
-            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
             ;;
         *)
             echo "      WARN: Codex update failed (status $CODEX_UPDATE_STATUS); continuing with ${AFTER:-unknown}"
-            tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
             ;;
     esac
+    if [ "$CODEX_UPDATE_STATUS" != 0 ] && [ "$CODEX_UPDATE_STATUS" != 3 ]; then
+        tail -20 "$CODEX_UPDATE_LOG" | sed 's/^/      npm: /'
+    fi
     rm -f "$CODEX_UPDATE_LOG"
 fi
 
