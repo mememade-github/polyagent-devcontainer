@@ -1,5 +1,35 @@
 # Upgrading a consuming project
 
+## Unreleased
+
+`/refine` and its Stop-hook loop are removed. Consumers who copy template files
+must explicitly delete `.claude/skills/refine/` (and regenerate the mirror so
+`.agents/skills/refine/` disappears), `.claude/hooks/refinement-gate.sh`, and
+`.codex/hooks/refinement-gate.sh`; drop the `Stop` registrations from
+`.claude/settings.json`, `.codex/hooks.json`, and `.agents/hooks.json`; and
+remove the obsolete local state (`.claude/.refinement-active`,
+`.claude/.stop-blocked-refinement.*`, `.claude/.refine-output`,
+`.claude/.refine-eval.json`, `.claude/agent-memory/refinement/`, and the
+matching `.codex/state/` entries `refinement-active`, `stop-blocked-refinement.*`,
+`.refine-output`, `.refine-eval.json`, `refinement/`) together with their ignore
+entries. Preserve verification markers.
+
+Update `CLAUDE.md`, `AGENTS.md`, `.claude/agents/evaluator.md`,
+`scripts/meta/run-isolated-role.sh`, the session-start hooks,
+`.devcontainer/verify-template.sh` (its refinement-gate and Antigravity Stop
+cases are gone), and the hand-maintained `.agents/hooks/claude-hooks-adapter.sh`,
+then regenerate `.agents/rules` and `.agents/skills` with
+`bash scripts/sync-agents-mirror.sh`.
+
+Independent evaluation receives the authorized request, acceptance conditions,
+actual diff, relevant repository facts, and execution evidence, without the
+modifier's reasoning. Custom Codex callers must use
+`scripts/meta/run-isolated-role.sh evaluate <project-root> <prompt-file> <output-file>`
+and supply the evaluator role body, permitted inputs, repository location, and
+matching report destination in the prompt. Consume the report's conclusion and
+evidence; the helper requires a newly written, non-empty report without imposing
+a content or format gate. No container rebuild is needed.
+
 ## v3.3.3-rebuild
 
 For an environment that already includes `agy`, update the Claude and Codex

@@ -218,50 +218,52 @@ To skip startup refresh, pass `SKIP_CLAUDE_UPDATE=1`, `SKIP_CODEX_UPDATE=1`, or
 
 | Agent | Purpose | Invocation |
 |-------|---------|------------|
-| evaluator | Context-isolated quality evaluation | After changes; within `/refine` |
+| evaluator | Context-isolated evaluation against authorized requirements using observed evidence | For meaningful changes |
 | wip-manager | Multi-session task tracker | When task spans sessions |
 
 Current Codex supports in-process subagents and project
 `.codex/agents/*.toml`. The template mirrors these Claude role bodies as Codex
-skills for portable discovery; evaluator runs still use a fresh
-`codex exec --ephemeral` process to carry the exact Contract/diff-only input
-boundary in interactive and non-interactive flows.
+skills for portable discovery. Independent evaluation uses
+`scripts/meta/run-isolated-role.sh evaluate` in a fresh `codex exec --ephemeral`
+process supplied with the evaluator role body, authorized request, acceptance
+conditions, actual diff, relevant repository facts, execution evidence,
+repository location, and report destination, without the modifier's reasoning.
+The report destination must be outside the repository or gitignored. The helper
+clears any previous report before execution and fails on process failure or a
+missing or empty report, without validating report content or format.
 `.agents/skills/` is Codex's native repo skills root: Codex skill discovery
 consumes the mirror directly, so do not delete it as a mere convention. Mirrored
 `SKILL.md` frontmatter (`tools`, `model`, `maxTurns`, `color`) is Claude-host
 metadata that Codex ignores.
-Antigravity discovers seven mirrored skills, including the two governance roles.
-`/refine` invokes a fresh built-in `self` for each role; Step 0b of the
-[refine skill](.agents/skills/refine/SKILL.md#step-0b-fresh-role-isolation) specifies
-role text and permitted evidence. Children retain rules and hooks, exclude the
-parent conversation, and need no `.agents/agents/*.md` definition file.
+Antigravity discovers six mirrored skills, including the two governance roles.
+Independent evaluation uses a fresh built-in `self` subagent supplied with the
+evaluator role body and the same permitted inputs, excluding the parent
+conversation and modifier's reasoning. Children retain repository rules and
+hooks and need no `.agents/agents/*.md` definition file.
 
 ### Hooks
 
-Claude (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`, `refinement-gate.sh`.
+Claude (3): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
 
-Codex (4): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`,
-`refinement-gate.sh`. Codex matchers support `Bash`, `apply_patch`, `Edit`, and
+Codex (3): `session-start.sh`, `pre-commit-gate.sh`, `pre-push-gate.sh`.
+Codex matchers support `Bash`, `apply_patch`, `Edit`, and
 `Write`; these commit/push gates intentionally inspect `Bash` commands.
 
 Antigravity runs the adapter after workspace trust. `.agents/hooks.json` registers
-SessionStart, PreToolUse (`run_command`), and Stop, calling
+SessionStart and PreToolUse (`run_command`), calling
 `.agents/hooks/claude-hooks-adapter.sh` from `.agents/`. The unmodified Claude
 hooks receive `CLAUDE_PROJECT_DIR` set to the git root of the command's `Cwd`:
 
 | agy event | Claude hook | agy answer |
 |-----------|-------------|------------|
 | PreToolUse `run_command` | `pre-commit-gate.sh`, then `pre-push-gate.sh` | exit 2 → `{"decision":"deny","reason":<stderr>}`; otherwise `{"decision":"ask"}` |
-| Stop | `refinement-gate.sh`, only for `terminationReason` `NO_TOOL_CALL` | `block` → `{"decision":"continue","reason":…}`; otherwise `{"decision":"allow"}` |
 | SessionStart | `session-start.sh` (`{"source":"startup"}`) | `additionalContext` → `injectSteps[0].systemMessage.systemMessage` |
 
 `ask` hands the call to agy's own permission settings; agy treats an empty
-`{}` as a block, so the adapter never emits one. The adapter never runs the
+`{}` as a block, so the adapter never emits one for a registered event. The adapter never runs the
 command itself and always exits 0 with valid JSON; that is the response format,
-and the Claude hooks keep their fail-open policy. Antigravity shares the Claude
-markers and refine state in `.claude/`. One worktree runs one refine loop: while
-a Claude loop is active, an agy stop in the same repository takes part in the
-gate's alternation (block, allow, block, …) like a second Claude session.
+and the Claude hooks keep their fail-open policy. Antigravity uses the Claude hooks'
+verification markers in `.claude/`.
 The adapter intercepts `run_command`, not file-editing tools. A hook `deny`
 still blocks under `--dangerously-skip-permissions`.
 
@@ -278,11 +280,10 @@ These gates do not scan staged file contents.
 Codex project trust and hook review are covered in
 [Codex sandbox bypass](#codex-sandbox-bypass-devcontainer-only).
 
-### Skills (5)
+### Skills (4)
 
 | Skill | Description |
 |-------|-------------|
-| /refine | Autonomous iterative refinement loop |
 | /status | Workspace status |
 | /verify | Pre-commit verification |
 | karpathy-guidelines | Reference handle for the Karpathy 4 rules (`SKILL.md`) |
@@ -391,7 +392,7 @@ evidence that a rule loads.
 | Antigravity re-auth needed | check named volumes: `docker volume ls \| grep -E 'gemini-config\|antigravity-secrets'` |
 | Antigravity files are root-owned after using an older image | `sudo chown -R vscode:vscode ~/.gemini ~/.config/antigravity` |
 | Antigravity ignores a rule | See [Registering deeper rule folders](#registering-deeper-rule-folders) |
-| `/status` or `/refine` stops with exit 2 under agy | `ANTIGRAVITY_AGENT=1` is missing from the command environment; set `AGENT_VENDOR=antigravity` |
+| `/status` stops with exit 2 under agy | `ANTIGRAVITY_AGENT=1` is missing from the command environment; set `AGENT_VENDOR=antigravity` |
 | Codex says `Run npm install -g @openai/codex to update` | restart the current Codex process; new sessions enter through the launcher and re-exec the latest real binary |
 | Strict config rejects `ask_for_approval` | replace it with `approval_policy` in `~/.codex/config.toml`; project config is not copied there |
 | Wrong Node version | `nvm use` or create `.nvmrc` |
