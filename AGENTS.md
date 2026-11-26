@@ -17,7 +17,7 @@ In an untrusted project Codex runs neither the project hooks nor the project `.c
 ## Automated workflow
 
 - At session start, if the hook reports WIP and the current request permits resuming saved work, read the relevant WIP `README.md` and continue its first actionable item. Otherwise follow the current request, and wait only if no task has been supplied.
-- The request or approved plan sets scope. Keep changes surgical; report unrelated issues. Commit tests only when requested or customary here; keep scratch checks outside the repository.
+- The request or approved plan sets scope; report unrelated issues. Commit tests only when requested or customary here; keep scratch checks outside the repository.
 - Base judgments, actions, and reports on actual facts relevant to authorized requirements; substantiate behavioral claims by executing the relevant behavior and observing results at the claimed boundary. Substantiate structural claims (path, symbol, reference) by reading the source. This does not expand the request's check scope or repository-defined tier timing.
 - String searches, pattern/byte/count comparisons, syntax passes, and completed checklists establish only the properties actually checked; do not substitute these formal results for evidence of meaning, compliance, or behavior they did not examine.
 - Create, retain, or enforce checks only to obtain relevant evidence for authorized requirements, and make them gates only when those requirements are prerequisites for the work they block.
@@ -41,7 +41,7 @@ Edit `.claude/`, then run `bash scripts/sync-agents-mirror.sh`; use `--dry` to c
 
 ## Behavioral rules
 
-The four rules and the closing check below are adapted from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) as packaged in [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT). The other duties in this file are this template's own.
+The four rules below are adapted from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) as packaged in [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) (MIT). The other duties in this file are this template's own.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
@@ -59,6 +59,4 @@ Read before editing, match existing style, and change only lines traceable to th
 
 ### 4. Goal-Driven Execution
 
-Turn the request into verifiable outcomes and run the relevant checks before claiming completion. Never claim tests, builds, or behavior passed without tool evidence.
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+Turn the request into verifiable outcomes and run the relevant checks before claiming completion.
