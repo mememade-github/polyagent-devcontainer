@@ -55,6 +55,18 @@ The container uses the host's Docker daemon through the mounted
 in-container user in the `docker` group, and, for `devcontainer` commands, the
 `devcontainer` CLI.
 
+Startup step 1 lets the `docker` group use the socket. When the socket's group
+number is not 0 and differs from the container's `docker` group, the step
+changes the `docker` group's number to the socket's and leaves the socket alone.
+When the socket's group is 0, as some daemons hand it over, the step changes the
+socket's group to `docker` instead. The socket is shared, so every container
+that mounts it sees that new group. Where the mounted socket is the host's own
+file, as with a daemon on a Linux host, the host sees it too, and any host group
+with that number gains access to the daemon. A socket recreated after the start
+keeps its own group until the next start. When the step cannot read or change
+the group, it prints a WARN and startup continues; Docker commands run as the
+container user can then fail with permission denied.
+
 | Works through the socket | Not possible in the container |
 |--------------------------|-------------------------------|
 | `docker compose build`, `docker images`, `docker inspect` | VS Code extension testing |
@@ -131,7 +143,7 @@ Dockerfile ENTRYPOINT → entrypoint.sh (every container start)
   └── setup-env.sh (path A's postCreateCommand runs it once more when the
         container is created; the two runs can overlap in time, and only the
         Codex update in step 4 is serialized, by the launcher's flock)
-        [1/6] Permissions   — Docker socket ownership, git core.filemode,
+        [1/6] Permissions   — Docker socket access, git core.filemode,
                               git safe.directory '*' (for mounts whose owner
                               differs from the container user; it turns off
                               Git's ownership check in every directory, on

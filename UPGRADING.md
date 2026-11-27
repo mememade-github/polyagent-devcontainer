@@ -104,6 +104,17 @@ describes the resulting behavior; this section lists only what to do.
      turns it off (`autoMemoryEnabled: false`, `--bare`) now takes effect.
      A project that wants it forced on keeps that variable in its own
      settings. On path A this takes effect after the rebuild of step 10.
+   - Docker socket: step 1 of `.devcontainer/setup-env.sh` now changes the
+     group of a socket whose group is 0 to the container's `docker` group;
+     before, it left such a socket unusable by the container user without a
+     warning. A socket with another group is still matched by changing the
+     `docker` group's number, and a socket whose group cannot be read now
+     prints a WARN. The changed group applies to the shared socket, which
+     other containers and possibly the host see (REFERENCE §Docker from
+     inside the container). If
+     your own startup changes the socket's group whatever its number, take
+     this step 1 block in its place. It takes effect after the rebuild of
+     step 10.
 
 7. **Regenerate the mirror** once, after steps 2 to 6:
    `bash scripts/sync-agents-mirror.sh`. It removes `.agents/skills/refine/`,

@@ -32,7 +32,23 @@ step "Setting permissions..."
 if [ -S /var/run/docker.sock ]; then
     SOCK_GID=$(stat -c %g /var/run/docker.sock 2>/dev/null || true)
     DOCKER_GROUP_GID=$(getent group docker 2>/dev/null | cut -d: -f3 || true)
-    if [ -n "$SOCK_GID" ] && [ "$SOCK_GID" != "0" ] && [ "$SOCK_GID" != "$DOCKER_GROUP_GID" ]; then
+    if [ -z "$SOCK_GID" ]; then
+        echo "      WARN: could not read the group of docker.sock; docker access via the socket may be unavailable" >&2
+    elif [ "$SOCK_GID" = "0" ]; then
+        # Compatibility measure for a daemon that hands over its socket with
+        # group 0 (root), which the container user is not in. Applies only
+        # when the socket's group is 0; another group is matched by groupmod
+        # below and the socket is left alone. Limits: the socket is shared, so
+        # this changes its group for every container that mounts it and, where
+        # it is the host's own socket file, for the host, where this group
+        # number may belong to another group or to none; it is set only when
+        # this script runs, so a socket recreated later or changed by another
+        # container is not corrected until the next start; the mode is not
+        # changed, so a socket without group write permission stays unusable.
+        if ! sudo chgrp docker /var/run/docker.sock 2>/dev/null; then
+            echo "      WARN: could not set the group of docker.sock to docker; docker access via the socket may be unavailable" >&2
+        fi
+    elif [ "$SOCK_GID" != "$DOCKER_GROUP_GID" ]; then
         if ! sudo groupmod -g "$SOCK_GID" docker 2>/dev/null; then
             echo "      WARN: could not align docker group with docker.sock GID; docker access via the socket may be unavailable" >&2
         fi
