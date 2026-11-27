@@ -1,6 +1,6 @@
 # Upgrading a consuming project
 
-## v4.0.0-rebuild
+## v4.0.1-rebuild
 
 Changes since `v3.3.3-rebuild`, as steps for a project built on this
 template. Make steps 1 to 8 in one adoption commit: a registration left
